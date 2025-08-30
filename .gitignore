@@ -1,0 +1,76 @@
+# ==== Maven / build outputs ====
+/target/
+!/mvn/wrapper/maven-wrapper.jar    # 保留 wrapper jar（或用 !.mvn/wrapper/maven-wrapper.jar）
+.mvn/wrapper/maven-wrapper.jar
+
+# 临时/日志
+logs/
+*.log
+*.tmp
+
+# ==== IDE / 编辑器 ====
+# IntelliJ IDEA
+/.idea/
+/.idea/**/workspace.xml
+.idea/**/tasks.xml
+*.iml
+*.iws
+*.ipr
+
+# VS Code
+.vscode/
+
+# Eclipse
+.classpath
+.project
+.settings/
+
+# NetBeans
+/nbproject/private/
+build/
+dist/
+
+# ==== OS 文件 ====
+.DS_Store
+Thumbs.db
+Desktop.ini
+
+# ==== FXGL / 游戏运行时临时数据 ====
+# 这些通常是运行时存档、配置、缓存、录像等，不需要提交
+/system/
+/profiles/
+/saves/
+temp/
+cache/
+screenshots/
+replays/
+
+# ==== 本地配置 / secrets / 环境文件 ====
+# 本地配置、含 DB 密码 / SDK 路径 的文件一定不要提交
+local.properties
+config/local.properties
+.env
+.env.local
+*.keystore
+*.jks
+
+# ==== 原生库 / 平台二进制文件 / 大文件 ====
+# 本地 native / libs 不放在 Git（用 releases / artifact repo / Git LFS）
+/lib/
+/libs/
+/native/
+/*.dll
+/*.so
+/*.dylib
+
+# ==== JavaFX / 构建辅助文件 ====
+*.fxbuild
+*.launch
+
+# ==== 其他可能的临时文件 ====
+*.log.*
+*.cache
+*.class
+
+# ==== 例外（如果你真的想保留 wrapper jar）====
+!.mvn/wrapper/maven-wrapper.jar
