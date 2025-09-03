@@ -1,6 +1,8 @@
 
 ```
 PixelStrikeJavaFx
+项目基本结构 
+
 ├─ .idea
 │  ├─ encodings.xml
 │  ├─ misc.xml
