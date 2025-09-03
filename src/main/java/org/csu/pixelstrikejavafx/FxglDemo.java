@@ -7,7 +7,7 @@ import javafx.scene.paint.Color;
 import javafx.scene.shape.Rectangle;
 
 /**
- * 一个最小的 FXGL Demo
+ * 一个最小的 FXGL Demo1
  */
 public class FxglDemo extends GameApplication {
 
