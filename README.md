@@ -1,38 +1,47 @@
 
+
+```
 ```
 PixelStrikeJavaFx
-├─ .idea
-│  ├─ encodings.xml
-│  ├─ misc.xml
-│  ├─ vcs.xml
-│  └─ workspace.xml
 ├─ .mvn
 │  └─ wrapper
-│     ├─ maven-wrapper.jar
 │     └─ maven-wrapper.properties
-├─ logs
 ├─ pom.xml
+├─ README.md
 └─ src
    └─ main
       ├─ java
-      │  ├─ module-info.java
+      │  ├─ module-info.java1
       │  └─ org
       │     └─ csu
       │        └─ pixelstrikejavafx
-      │           ├─ FxglDemo.java
-      │           ├─ game
+      │           ├─ app
+      │           │  └─ PixelGameApp.java
+      │           ├─ camera
+      │           │  └─ CameraFollow.java
+      │           ├─ combat
+      │           ├─ core
+      │           │  ├─ GameConfig.java
+      │           │  └─ GameType.java
       │           ├─ HelloApplication.java
       │           ├─ HelloController.java
-      │           ├─ model
-      │           ├─ service
-      │           ├─ util
-      │           └─ view
+      │           ├─ map
+      │           │  └─ MapBuilder.java
+      │           ├─ player
+      │           │  └─ Player.java
+      │           ├─ rendering
+      │           ├─ ui
+      │           └─ util
       └─ resources
+         ├─ assets
+         │  └─ textures
+         │     ├─ background.png
+         │     ├─ ground_base.png
+         │     ├─ ground_edge.png
+         │     └─ lapu.png
          └─ org
             └─ csu
                └─ pixelstrikejavafx
-                  ├─ assets
-                  ├─ config
                   ├─ css
                   └─ hello-view.fxml
 

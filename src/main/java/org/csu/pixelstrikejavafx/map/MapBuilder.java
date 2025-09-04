@@ -20,7 +20,7 @@ public final class MapBuilder {
     private MapBuilder() {}
 
     private static double ipx(double v) { return Math.round(v); }  // 强制整数像素
-
+    private static com.almasb.fxgl.entity.Entity MAIN_GROUND;
     public static void buildLevel() {
         addBackground();
 
@@ -32,7 +32,8 @@ public final class MapBuilder {
 //                160                  // 厚度（可调）
 //        );
         // 主地面：整图拼接，碰撞顶线对齐 topY
-        buildMainGroundStrip(0, 980, org.csu.pixelstrikejavafx.core.GameConfig.MAP_W);
+//        buildMainGroundStrip(0, 980, org.csu.pixelstrikejavafx.core.GameConfig.MAP_W);
+        buildMainGroundStrip(0, GameConfig.MAP_H - 211, GameConfig.MAP_W);  // 211=你的地面贴图高度
         // --- 若干跳台（简单矩形，可走） ---
         solidPlatform(600, 760, 320, 20, Color.web("#999999"));
         solidPlatform(1150, 660, 300, 20, Color.web("#aaaaaa"));
@@ -57,13 +58,13 @@ public final class MapBuilder {
 
     /** 在 x/topY 处拼接 ground_base.png（1646x211）直到覆盖给定 width；碰撞顶线=topY */
     private static void buildMainGroundStrip(double x, double topY, double width) {
-        // 1) 载入一次贴图，关闭平滑（像素风关键）
+        final int GRASS = 30;   // 想“脚更沉”就加大，反之减小
+
         Texture seg;
         try {
-            seg = getAssetLoader().loadTexture(org.csu.pixelstrikejavafx.core.GameConfig.G_BASE_STRIP);
+            seg = getAssetLoader().loadTexture(GameConfig.G_BASE_STRIP);
             seg.setSmooth(false);
         } catch (Exception e) {
-            // 回退：纯色矩形
             solidPlatform(x, topY, width, 211, javafx.scene.paint.Color.web("#3b2f2f"));
             return;
         }
@@ -71,34 +72,42 @@ public final class MapBuilder {
         double sw = seg.getImage().getWidth();   // 1646
         double sh = seg.getImage().getHeight();  // 211
 
-        // 2) 视觉：把这张图横向平铺，决不拉伸
+        // 2) 视觉：平铺，不拉伸
         javafx.scene.Group view = new javafx.scene.Group();
         double cur = 0;
         while (cur < width) {
             Texture t = new Texture(seg.getImage());
             t.setSmooth(false);
             t.setX(ipx(cur));
-            t.setY(0);                // 视图局部坐标，实体会整体 at(topY)
+            t.setY(0);
             view.getChildren().add(t);
             cur += sw;
         }
 
-        // 3) 碰撞：精确矩形，顶对齐 topY，高度=贴图高(211)，宽度=给定 width
-        //    用一个透明矩形来“定义”BBox，避免视图外溢影响碰撞宽度
-        javafx.scene.shape.Rectangle bbox = new javafx.scene.shape.Rectangle(width, sh);
-        bbox.setOpacity(0);    // 不可见，仅用于BBox
-
+        // 3) 碰撞：用“带偏移”的 HitBox，顶面下移 GRASS 像素
+        //    —— 关键在这里，不再用 viewWithBBox(Rectangle) ——
         com.almasb.fxgl.physics.PhysicsComponent phy = new com.almasb.fxgl.physics.PhysicsComponent();
         phy.setBodyType(com.almasb.fxgl.physics.box2d.dynamics.BodyType.STATIC);
 
+        // 需要的导入：
+        // import com.almasb.fxgl.physics.HitBox;
+        // import com.almasb.fxgl.physics.BoundingShape;
+        // import javafx.geometry.Point2D;
+
+        com.almasb.fxgl.physics.HitBox hb = new com.almasb.fxgl.physics.HitBox(
+                "GROUND",
+                new javafx.geometry.Point2D(0, GRASS),                       // 向下偏移
+                com.almasb.fxgl.physics.BoundingShape.box(width, sh - GRASS) // 高度扣掉草沿
+        );
+
         entityBuilder()
-                .type(org.csu.pixelstrikejavafx.core.GameType.GROUND)
-                .at(ipx(x), ipx(topY))    // 这里的 topY 就是“站立基线”
-                .view(view)               // 可见（拼接好的多段）
-                .viewWithBBox(bbox)       // 精确碰撞盒 = width × 211
+                .type(GameType.GROUND)
+                .at(ipx(x), ipx(topY))   // 仍然以草沿顶作为视觉基线
+                .view(view)              // 只设置视图
+                .bbox(hb)                // 单独设置“有偏移”的碰撞盒
                 .with(new com.almasb.fxgl.entity.components.CollidableComponent(true))
                 .with(phy)
-                .zIndex(-100)             // 在玩家之下；没有草层
+                .zIndex(-100)
                 .buildAndAttach();
     }
 

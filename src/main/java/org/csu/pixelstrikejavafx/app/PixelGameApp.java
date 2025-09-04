@@ -19,11 +19,14 @@ public class PixelGameApp extends GameApplication {
     private Player player;
     private CameraFollow cameraFollow;
 
+    private final double GROUND_TOP_Y = 980;  // ← “脚踩的那条线”，不对就只改这个数
+    private final double GROUND_H     = 211;  // ← 你的 ground_base.png 高度
     @Override
     protected void initSettings(GameSettings s) {
         s.setWidth(GameConfig.WINDOW_W);
         s.setHeight(GameConfig.WINDOW_H);
         s.setTitle("PixelStrike - Map & Camera");
+
         s.setPixelsPerMeter(GameConfig.PPM);
         s.setMainMenuEnabled(false);
         s.setGameMenuEnabled(false);
@@ -82,7 +85,7 @@ public class PixelGameApp extends GameApplication {
 
     private void setupPlayer() {
         // 你已有的 Player 构造，摆个合理出生点（贴着地面）
-        player = new Player(120, 880);
+        player = new Player(500, GameConfig.MAP_H - 211 - 128);  // MAP底 - 地面高 - 角色高
     }
 
     private void setupCollisionHandlers() {

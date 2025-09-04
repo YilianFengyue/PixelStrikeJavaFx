@@ -25,14 +25,5 @@ public final class GameConfig {
     public static final String G_BASE_STRIP = "ground_base.png";
 
 
-    // === 画面/相机 ===
-    public static double CAMERA_SMOOTH = 0.12; // 相机平滑，0.08~0.18
-
-    // === 玩家尺寸（像素）===
-    public static int PLAYER_W = 48;   // 你觉得大就+4，小就-4
-    public static int PLAYER_H = 64;
-
-    // === 主地面 ===
-    public static int GROUND_IMG_H = 211;                  // 贴图本身高度
-    public static int GROUND_TOP_Y  = 980;                 // 玩家脚所在的基线（最常调）
+  
 }

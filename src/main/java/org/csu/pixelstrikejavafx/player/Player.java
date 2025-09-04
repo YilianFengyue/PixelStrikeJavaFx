@@ -21,8 +21,8 @@ public class Player {
     public enum State { IDLE, WALK, RUN, JUMP, FALL, DOUBLE_JUMP }
 
     // —— 显示与物理尺寸（按 1080p 视口 & 64px 栅格）——
-    private static final double PLAYER_W = 48;   // 可按美术微调
-    private static final double PLAYER_H = 64;
+    private static final double PLAYER_W = 82;   // 可按美术微调
+    private static final double PLAYER_H = 128;
 
     // —— 手感参数（可按需微调）——
     private static final double WALK_SPEED = 200.0;
@@ -63,6 +63,7 @@ public class Player {
         try {
             // 优先读取你的现有资源名；没有则改为 "player.png"
             tex = getAssetLoader().loadTexture("lapu.png");
+            tex.setSmooth(false);
             tex.setFitWidth(PLAYER_W);
             tex.setFitHeight(PLAYER_H);
             viewNode = tex;
