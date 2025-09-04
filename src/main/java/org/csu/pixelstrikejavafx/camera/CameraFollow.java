@@ -19,7 +19,21 @@ public final class CameraFollow {
         this.viewH = viewH;
     }
 
-    public void setTarget(Entity target) { this.target = target; }
+    public void setTarget(Entity target) {
+        this.target = target;
+        if (target != null) {
+            double tx = target.getX() + target.getWidth() / 2.0 - viewW / 2.0;
+            double ty = target.getY() + target.getHeight() / 2.0 - viewH / 2.0;
+
+            // 边界限制
+            tx = Math.max(0, Math.min(tx, mapW - viewW));
+            ty = Math.max(0, Math.min(ty, mapH - viewH));
+
+            vp.setX(tx);
+            vp.setY(ty);
+        }
+
+    }
 
     public void update() {
         if (target == null) return;

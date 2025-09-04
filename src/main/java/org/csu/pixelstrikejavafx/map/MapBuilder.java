@@ -23,22 +23,14 @@ public final class MapBuilder {
     private static com.almasb.fxgl.entity.Entity MAIN_GROUND;
     public static void buildLevel() {
         addBackground();
-
-//        // --- 主地面（可走且很宽） ---
-//        groundWithOverlay(
-//                0,                   // x
-//                980,                 // y：地面顶部的像素 Y（按你 P2 大概位置）
-//                GameConfig.MAP_W,    // 宽度 = 全图
-//                160                  // 厚度（可调）
-//        );
-        // 主地面：整图拼接，碰撞顶线对齐 topY
-//        buildMainGroundStrip(0, 980, org.csu.pixelstrikejavafx.core.GameConfig.MAP_W);
         buildMainGroundStrip(0, GameConfig.MAP_H - 211, GameConfig.MAP_W);  // 211=你的地面贴图高度
-        buildMainGroundStrip(150, GameConfig.MAP_H - 211 - 300, 400);  // 离地面150像素高，宽400像素
+//        buildMainGroundStrip(150, GameConfig.MAP_H - 211 - 300, 400);  // 离地面150像素高，宽400像素
+        buildAirPlatform(800, GameConfig.MAP_H - 430, 925, "floating_platform.png");
+        buildAirPlatform(2000, GameConfig.MAP_H - 600, 925, "floating_platform.png");
         // --- 若干跳台（简单矩形，可走） ---
-        solidPlatform(600, 760, 320, 20, Color.web("#999999"));
-        solidPlatform(1150, 660, 300, 20, Color.web("#aaaaaa"));
-        solidPlatform(1750, 780, 340, 20, Color.web("#888888"));
+//        solidPlatform(600, 760, 320, 20, Color.web("#999999"));
+//        solidPlatform(1150, 660, 300, 20, Color.web("#aaaaaa"));
+//        solidPlatform(1750, 780, 340, 20, Color.web("#888888"));
 
 
     }
@@ -57,7 +49,28 @@ public final class MapBuilder {
             entityBuilder().at(0, 0).view(sky).zIndex(-1200).buildAndAttach();
         }
     }
+    //空中跳跃平台
+    private static void buildAirPlatform(double x, double topY, double width, String textureName) {
+        try {
+            Texture platformTex = getAssetLoader().loadTexture(textureName);
+            platformTex.setSmooth(false);
+            platformTex.setFitWidth(width);
 
+            PhysicsComponent phy = new PhysicsComponent();
+            phy.setBodyType(BodyType.STATIC);
+
+            entityBuilder()
+                    .type(GameType.PLATFORM)
+                    .at(ipx(x), ipx(topY))
+                    .viewWithBBox(platformTex)
+                    .with(new CollidableComponent(true))
+                    .with(phy)
+                    .zIndex(-50)
+                    .buildAndAttach();
+        } catch (Exception e) {
+            solidPlatform(x, topY, width, 30, Color.web("#666666"));
+        }
+    }
     /** 在 x/topY 处拼接 ground_base.png（1646x211）直到覆盖给定 width；碰撞顶线=topY */
     private static void buildMainGroundStrip(double x, double topY, double width) {
         final int GRASS = 30;   // 想“脚更沉”就加大，反之减小

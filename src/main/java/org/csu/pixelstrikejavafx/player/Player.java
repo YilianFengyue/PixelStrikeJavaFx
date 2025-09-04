@@ -6,6 +6,7 @@ import com.almasb.fxgl.physics.PhysicsComponent;
 import com.almasb.fxgl.physics.box2d.dynamics.BodyType;
 import com.almasb.fxgl.physics.box2d.dynamics.FixtureDef;
 import com.almasb.fxgl.texture.Texture;
+import javafx.scene.Node;
 import javafx.scene.paint.Color;
 import javafx.scene.shape.Rectangle;
 import org.csu.pixelstrikejavafx.core.GameType;
@@ -27,9 +28,9 @@ public class Player {
     // —— 手感参数（可按需微调）——
     private static final double WALK_SPEED = 200.0;
     private static final double RUN_SPEED  = 350.0;
-    private static final double ACCEL      = 1000.0;  // 水平加速度
-    private static final double JUMP_VY    = 550.0;
-    private static final double DJUMP_VY   =450.0;
+    private static final double ACCEL      = 400.0;  // 水平加速度
+    private static final double JUMP_VY    = 650.0;
+    private static final double DJUMP_VY   =500.0;
 
     private static final long   DOUBLE_TAP_MS = 300;  // A/D 双击触发跑步
 
@@ -57,7 +58,7 @@ public class Player {
 
     private void createEntity(double x, double y) {
         // 1) 视图（优先使用贴图，失败则用矩形）
-        javafx.scene.Node viewNode;
+        Node viewNode;
 
         Texture tex = null;
         try {
@@ -76,14 +77,21 @@ public class Player {
 
         // 2) 物理
         physics = new PhysicsComponent();
-        physics.setBodyType(BodyType.DYNAMIC);
+//        physics.setBodyType(BodyType.DYNAMIC);
+
 
         FixtureDef fd = new FixtureDef()
                 .friction(0.1f)
                 .restitution(0f)
                 .density(1.0f);
         physics.setFixtureDef(fd);
-
+        // 添加这两行防止旋转和稳定物理
+        // ✅ 关键：用 BodyDef 锁定旋转 + 设为 DYNAMIC
+        com.almasb.fxgl.physics.box2d.dynamics.BodyDef bd =
+                new com.almasb.fxgl.physics.box2d.dynamics.BodyDef();
+        bd.setType(BodyType.DYNAMIC);
+        bd.setFixedRotation(true);
+        physics.setBodyDef(bd);
         // 3) 实体
         entity = entityBuilder()
                 .type(GameType.PLAYER)
@@ -93,6 +101,7 @@ public class Player {
                 .with(physics)
                 .zIndex(1000)     // 低于草沿(1100)，高于地面(-100)
                 .buildAndAttach();
+
     }
 
     /** 每帧更新：处理水平速度与状态机 */
@@ -130,6 +139,17 @@ public class Player {
             } else {
                 state = running ? State.RUN : State.WALK;
             }
+        }
+        // 4)角色方向
+        if (vxCurrent > 1) {
+            entity.getViewComponent().getChildren().get(0).setScaleX(1);  // 面向右
+        } else if (vxCurrent < -1) {
+            entity.getViewComponent().getChildren().get(0).setScaleX(-1); // 面向左
+        }
+        //5)摩擦力
+        if (Math.abs(vxTarget) < 10 && Math.abs(vxCurrent) > 10) {
+            vxCurrent *= 0.85;  // 松手时快速减速
+            physics.setVelocityX(vxCurrent);
         }
     }
 
