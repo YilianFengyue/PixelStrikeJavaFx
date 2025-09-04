@@ -28,8 +28,8 @@ public class Player {
     private static final double WALK_SPEED = 200.0;
     private static final double RUN_SPEED  = 350.0;
     private static final double ACCEL      = 1000.0;  // 水平加速度
-    private static final double JUMP_VY    = 350.0;
-    private static final double DJUMP_VY   = 280.0;
+    private static final double JUMP_VY    = 550.0;
+    private static final double DJUMP_VY   =450.0;
 
     private static final long   DOUBLE_TAP_MS = 300;  // A/D 双击触发跑步
 

@@ -35,7 +35,7 @@ public class PixelGameApp extends GameApplication {
 
     @Override
     protected void initGame() {
-        getPhysicsWorld().setGravity(0, 760);
+        getPhysicsWorld().setGravity(0, 1100);
 
         // 1) 地图（背景 + 地面 + 跳台）
         MapBuilder.buildLevel();

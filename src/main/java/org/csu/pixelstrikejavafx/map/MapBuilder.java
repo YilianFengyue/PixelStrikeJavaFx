@@ -34,11 +34,13 @@ public final class MapBuilder {
         // 主地面：整图拼接，碰撞顶线对齐 topY
 //        buildMainGroundStrip(0, 980, org.csu.pixelstrikejavafx.core.GameConfig.MAP_W);
         buildMainGroundStrip(0, GameConfig.MAP_H - 211, GameConfig.MAP_W);  // 211=你的地面贴图高度
+        buildMainGroundStrip(150, GameConfig.MAP_H - 211 - 300, 400);  // 离地面150像素高，宽400像素
         // --- 若干跳台（简单矩形，可走） ---
         solidPlatform(600, 760, 320, 20, Color.web("#999999"));
         solidPlatform(1150, 660, 300, 20, Color.web("#aaaaaa"));
         solidPlatform(1750, 780, 340, 20, Color.web("#888888"));
-        solidPlatform(2300, 720, 280, 20, Color.web("#9a9a9a"));
+
+
     }
 
     /* ========== 背景 ========== */
