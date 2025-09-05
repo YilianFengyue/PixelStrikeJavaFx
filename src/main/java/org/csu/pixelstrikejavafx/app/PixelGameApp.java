@@ -79,6 +79,7 @@ public class PixelGameApp extends GameApplication {
 
     @Override
     protected void onUpdate(double tpf) {
+
         if (player != null) player.update(tpf);
         if (cameraFollow != null) cameraFollow.update();
     }

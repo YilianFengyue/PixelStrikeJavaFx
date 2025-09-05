@@ -30,7 +30,7 @@ public class Player {
     private static final double RUN_SPEED  = 350.0;
     private static final double ACCEL      = 400.0;  // 水平加速度
     private static final double JUMP_VY    = 650.0;
-    private static final double DJUMP_VY   =500.0;
+    private static final double DJUMP_VY   = 500.0;
 
     private static final long   DOUBLE_TAP_MS = 300;  // A/D 双击触发跑步
 
@@ -106,6 +106,7 @@ public class Player {
 
     /** 每帧更新：处理水平速度与状态机 */
     public void update(double tpf) {
+
         // 1) 计算目标速度
         if (movingLeft && !movingRight) {
             vxTarget = running ? -RUN_SPEED : -WALK_SPEED;
