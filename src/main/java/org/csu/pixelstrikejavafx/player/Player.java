@@ -19,11 +19,22 @@ import static com.almasb.fxgl.dsl.FXGL.*;
  */
 public class Player {
 
-    public enum State { IDLE, WALK, RUN, JUMP, FALL, DOUBLE_JUMP }
+    //动画对象
+    private PlayerAnimator animator;
+    //状态枚举
+    public enum State {
+        IDLE, WALK, RUN, JUMP, FALL, DOUBLE_JUMP,
+        SHOOTING, DIE  // 新增：射击和死亡状态
+    }
 
-    // —— 显示与物理尺寸（按 1080p 视口 & 64px 栅格）——
-    private static final double PLAYER_W = 82;   // 可按美术微调
-    private static final double PLAYER_H = 128;
+    // 角色贴图
+    private static final double PLAYER_W = 200;  // 匹配精灵图尺寸
+    private static final double PLAYER_H = 200;
+    // 碰撞体调整常量
+    private static final double HB_OFF_X =  0;   // 水平居中偏移
+    private static final double HB_OFF_Y = 140;  // 垂直下移到脚部
+    private static final double HB_W = 100;       // 碰撞体宽度
+    private static final double HB_H = 40;       // 碰撞体高度
 
     // —— 手感参数（可按需微调）——
     private static final double WALK_SPEED = 200.0;
@@ -43,17 +54,25 @@ public class Player {
     private double vxTarget = 0.0;
     private double vxCurrent = 0.0;
 
+    // 新增：动画和战斗状态
+    private boolean shooting = false;
+    private boolean dead = false;
+    private long lastShotTime = 0;
+    private static final long SHOT_COOLDOWN = 150; // 射击间隔ms
+
     private boolean movingLeft  = false;
     private boolean movingRight = false;
     private boolean running     = false;
     private boolean onGround    = false;
 
     private int jumpsUsed = 0;      // 0/1/2
+    private boolean facingRight = true;  // 记录当前朝向
     private long lastLeftTap  = 0;
     private long lastRightTap = 0;
 
     public Player(double spawnX, double spawnY) {
         createEntity(spawnX, spawnY);
+        initAnimator(); // 动画状态
     }
 
     private void createEntity(double x, double y) {
@@ -96,14 +115,26 @@ public class Player {
         entity = entityBuilder()
                 .type(GameType.PLAYER)
                 .at(x, y)
-                .viewWithBBox(viewNode)
+                .view(viewNode)  // 只设置视图
+                .bbox(new com.almasb.fxgl.physics.HitBox(
+                        new javafx.geometry.Point2D(HB_OFF_X, HB_OFF_Y),
+                        com.almasb.fxgl.physics.BoundingShape.box(HB_W, HB_H)
+                ))  // 自定义碰撞体到脚部
                 .with(new CollidableComponent(true))
                 .with(physics)
-                .zIndex(1000)     // 低于草沿(1100)，高于地面(-100)
+                .zIndex(1000)
                 .buildAndAttach();
 
     }
 
+    private void initAnimator() {
+        animator = new PlayerAnimator(this);
+        if (animator.isAnimationLoaded()) {
+            // 如果动画加载成功，替换entity的view
+            entity.getViewComponent().clearChildren();
+            entity.getViewComponent().addChild(animator.getAnimatedTexture());
+        }
+    }
     /** 每帧更新：处理水平速度与状态机 */
     public void update(double tpf) {
 
@@ -126,32 +157,68 @@ public class Player {
         }
         physics.setVelocityX(vxCurrent);
 
-        // 3) 状态机
+//        // 3) 状态机
+//
+//        if (!onGround) {
+//            if (vy < -50) {
+//                state = (jumpsUsed >= 2) ? State.DOUBLE_JUMP : State.JUMP;
+//            } else {
+//                state = State.FALL;
+//            }
+//        } else {
+//            if (Math.abs(vxCurrent) < 1) {
+//                state = State.IDLE;
+//            } else {
+//                state = running ? State.RUN : State.WALK;
+//            }
+//        }
+        //死亡和射击
         double vy = physics.getVelocityY();
-        if (!onGround) {
-            if (vy < -50) {
-                state = (jumpsUsed >= 2) ? State.DOUBLE_JUMP : State.JUMP;
-            } else {
-                state = State.FALL;
-            }
+        if (dead) {
+            state = State.DIE;
+        } else if (shooting) {
+            state = State.SHOOTING;
         } else {
-            if (Math.abs(vxCurrent) < 1) {
-                state = State.IDLE;
+            // 原有的状态机逻辑保持不变
+            if (!onGround) {
+                if (vy < -50) {
+                    state = (jumpsUsed >= 2) ? State.DOUBLE_JUMP : State.JUMP;
+                } else {
+                    state = State.FALL;
+                }
             } else {
-                state = running ? State.RUN : State.WALK;
+                if (Math.abs(vxCurrent) < 1) {
+                    state = State.IDLE;
+                } else {
+                    state = running ? State.RUN : State.WALK;
+                }
             }
         }
-        // 4)角色方向
-        if (vxCurrent > 1) {
-            entity.getViewComponent().getChildren().get(0).setScaleX(1);  // 面向右
-        } else if (vxCurrent < -1) {
-            entity.getViewComponent().getChildren().get(0).setScaleX(-1); // 面向左
-        }
+//        // 4)角色方向
+//        if (vxCurrent > 1) {
+//            entity.getViewComponent().getChildren().get(0).setScaleX(1);  // 面向右
+//        } else if (vxCurrent < -1) {
+//            entity.getViewComponent().getChildren().get(0).setScaleX(-1); // 面向左
+//        }
         //5)摩擦力
         if (Math.abs(vxTarget) < 10 && Math.abs(vxCurrent) > 10) {
             vxCurrent *= 0.85;  // 松手时快速减速
             physics.setVelocityX(vxCurrent);
         }
+        // 6)统一翻转处理 - 放在最后确保每帧都执行
+        if (movingRight && !movingLeft) {
+            facingRight = true;
+        } else if (movingLeft && !movingRight) {
+            facingRight = false;
+        }
+
+        // 直接设置entity翻转，简单粗暴
+        entity.setScaleX(facingRight ? 1.0 : -1.0);
+        // 新增：更新动画
+        if (animator != null) {
+            animator.update();
+        }
+
     }
 
     // —— 供外部（输入系统）调用的接口 ——
@@ -214,7 +281,29 @@ public class Player {
                 state, onGround, running
         );
     }
+    public void startShooting() {
+        if (!dead && System.currentTimeMillis() - lastShotTime > SHOT_COOLDOWN) {
+            shooting = true;
+            lastShotTime = System.currentTimeMillis();
+        }
+    }
 
+    /** 停止射击 */
+    public void stopShooting() {
+        shooting = false;
+    }
+
+    /** 角色死亡 */
+    public void die() {
+        dead = true;
+        physics.setVelocityX(0);
+        physics.setVelocityY(0);
+    }
+
+    /** 复活 */
+    public void revive() {
+        dead = false;
+    }
     /** 重置到某坐标 */
     public void reset(double x, double y) {
         entity.setPosition(x, y);
@@ -225,6 +314,7 @@ public class Player {
         jumpsUsed = 0;
         vxCurrent = vxTarget = 0;
         state = State.IDLE;
+        facingRight = true;  // 新增这行
     }
 
     // —— Getter ——
@@ -233,4 +323,12 @@ public class Player {
     public State getState() { return state; }
     public boolean isOnGround() { return onGround; }
     public boolean isRunning() { return running; }
+
+    // 新增getter方法
+    public boolean isShooting() { return shooting; }
+    public boolean isDead() { return dead; }
+    // 改为：
+    public boolean getFacingRight() {
+        return facingRight;
+    }
 }

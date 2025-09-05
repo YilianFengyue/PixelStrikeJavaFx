@@ -75,6 +75,15 @@ public class PixelGameApp extends GameApplication {
         getInput().addAction(new UserAction("Jump W") {
             @Override protected void onActionBegin() { if (player != null) player.jump(); }
         }, KeyCode.W);
+        // 在现有输入后添加
+        getInput().addAction(new UserAction("Shoot") {
+            @Override protected void onActionBegin() {
+                if (player != null) player.startShooting();
+            }
+            @Override protected void onActionEnd() {
+                if (player != null) player.stopShooting();
+            }
+        }, KeyCode.J);  // 或者用鼠标左键
     }
 
     @Override
