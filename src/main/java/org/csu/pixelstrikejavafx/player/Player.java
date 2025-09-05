@@ -27,6 +27,12 @@ public class Player {
         SHOOTING, DIE  // 新增：射击和死亡状态
     }
 
+    public enum AttackPhase {
+        BEGIN,    // 拿枪阶段 (帧0-3)
+        IDLE,     // 开枪循环 (帧4-12)
+        END       // 收枪阶段 (帧13-20)
+    }
+
     // 角色贴图
     private static final double PLAYER_W = 200;  // 匹配精灵图尺寸
     private static final double PLAYER_H = 200;
@@ -67,6 +73,11 @@ public class Player {
 
     private int jumpsUsed = 0;      // 0/1/2
     private boolean facingRight = true;  // 记录当前朝向
+
+    // 攻击状态
+    private AttackPhase attackPhase = AttackPhase.BEGIN;
+    private long attackPhaseStartTime = 0;
+
     private long lastLeftTap  = 0;
     private long lastRightTap = 0;
 
@@ -216,6 +227,7 @@ public class Player {
         if (animator != null) {
             animator.update();
         }
+        updateAttackPhase();
 
     }
 
@@ -282,13 +294,20 @@ public class Player {
     public void startShooting() {
         if (!dead && System.currentTimeMillis() - lastShotTime > SHOT_COOLDOWN) {
             shooting = true;
+            if (attackPhase == AttackPhase.END) {
+                attackPhase = AttackPhase.BEGIN;  // 收枪时重新按，回到拿枪
+            }
+            attackPhaseStartTime = System.currentTimeMillis();
             lastShotTime = System.currentTimeMillis();
         }
     }
 
     /** 停止射击 */
     public void stopShooting() {
-        shooting = false;
+        if (attackPhase == AttackPhase.IDLE) {
+            attackPhase = AttackPhase.END;
+            attackPhaseStartTime = System.currentTimeMillis();
+        }
     }
 
     /** 角色死亡 */
@@ -314,6 +333,30 @@ public class Player {
         state = State.IDLE;
         facingRight = true;  // 新增这行
     }
+    private void updateAttackPhase() {
+        if (!shooting) return;
+
+        long elapsed = System.currentTimeMillis() - attackPhaseStartTime;
+
+        switch (attackPhase) {
+            case BEGIN:
+                if (elapsed > 200) {  // 0.2秒后进入循环
+                    attackPhase = AttackPhase.IDLE;
+                    attackPhaseStartTime = System.currentTimeMillis();
+                }
+                break;
+            case IDLE:
+                // 持续循环，直到松开
+                break;
+            case END:
+                if (elapsed > 400) {  // 0.4秒后结束
+                    shooting = false;
+                    attackPhase = AttackPhase.BEGIN;  // 重置为begin
+                }
+                break;
+        }
+    }
+
 
     // —— Getter ——
     public Entity getEntity() { return entity; }
@@ -321,6 +364,7 @@ public class Player {
     public State getState() { return state; }
     public boolean isOnGround() { return onGround; }
     public boolean isRunning() { return running; }
+    public AttackPhase getAttackPhase() { return attackPhase; }
 
     // 新增getter方法
     public boolean isShooting() { return shooting; }

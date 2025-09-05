@@ -22,6 +22,9 @@ public class PlayerAnimator {
     private AnimationChannel runAnimation;
     private AnimationChannel attackAnimation;
     private AnimationChannel dieAnimation;
+    private AnimationChannel attackBeginAnimation;
+    private AnimationChannel attackIdleAnimation;
+    private AnimationChannel attackEndAnimation;
 
     private String currentAnimationName = "";
     private boolean animationLoaded = false;
@@ -53,17 +56,23 @@ public class PlayerAnimator {
                     Duration.seconds(0.5), 0, 13
             );
 
-            // attack动画：假设有attack精灵图（如果没有先用idle）
+
             try {
-                attackAnimation = new AnimationChannel(
-                        image("ash_attack.png"), 10, 200, 200,
-                        Duration.seconds(0.8), 0, 9
+                attackBeginAnimation = new AnimationChannel(
+                        image("ash_attack.png"), 21, 200, 200,
+                        Duration.seconds(0.2), 0, 3    // begin: 帧0-3
+                );
+                attackIdleAnimation = new AnimationChannel(
+                        image("ash_attack.png"), 21, 200, 200,
+                        Duration.seconds(0.45), 4, 12  // idle: 帧4-12 (循环)
+                );
+                attackEndAnimation = new AnimationChannel(
+                        image("ash_attack.png"), 21, 200, 200,
+                        Duration.seconds(0.4), 13, 20  // end: 帧13-20
                 );
             } catch (Exception e) {
-                // 没有attack图就复用idle
-                attackAnimation = idleAnimation;
+                attackBeginAnimation = attackIdleAnimation = attackEndAnimation = idleAnimation;
             }
-
             // die动画：假设有die精灵图（如果没有先用idle的最后一帧）
             try {
                 dieAnimation = new AnimationChannel(
@@ -121,7 +130,12 @@ public class PlayerAnimator {
             case DIE:
                 return "die";
             case SHOOTING:
-                return "attack";
+                switch (player.getAttackPhase()) {
+                    case BEGIN: return "attack_begin";
+                    case IDLE: return "attack_idle";
+                    case END: return "attack_end";
+                    default: return "attack_begin";
+                }
             case WALK:
                 return "walk";
             case RUN:
@@ -149,8 +163,18 @@ public class PlayerAnimator {
             case "run":
                 channel = runAnimation;
                 break;
-            case "attack":
-                channel = attackAnimation;
+
+            case "attack_begin":
+                channel = attackBeginAnimation;
+                shouldLoop = false;
+                break;
+            case "attack_idle":
+                channel = attackIdleAnimation;
+                shouldLoop = true;  // 循环播放
+                break;
+            case "attack_end":
+                channel = attackEndAnimation;
+                shouldLoop = false;
                 break;
             case "die":
                 channel = dieAnimation;
