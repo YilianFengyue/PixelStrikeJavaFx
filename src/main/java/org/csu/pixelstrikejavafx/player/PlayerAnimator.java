@@ -5,6 +5,7 @@ import com.almasb.fxgl.texture.AnimatedTexture;
 import javafx.util.Duration;
 
 import static com.almasb.fxgl.dsl.FXGL.*;
+import javafx.scene.transform.Scale;
 
 /**
  * 角色动画系统 - 监听Player状态，切换对应动画
@@ -24,6 +25,8 @@ public class PlayerAnimator {
 
     private String currentAnimationName = "";
     private boolean animationLoaded = false;
+
+    private Scale flip;   // 新增：专门控制朝向的变换
 
     public PlayerAnimator(Player player) {
         this.player = player;
@@ -47,7 +50,7 @@ public class PlayerAnimator {
             // run动画：复用walk但播放更快
             runAnimation = new AnimationChannel(
                     image("ash_walk.png"), 14, 200, 200,
-                    Duration.seconds(0.7), 0, 13
+                    Duration.seconds(0.5), 0, 13
             );
 
             // attack动画：假设有attack精灵图（如果没有先用idle）
@@ -78,6 +81,9 @@ public class PlayerAnimator {
             // 创建动画贴图，默认idle
             animatedTexture = new AnimatedTexture(idleAnimation);
             animatedTexture.loop();
+            // ✅ 关键：以精灵中心为支点
+            flip = new Scale(1, 1, 120, 100); // 200x200 -> pivotX=100, pivotY=100
+            animatedTexture.getTransforms().add(flip);
             currentAnimationName = "idle";
             animationLoaded = true;
 
@@ -166,11 +172,11 @@ public class PlayerAnimator {
 
     private void updateFacing() {
         if (player.getEntity() == null) return;
-
-        // 根据Player的朝向翻转角色
-        boolean facingRight = player.getFacingRight();
-        double scaleX = facingRight ? 1.0 : -1.0;
-        player.getEntity().setScaleX(scaleX);
+        flip.setX(player.getFacingRight() ? 1 : -1);
+//        // 根据Player的朝向翻转角色
+//        boolean facingRight = player.getFacingRight();
+//        double scaleX = facingRight ? 1.0 : -1.0;
+//        player.getEntity().setScaleX(scaleX);
     }
 
     /**

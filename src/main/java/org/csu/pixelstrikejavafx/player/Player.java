@@ -31,14 +31,14 @@ public class Player {
     private static final double PLAYER_W = 200;  // 匹配精灵图尺寸
     private static final double PLAYER_H = 200;
     // 碰撞体调整常量
-    private static final double HB_OFF_X =  0;   // 水平居中偏移
+    private static final double HB_OFF_X =  80;   // 水平居中偏移
     private static final double HB_OFF_Y = 140;  // 垂直下移到脚部
-    private static final double HB_W = 100;       // 碰撞体宽度
+    private static final double HB_W = 86;       // 碰撞体宽度
     private static final double HB_H = 40;       // 碰撞体高度
 
     // —— 手感参数（可按需微调）——
     private static final double WALK_SPEED = 200.0;
-    private static final double RUN_SPEED  = 350.0;
+    private static final double RUN_SPEED  = 400.0;
     private static final double ACCEL      = 400.0;  // 水平加速度
     private static final double JUMP_VY    = 650.0;
     private static final double DJUMP_VY   = 500.0;
@@ -212,8 +212,6 @@ public class Player {
             facingRight = false;
         }
 
-        // 直接设置entity翻转，简单粗暴
-        entity.setScaleX(facingRight ? 1.0 : -1.0);
         // 新增：更新动画
         if (animator != null) {
             animator.update();
