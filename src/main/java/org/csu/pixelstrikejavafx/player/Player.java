@@ -12,7 +12,7 @@ import javafx.scene.shape.Rectangle;
 import org.csu.pixelstrikejavafx.core.GameType;
 
 import static com.almasb.fxgl.dsl.FXGL.*;
-
+import com.almasb.fxgl.entity.components.CollidableComponent;
 /**
  * 角色控制（行走/跑步/跳跃/二段跳），不含动画。
  * 输入仍由外部（GameApp 的 UserAction）调用 start/stop/jump。
@@ -55,6 +55,8 @@ public class Player {
     private Entity entity;
     private PhysicsComponent physics;
 
+    // 生命组件（极简）
+    private final PlayerHealth health = new PlayerHealth(this);
     //角色射击组件
     private  PlayerShooting shootingSys;
 
@@ -154,6 +156,9 @@ public class Player {
                 .with(physics)
                 .zIndex(1000)
                 .buildAndAttach();
+
+        // 让命中时可以从实体回取 Player
+        entity.setProperty("playerRef", this);
 
     }
 
@@ -347,14 +352,15 @@ public class Player {
 
     /** 角色死亡 */
     public void die() {
-        dead = true;
-        physics.setVelocityX(0);
-        physics.setVelocityY(0);
+//        dead = true;
+//        physics.setVelocityX(0);
+//        physics.setVelocityY(0);
+        onDeath();
     }
 
     /** 复活 */
     public void revive() {
-        dead = false;
+        health.reviveFull();
     }
     /** 重置到某坐标 */
     public void reset(double x, double y) {
@@ -408,7 +414,55 @@ public class Player {
         }
     }
 
+    public PlayerHealth getHealth() { return health; }
 
+    /** 合并入口：网络/本地命中都调它；先击退再扣血 */
+    public void applyHit(int damage, double knockX, double knockY) {
+        applyKnockback(knockX, knockY);
+        health.takeDamage(damage);
+    }
+
+    /** 受击击退：+X 向右 / -X 向左；Y 为向上（正值会抬起） */
+    public void applyKnockback(double kx, double ky) {
+        if (physics == null) return;
+        physics.setVelocityX(physics.getVelocityX() + kx);
+        physics.setVelocityY(physics.getVelocityY() - ky);
+    }
+
+    /** 受伤回调 —— 预留动画/闪烁/受击硬直（此处不做具体表现） */
+    public void onDamaged(int amount) {
+        // TODO: 播放受击动画 / 屏幕闪红 / 无敌帧等
+    }
+
+    /** 死亡回调 —— 先隐藏与禁用碰撞；动画以后接 */
+    public void onDeath() {
+        dead = true;
+
+        // 停止运动
+        if (physics != null) {
+            physics.setVelocityX(0);
+            physics.setVelocityY(0);
+        }
+
+        // 先简单“消失”：隐藏 + 关闭碰撞（比 removeFromWorld 更安全，不影响相机引用）
+        if (entity != null) {
+            entity.setVisible(false);
+            var coll = entity.getComponentOptional(CollidableComponent.class).orElse(null);
+            if (coll != null) coll.setValue(false);
+        }
+
+        // TODO: 将来这里切换到“死亡动画”，动画播完再隐藏/移除
+    }
+
+    /** 复活回调 —— 恢复可见与碰撞，位置/血量由外部控制 */
+    public void onRevived() {
+        dead = false;
+        if (entity != null) {
+            entity.setVisible(true);
+            var coll = entity.getComponentOptional(CollidableComponent.class).orElse(null);
+            if (coll != null) coll.setValue(true);
+        }
+    }
     // —— Getter ——
     public Entity getEntity() { return entity; }
     public PhysicsComponent getPhysics() { return physics; }
