@@ -120,6 +120,7 @@ public class PlayerAnimator {
 
         // 处理左右翻转
         updateFacing();
+
     }
 
     private String determineAnimation() {

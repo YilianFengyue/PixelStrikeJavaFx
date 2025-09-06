@@ -55,6 +55,9 @@ public class Player {
     private Entity entity;
     private PhysicsComponent physics;
 
+    //角色射击组件
+    private  PlayerShooting shootingSys;
+
     // 运行时状态
     private State  state = State.IDLE;
     private double vxTarget = 0.0;
@@ -81,9 +84,25 @@ public class Player {
     private long lastLeftTap  = 0;
     private long lastRightTap = 0;
 
+
+    // 攻击分段时长（毫秒）——方便以后微调
+    private static final int ATTACK_BEGIN_MS = 200;
+    private static final int ATTACK_END_MS   = 400;
+
+    // 松手排队：在 BEGIN 阶段松手不马上切 END，等 BEGIN 播完再根据此标志决定
+    private boolean stopQueued = false;
+
+    // 松手后等待下一次按下的窗口（超过它才收枪 END）
+    private static final int HOLSTER_DELAY_MS = 120;   // 90~180ms 自行微调手感
+    private long lastShootUpTime = 0;                  // 最近一次松手时刻
+
+    private static final int RAISE_SKIP_THRESHOLD_MS = 220; // 刚收枪后很快再按，直接从 idle 开枪
+    private long lastShootEndTime = 0;                      // 最近一次 END 播完时间
+
     public Player(double spawnX, double spawnY) {
         createEntity(spawnX, spawnY);
         initAnimator(); // 动画状态
+        shootingSys = new PlayerShooting(this);   // 角色射击
     }
 
     private void createEntity(double x, double y) {
@@ -168,21 +187,7 @@ public class Player {
         }
         physics.setVelocityX(vxCurrent);
 
-//        // 3) 状态机
-//
-//        if (!onGround) {
-//            if (vy < -50) {
-//                state = (jumpsUsed >= 2) ? State.DOUBLE_JUMP : State.JUMP;
-//            } else {
-//                state = State.FALL;
-//            }
-//        } else {
-//            if (Math.abs(vxCurrent) < 1) {
-//                state = State.IDLE;
-//            } else {
-//                state = running ? State.RUN : State.WALK;
-//            }
-//        }
+
         //死亡和射击
         double vy = physics.getVelocityY();
         if (dead) {
@@ -205,12 +210,7 @@ public class Player {
                 }
             }
         }
-//        // 4)角色方向
-//        if (vxCurrent > 1) {
-//            entity.getViewComponent().getChildren().get(0).setScaleX(1);  // 面向右
-//        } else if (vxCurrent < -1) {
-//            entity.getViewComponent().getChildren().get(0).setScaleX(-1); // 面向左
-//        }
+
         //5)摩擦力
         if (Math.abs(vxTarget) < 10 && Math.abs(vxCurrent) > 10) {
             vxCurrent *= 0.85;  // 松手时快速减速
@@ -223,12 +223,18 @@ public class Player {
             facingRight = false;
         }
 
-        // 新增：更新动画
+        // 7) 先推进攻段机（这里可能把 BEGIN→IDLE / IDLE→END 或把 shooting=false）
+        updateAttackPhase();
+
+        // 8) 再更新动画：此时 determineAnimation() 能立刻拿到 *最新* 的 attackPhase
         if (animator != null) {
             animator.update();
         }
-        updateAttackPhase();
 
+        // 9) 射线/冷却照旧
+        if (shootingSys != null) {
+            shootingSys.update(tpf);
+        }
     }
 
     // —— 供外部（输入系统）调用的接口 ——
@@ -292,21 +298,50 @@ public class Player {
         );
     }
     public void startShooting() {
-        if (!dead && System.currentTimeMillis() - lastShotTime > SHOT_COOLDOWN) {
-            shooting = true;
-            if (attackPhase == AttackPhase.END) {
-                attackPhase = AttackPhase.BEGIN;  // 收枪时重新按，回到拿枪
-            }
-            attackPhaseStartTime = System.currentTimeMillis();
-            lastShotTime = System.currentTimeMillis();
+        if (dead) return;
+
+        long now = System.currentTimeMillis();
+        shooting = true;
+        stopQueued = false;
+
+        boolean skipBegin = (now - lastShootEndTime) <= RAISE_SKIP_THRESHOLD_MS;
+
+        switch (attackPhase) {
+            case BEGIN:
+            case IDLE:
+                // 已在拿枪或开枪，不重置，防止卡在 begin 看不到 idle
+                break;
+
+            case END:
+                // 收枪过程/刚收完：可直接开枪覆盖 end
+                if (skipBegin || (now - attackPhaseStartTime) < ATTACK_END_MS) {
+                    attackPhase = AttackPhase.IDLE;
+                } else {
+                    attackPhase = AttackPhase.BEGIN;
+                }
+                attackPhaseStartTime = now;
+                break;
+
+            default:
+                // 初始：根据阈值决定是否跳过 begin
+                attackPhase = skipBegin ? AttackPhase.IDLE : AttackPhase.BEGIN;
+                attackPhaseStartTime = now;
+                break;
         }
+
+        lastShotTime = now;
+        if (shootingSys != null) shootingSys.startShooting();
     }
+
 
     /** 停止射击 */
     public void stopShooting() {
-        if (attackPhase == AttackPhase.IDLE) {
-            attackPhase = AttackPhase.END;
-            attackPhaseStartTime = System.currentTimeMillis();
+        stopQueued = true;                         // 仅标记“松手”
+        lastShootUpTime = System.currentTimeMillis();   // ★ 记录松手时间
+
+        // 不在这里切 END；是否收枪由 updateAttackPhase() + 窗口统一决定
+        if (shootingSys != null) {
+            shootingSys.stopShooting();
         }
     }
 
@@ -333,26 +368,42 @@ public class Player {
         state = State.IDLE;
         facingRight = true;  // 新增这行
     }
+
+
     private void updateAttackPhase() {
         if (!shooting) return;
 
-        long elapsed = System.currentTimeMillis() - attackPhaseStartTime;
+        long now = System.currentTimeMillis();
+        long elapsed = now - attackPhaseStartTime;
 
         switch (attackPhase) {
             case BEGIN:
-                if (elapsed > 200) {  // 0.2秒后进入循环
+                if (elapsed >= ATTACK_BEGIN_MS) {
+                    // ★ 一定先到开枪（idle）
                     attackPhase = AttackPhase.IDLE;
-                    attackPhaseStartTime = System.currentTimeMillis();
+                    attackPhaseStartTime = now;
                 }
                 break;
+
+
             case IDLE:
-                // 持续循环，直到松开
-                break;
-            case END:
-                if (elapsed > 400) {  // 0.4秒后结束
-                    shooting = false;
-                    attackPhase = AttackPhase.BEGIN;  // 重置为begin
+                // 只有当“松手” 且 “超过窗口” 才收枪
+                if (stopQueued && (now - lastShootUpTime) >= HOLSTER_DELAY_MS) {
+                    attackPhase = AttackPhase.END;
+                    attackPhaseStartTime = now;
                 }
+                break;
+
+            case END:
+                if (elapsed >= ATTACK_END_MS) {
+                    shooting = false;
+                    stopQueued = false;
+                    lastShootEndTime = now;      // ★ 记录收枪完成
+                    attackPhase = AttackPhase.BEGIN;
+                }
+                break;
+
+            default:
                 break;
         }
     }
@@ -366,10 +417,13 @@ public class Player {
     public boolean isRunning() { return running; }
     public AttackPhase getAttackPhase() { return attackPhase; }
 
-    // 新增getter方法
+
     public boolean isShooting() { return shooting; }
     public boolean isDead() { return dead; }
-    // 改为：
+
+    public PlayerShooting getShootingSys() { return shootingSys; }
+
+
     public boolean getFacingRight() {
         return facingRight;
     }
