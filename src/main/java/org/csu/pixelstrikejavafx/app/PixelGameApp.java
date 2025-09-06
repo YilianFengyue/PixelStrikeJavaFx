@@ -5,6 +5,8 @@ import com.almasb.fxgl.app.GameSettings;
 import com.almasb.fxgl.entity.Entity;
 import com.almasb.fxgl.input.UserAction;
 import com.almasb.fxgl.physics.CollisionHandler;
+import javafx.scene.Node;
+import javafx.scene.effect.ColorAdjust;
 import javafx.scene.input.KeyCode;
 import org.csu.pixelstrikejavafx.camera.CameraFollow;
 import org.csu.pixelstrikejavafx.core.GameConfig;
@@ -17,6 +19,7 @@ import static com.almasb.fxgl.dsl.FXGL.*;
 public class PixelGameApp extends GameApplication {
 
     private Player player;
+    private Player player2;
     private CameraFollow cameraFollow;
 
     private final double GROUND_TOP_Y = 980;  // ← “脚踩的那条线”，不对就只改这个数
@@ -42,7 +45,7 @@ public class PixelGameApp extends GameApplication {
 
         // 2) 玩家
         setupPlayer();
-
+        setupPlayer2();         // ★ 新增 p2
         // 3) 相机
         var vp = getGameScene().getViewport();
         vp.setBounds(0, 0,
@@ -97,7 +100,24 @@ public class PixelGameApp extends GameApplication {
         // 你已有的 Player 构造，摆个合理出生点（贴着地面）
         player = new Player(500, GameConfig.MAP_H - 211 - 128);  // MAP底 - 地面高 - 角色高
     }
+    private void setupPlayer2() {
+        player2 = new Player(1200, GameConfig.MAP_H - 211 - 128);
 
+        // 直接对实体 view children 上色（不改 Player 源码）
+        ColorAdjust ca = new ColorAdjust();
+        ca.setHue(+0.35);
+        var ent = player2.getEntity();
+        if (ent != null) {
+            var children = ent.getViewComponent().getChildren();
+            if (children != null) {
+                for (Node n : children) {
+                    if (n != null) n.setEffect(ca);
+                }
+            } else {
+//                ent.getViewComponent().setEffect(ca);
+            }
+        }
+    }
     private void setupCollisionHandlers() {
         getPhysicsWorld().addCollisionHandler(new CollisionHandler(GameType.PLAYER, GameType.GROUND) {
             @Override protected void onCollisionBegin(Entity a, Entity b) { player.setOnGround(true); }

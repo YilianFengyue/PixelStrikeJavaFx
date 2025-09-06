@@ -4,11 +4,13 @@ import com.almasb.fxgl.entity.Entity;
 import com.almasb.fxgl.physics.RaycastResult;
 import javafx.geometry.Point2D;
 import javafx.scene.paint.Color;
+import javafx.scene.shape.Circle;
 import javafx.scene.shape.Line;
 import org.csu.pixelstrikejavafx.core.GameType;
 
 import static com.almasb.fxgl.dsl.FXGL.*;
 
+import java.util.concurrent.ThreadLocalRandom;
 /**
  * 射击系统 - 基于射线检测的射击逻辑
  * 参考Unity的MyPlayerShooting设计
@@ -21,11 +23,35 @@ public class PlayerShooting {
     private static final double SHOOT_RANGE = 800.0;          // 射击距离
     private static final double DAMAGE = 25.0;                // 伤害值
 
+    // ===== 枪口/摆动/散布/后坐（都可手调） =====
+// 枪口偏移：只改这三项就能把射线对准你枪口
+    private static final double MUZZLE_RIGHT_X = 120;  // 朝右时 X 偏移（像素）
+    private static final double MUZZLE_LEFT_X  = 10;   // 朝左时 X 偏移（像素）
+    private static final double MUZZLE_Y       = 60;   // Y 偏移（像素，向下为正）
+
+    // 上下摆动（视为“很轻微的抖动”）
+    private static final double SWAY_AMPL_DEG  = 1.2;  // 最大摆动角(°)
+    private static final double SWAY_SPEED     = 18.0; // 摆动速度（弧度/秒）
+
+    // 每枪随机散布
+    private static final double SPREAD_NOISE_DEG = 0.6; // 随机角(°)
+
+    // 连发“越打越上抬”的后坐角
+    private static final double RECOIL_KICK_DEG            = 0.5; // 每枪新增(°)
+    private static final double RECOIL_MAX_DEG             = 6.0; // 上限(°)
+    private static final double RECOIL_RECOVER_DEG_PER_SEC = 8.0; // 不开火时恢复(°/s)
+
+    // 施加在玩家身上的物理后坐力（速度增量）
+    private static final double RECOIL_KNOCKBACK_VX = 60.0; // 水平反冲速度
+    private static final double RECOIL_KNOCKBACK_UP = 20.0; // 轻微上抬速度
+
     // ===== 运行时状态 =====
     private double time = 0.0;                    // 计时器
     private boolean isShooting = false;           // 是否正在射击
     private final Player player;                  // 关联的玩家
-
+    // 摆动相位 & 当前累计后坐角
+    private double swayPhase = 0.0;
+    private double recoilAngleDeg = 0.0;
     // ===== 视觉效果 =====
     private Entity shootLine = null;              // 射击线条实体
 
@@ -39,11 +65,17 @@ public class PlayerShooting {
     public void update(double tpf) {
         time += tpf;
 
+        // 后坐角恢复（不开火时逐渐回零）
+        if (recoilAngleDeg > 0) {
+            recoilAngleDeg = Math.max(0, recoilAngleDeg - RECOIL_RECOVER_DEG_PER_SEC * tpf);
+        }
+        // 摆动相位推进（持续轻微抖动）
+        swayPhase += SWAY_SPEED * tpf;
+
         if (isShooting && time >= TIME_BETWEEN_BULLETS) {
             performShoot();
         }
 
-        // 原来是 TIME_BETWEEN_BULLETS * EFFECTS_DISPLAY_TIME -> 0.03s，过短
         if (time >= EFFECTS_DISPLAY_TIME) {
             hideShootEffects();
         }
@@ -72,7 +104,20 @@ public class PlayerShooting {
         time = 0.0;
 
         Point2D shootOrigin = getShootOrigin();
-        Point2D shootDirection = getShootDirection();
+
+        // 基础角：朝右0°，朝左180°
+        double baseDeg = player.getFacingRight() ? 0.0 : 180.0;
+        // 轻微上下摆动
+        double swayDeg  = Math.sin(swayPhase) * SWAY_AMPL_DEG;
+        // 每枪一些随机散布
+        double noiseDeg = ThreadLocalRandom.current().nextDouble(-SPREAD_NOISE_DEG, SPREAD_NOISE_DEG);
+        // 累计后坐角 + 摆动 + 噪声（“上抬”为正）
+        double upDeg = recoilAngleDeg + swayDeg + noiseDeg;
+        // 屏幕Y向下为正：朝右时想“上抬”需减角，朝左则加角
+        double finalDeg = baseDeg + (player.getFacingRight() ? -upDeg : +upDeg);
+        double rad = Math.toRadians(finalDeg);
+        Point2D shootDirection = new Point2D(Math.cos(rad), Math.sin(rad)).normalize();
+
         Point2D rayEnd = shootOrigin.add(shootDirection.multiply(SHOOT_RANGE));
 
         RaycastResult result = getPhysicsWorld().raycast(shootOrigin, rayEnd);
@@ -98,19 +143,22 @@ public class PlayerShooting {
         }
 
         showShootEffects(shootOrigin, hitPoint);
+
+        // 连发后坐角累积（上限保护）+ 给角色一个小反冲
+        recoilAngleDeg = Math.min(RECOIL_MAX_DEG, recoilAngleDeg + RECOIL_KICK_DEG);
+        applyRecoilToPlayer();
     }
 
     /**
      * 获取射击起点（武器位置）
      */
     private Point2D getShootOrigin() {
-        Entity playerEntity = player.getEntity();
-        double offsetX = player.getFacingRight() ? 120 : 0; // 武器偏移
-        double offsetY = 60; // 略微向上
-
+        Entity e = player.getEntity();
+        double offsetX = player.getFacingRight() ? MUZZLE_RIGHT_X : -MUZZLE_LEFT_X;
+        double offsetY = MUZZLE_Y;
         return new Point2D(
-                playerEntity.getX() + playerEntity.getWidth()/2 + offsetX,
-                playerEntity.getY() + playerEntity.getHeight()/2 + offsetY
+                e.getX() + e.getWidth()  / 2.0 + offsetX,
+                e.getY() + e.getHeight() / 2.0 + offsetY
         );
     }
 
@@ -152,8 +200,8 @@ public class PlayerShooting {
         shootingLine.setStartY(0);
         shootingLine.setEndX(end.getX() - start.getX());
         shootingLine.setEndY(end.getY() - start.getY());
-        shootingLine.setStroke(Color.YELLOW);
-        shootingLine.setStrokeWidth(2);
+        shootingLine.setStroke(Color.ORANGE);
+        shootingLine.setStrokeWidth(3);
         shootingLine.setOpacity(0.8);
 
         // 创建实体显示射线
@@ -162,6 +210,8 @@ public class PlayerShooting {
                 .view(shootingLine)
                 .zIndex(2000) // 高层级显示
                 .buildAndAttach();
+
+
     }
 
     /**
@@ -173,7 +223,13 @@ public class PlayerShooting {
             shootLine = null;
         }
     }
-
+    /** 对玩家施加小后坐力（速度增量） */
+    private void applyRecoilToPlayer() {
+        if (player.getPhysics() == null) return;
+        double kickX = player.getFacingRight() ? -RECOIL_KNOCKBACK_VX : RECOIL_KNOCKBACK_VX;
+        player.getPhysics().setVelocityX(player.getPhysics().getVelocityX() + kickX);
+        player.getPhysics().setVelocityY(player.getPhysics().getVelocityY() - RECOIL_KNOCKBACK_UP);
+    }
     // ===== Getter方法 =====
     public boolean isShooting() {
         return isShooting;
