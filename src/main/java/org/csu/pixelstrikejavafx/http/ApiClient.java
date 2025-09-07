@@ -3,7 +3,12 @@ package org.csu.pixelstrikejavafx.http;
 import com.google.gson.Gson;
 import com.google.gson.JsonObject;
 import okhttp3.*;
-import org.csu.pixelstrikejavafx.state.GlobalState; // 我们稍后创建这个类
+import org.csu.pixelstrikejavafx.state.GlobalState;
+import java.util.List;
+import java.util.Map;
+import com.google.gson.reflect.TypeToken;
+import java.lang.reflect.Type;
+import java.util.ArrayList;
 
 import java.io.IOException;
 
@@ -13,40 +18,49 @@ public class ApiClient {
     private final Gson gson = new Gson();
 
     /**
-     * 调用后端 /auth/login 接口
+     * 调用后端 /auth/login 接口 (新版)
      * @param username 用户名
      * @param password 密码
      * @return 成功时返回 token, 失败时抛出异常
+     * @throws IOException
      */
     public String login(String username, String password) throws IOException {
-        // 1. 根据你的API文档，构建请求的JSON体
+        String url = BASE_URL + "/auth/login";
         String jsonBody = String.format("{\"username\":\"%s\", \"password\":\"%s\"}", username, password);
         RequestBody body = RequestBody.create(jsonBody, MediaType.get("application/json; charset=utf-8"));
+        Request request = new Request.Builder().url(url).post(body).build();
 
-        // 2. 创建一个POST请求
-        Request request = new Request.Builder()
-                .url(BASE_URL + "/auth/login")
-                .post(body)
-                .build();
-
-        // 3. 发送请求并获取响应
         try (Response response = client.newCall(request).execute()) {
             if (!response.isSuccessful()) {
                 throw new IOException("请求失败: " + response.code());
             }
 
             String responseBody = response.body().string();
-            // 4. 使用Gson解析返回的JSON数据
             JsonObject jsonObject = gson.fromJson(responseBody, JsonObject.class);
 
-            // 5. 根据文档中的 status 字段判断业务是否成功
             if (jsonObject.get("status").getAsInt() == 0) {
-                String token = jsonObject.get("data").getAsString();
-                // 将获取到的token存到全局状态中
-                GlobalState.authToken = token;
+                // ==========================================================
+                // ==================== 核心改动在这里 ====================
+                // ==========================================================
+
+                // 1. 获取 data 这个 JsonObject
+                JsonObject dataObject = jsonObject.getAsJsonObject("data");
+
+                // 2. 从 data 对象中获取 token
+                String token = dataObject.get("token").getAsString();
+                GlobalState.authToken = token; // 存入全局状态
+
+                // 3. 从 data 对象中获取 userProfile 对象
+                JsonObject userProfileObject = dataObject.getAsJsonObject("userProfile");
+
+                // 4. 从 userProfile 对象中获取具体信息并存入全局状态
+                GlobalState.userId = userProfileObject.get("userId").getAsLong();
+                GlobalState.nickname = userProfileObject.get("nickname").getAsString();
+
+                // 方法依然返回 token，表示登录成功
                 return token;
+
             } else {
-                // 业务失败 (例如密码错误)
                 String message = jsonObject.get("message").getAsString();
                 throw new IOException(message);
             }
@@ -163,6 +177,159 @@ public class ApiClient {
             if (jsonObject.get("status").getAsInt() == 0) {
                 return jsonObject.getAsJsonObject("data");
             } else {
+                throw new IOException(jsonObject.get("message").getAsString());
+            }
+        }
+    }
+
+    /**
+     * 调用后端 /friends 接口，获取当前用户的好友列表
+     * @return 一个包含好友信息的 Map 列表
+     */
+    public List<Map<String, Object>> getFriends() throws IOException {
+        if (GlobalState.authToken == null) throw new IllegalStateException("Not logged in");
+
+        String url = BASE_URL + "/friends";
+        Request request = new Request.Builder()
+                .url(url)
+                .addHeader("Authorization", "Bearer " + GlobalState.authToken)
+                .build();
+
+        try (Response response = client.newCall(request).execute()) {
+            if (!response.isSuccessful()) throw new IOException("获取好友列表失败: " + response);
+
+            String responseBody = response.body().string();
+            JsonObject jsonObject = gson.fromJson(responseBody, JsonObject.class);
+
+            if (jsonObject.get("status").getAsInt() == 0) {
+                // 使用 TypeToken 来帮助 Gson 解析泛型列表
+                Type listType = new TypeToken<List<Map<String, Object>>>() {}.getType();
+                return gson.fromJson(jsonObject.get("data"), listType);
+            } else {
+                throw new IOException(jsonObject.get("message").getAsString());
+            }
+        }
+    }
+
+    /**
+     * 根据昵称模糊搜索用户
+     * @param nickname 要搜索的昵称
+     * @return 包含用户搜索结果的 Map 列表
+     */
+    public List<Map<String, Object>> searchUsers(String nickname) throws IOException {
+        if (GlobalState.authToken == null) throw new IllegalStateException("Not logged in");
+
+        // 使用 HttpUrl.Builder 来安全地构建带查询参数的 URL
+        HttpUrl.Builder urlBuilder = HttpUrl.parse(BASE_URL + "/friends/search").newBuilder();
+        urlBuilder.addQueryParameter("nickname", nickname);
+
+        Request request = new Request.Builder()
+                .url(urlBuilder.build())
+                .addHeader("Authorization", "Bearer " + GlobalState.authToken)
+                .build();
+
+        try (Response response = client.newCall(request).execute()) {
+            if (!response.isSuccessful()) throw new IOException("搜索用户失败: " + response);
+
+            String responseBody = response.body().string();
+            JsonObject jsonObject = gson.fromJson(responseBody, JsonObject.class);
+
+            if (jsonObject.get("status").getAsInt() == 0) {
+                Type listType = new TypeToken<List<Map<String, Object>>>() {}.getType();
+                return gson.fromJson(jsonObject.get("data"), listType);
+            } else {
+                return new ArrayList<>(); // 返回空列表
+            }
+        }
+    }
+
+    /**
+     * 发送好友申请
+     * @param userId 目标用户的ID
+     */
+    public void sendFriendRequest(long userId) throws IOException {
+        if (GlobalState.authToken == null) throw new IllegalStateException("Not logged in");
+
+        String url = BASE_URL + "/friends/requests/" + userId;
+        RequestBody body = RequestBody.create(new byte[0]); // 空的 POST 请求体
+
+        Request request = new Request.Builder()
+                .url(url)
+                .addHeader("Authorization", "Bearer " + GlobalState.authToken)
+                .post(body)
+                .build();
+
+        try (Response response = client.newCall(request).execute()) {
+            if (!response.isSuccessful()) throw new IOException("发送好友申请失败: " + response);
+
+            String responseBody = response.body().string();
+            JsonObject jsonObject = gson.fromJson(responseBody, JsonObject.class);
+
+            if (jsonObject.get("status").getAsInt() != 0) {
+                // 将后端返回的业务错误信息（如“不能添加自己为好友”）抛出
+                throw new IOException(jsonObject.get("message").getAsString());
+            }
+        }
+    }
+
+    /**
+     * 获取待处理的好友申请列表
+     * @return 包含申请人信息的 Map 列表
+     */
+    public List<Map<String, Object>> getFriendRequests() throws IOException {
+        if (GlobalState.authToken == null) throw new IllegalStateException("Not logged in");
+
+        String url = BASE_URL + "/friends/requests/pending";
+        Request request = new Request.Builder()
+                .url(url)
+                .addHeader("Authorization", "Bearer " + GlobalState.authToken)
+                .build();
+
+        try (Response response = client.newCall(request).execute()) {
+            if (!response.isSuccessful()) throw new IOException("获取好友申请列表失败: " + response);
+
+            String responseBody = response.body().string();
+            JsonObject jsonObject = gson.fromJson(responseBody, JsonObject.class);
+
+            if (jsonObject.get("status").getAsInt() == 0) {
+                Type listType = new TypeToken<List<Map<String, Object>>>() {}.getType();
+                List<Map<String, Object>> resultList = gson.fromJson(jsonObject.get("data"), listType);
+
+                // ==========================================================
+                // ========== 在这里加上这行打印语句 ==========
+                System.out.println("DEBUG (ApiClient): 成功从JSON解析出 " + resultList.size() + " 条好友申请。");
+                // ==========================================================
+
+                return resultList;
+            } else {
+                throw new IOException(jsonObject.get("message").getAsString());
+            }
+        }
+    }
+
+    /**
+     * 同意好友申请
+     * @param userId 申请人的用户ID
+     */
+    public void acceptFriendRequest(long userId) throws IOException {
+        if (GlobalState.authToken == null) throw new IllegalStateException("Not logged in");
+
+        String url = BASE_URL + "/friends/requests/" + userId + "/accept";
+        RequestBody body = RequestBody.create(new byte[0]); // PUT 请求通常也需要一个请求体，即使是空的
+
+        Request request = new Request.Builder()
+                .url(url)
+                .addHeader("Authorization", "Bearer " + GlobalState.authToken)
+                .put(body) // 根据你的API文档，这里是 PUT 请求
+                .build();
+
+        try (Response response = client.newCall(request).execute()) {
+            if (!response.isSuccessful()) throw new IOException("同意好友申请失败: " + response);
+
+            String responseBody = response.body().string();
+            JsonObject jsonObject = gson.fromJson(responseBody, JsonObject.class);
+
+            if (jsonObject.get("status").getAsInt() != 0) {
                 throw new IOException(jsonObject.get("message").getAsString());
             }
         }

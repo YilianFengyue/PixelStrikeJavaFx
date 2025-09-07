@@ -3,6 +3,7 @@ package org.csu.pixelstrikejavafx.ui;
 import com.google.gson.JsonObject;
 import javafx.application.Platform;
 import javafx.fxml.FXML;
+import javafx.scene.control.Button;
 import javafx.scene.control.Label;
 import javafx.scene.control.PasswordField;
 import javafx.scene.control.TextField;
@@ -28,6 +29,9 @@ public class LoginController {
     @FXML
     private Label statusLabel;
 
+    @FXML
+    private Button loginButton;
+
     // 创建 ApiClient 实例，用于发起 HTTP 请求
     private final ApiClient apiClient = new ApiClient();
 
@@ -52,37 +56,32 @@ public class LoginController {
 
         // 给用户一个即时反馈
         statusLabel.setText("正在登录...");
+        loginButton.setDisable(true);
 
         new Thread(() -> {
             try {
-                // 1. 调用 API 登录，获取 token
-                String token = apiClient.login(username, password);
+                // 1. 只需调用一次 login 方法
+                // 所有信息 (token, userId, nickname) 都会被自动存入 GlobalState
+                apiClient.login(username, password);
 
-                // 2. 解析 Token 获取 userId
-                DecodedJWT jwt = JWT.decode(token);
-                long userId = jwt.getClaim("userId").asLong();
-                GlobalState.userId = userId; // 存入全局状态
-
-                // 3. 使用 userId 获取用户详细信息
-              /*  JsonObject profileData = apiClient.getUserProfile(userId);
-                String nickname = profileData.getAsJsonObject("profile").get("nickname").getAsString();*/
-                GlobalState.nickname = username; // 存入全局状态
-
-                // 4. 建立 WebSocket 连接
+                // 2. 建立 WebSocket 连接
                 networkManager.connect();
 
-                // 5. 所有信息准备就绪，切换到大厅
+                // 3. 直接切换到大厅
                 Platform.runLater(() -> {
-                    System.out.println(String.format("登录成功! 用户: %s (ID: %d)", GlobalState.nickname, userId));
+                    System.out.println(String.format("登录成功! 用户: %s (ID: %d)", GlobalState.nickname, GlobalState.userId));
                     UIManager.load("lobby-view.fxml");
                 });
 
             } catch (Exception e) {
                 Platform.runLater(() -> {
                     statusLabel.setText("登录失败: " + e.getMessage());
+                    loginButton.setDisable(false); // 登录失败，恢复按钮
                 });
                 e.printStackTrace();
             }
         }).start();
     }
+
+
 }

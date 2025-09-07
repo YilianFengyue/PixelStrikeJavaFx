@@ -12,6 +12,9 @@ import org.csu.pixelstrikejavafx.core.GameType;
 import org.csu.pixelstrikejavafx.map.MapBuilder;
 import org.csu.pixelstrikejavafx.player.Player;
 import org.csu.pixelstrikejavafx.ui.PixelStrikeSceneFactory;
+import org.csu.pixelstrikejavafx.http.ApiClient;
+import org.csu.pixelstrikejavafx.network.NetworkManager;
+import org.csu.pixelstrikejavafx.state.GlobalState;
 
 import static com.almasb.fxgl.dsl.FXGL.*;
 
@@ -27,13 +30,10 @@ public class PixelGameApp extends GameApplication {
         s.setWidth(GameConfig.WINDOW_W);
         s.setHeight(GameConfig.WINDOW_H);
         s.setTitle("PixelStrike - Map & Camera");
-
         s.setPixelsPerMeter(GameConfig.PPM);
-
-        s.setMainMenuEnabled(true); // 1. 启用主菜单
-        s.setGameMenuEnabled(false); // 游戏内菜单可以先禁用
+        s.setMainMenuEnabled(true);
+        s.setGameMenuEnabled(false);
         s.setSceneFactory(new PixelStrikeSceneFactory());
-
         s.setScaleAffectedOnResize(false);
     }
 
@@ -58,6 +58,52 @@ public class PixelGameApp extends GameApplication {
 
         // 4) 碰撞（落地）
         setupCollisionHandlers();
+        addExitHandler();
+    }
+
+    /**
+     * 为游戏窗口添加关闭请求处理器。
+     * 当用户点击窗口的 "X" 按钮时，这个处理器会被调用。
+     */
+    private void addExitHandler() {
+        // 获取主舞台 (Stage) 并设置关闭请求事件
+        getPrimaryStage().setOnCloseRequest(event -> {
+            // 阻止窗口立即关闭，以便我们执行异步的网络操作
+            event.consume();
+
+            // 执行登出逻辑
+            performLogout(() -> {
+                // 当登出完成后，以编程方式退出应用程序
+                getGameController().exit();
+            });
+        });
+    }
+    /**
+     * 执行登出操作，并在完成后调用回调函数。
+     * @param onLogoutFinished 登出操作完成后要执行的动作。
+     */
+    private void performLogout(Runnable onLogoutFinished) {
+        // 检查用户是否已登录
+        if (GlobalState.authToken != null) {
+            System.out.println("窗口关闭，执行自动登出...");
+
+            // 在后台线程中执行网络操作，防止UI冻结
+            new Thread(() -> {
+                try {
+                    new ApiClient().logout();
+                    NetworkManager.getInstance().disconnect();
+                    System.out.println("自动登出成功。");
+                } catch (Exception e) {
+                    System.err.println("自动登出时发生错误: " + e.getMessage());
+                } finally {
+                    // 无论成功与否，都确保最终会执行退出操作
+                    onLogoutFinished.run();
+                }
+            }).start();
+        } else {
+            // 如果用户未登录，直接执行退出
+            onLogoutFinished.run();
+        }
     }
 
     @Override
@@ -103,6 +149,7 @@ public class PixelGameApp extends GameApplication {
             @Override protected void onCollisionEnd(Entity a, Entity b)   { player.setOnGround(false); }
         });
     }
+
 
     public static void main(String[] args) { launch(args); }
 }

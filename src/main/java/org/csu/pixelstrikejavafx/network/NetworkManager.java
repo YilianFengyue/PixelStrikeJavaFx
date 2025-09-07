@@ -4,8 +4,10 @@ import com.almasb.fxgl.dsl.FXGL;
 import com.google.gson.Gson;
 import com.google.gson.JsonObject;
 import jakarta.websocket.ClientEndpoint;
+import org.csu.pixelstrikejavafx.events.FriendRequestAcceptedEvent;
 import org.csu.pixelstrikejavafx.events.FriendStatusEvent;
 import org.csu.pixelstrikejavafx.events.MatchSuccessEvent;
+import org.csu.pixelstrikejavafx.events.NewFriendRequestEvent;
 import org.csu.pixelstrikejavafx.state.GlobalState;
 
 import java.net.URI;
@@ -114,9 +116,6 @@ public class NetworkManager {
             JsonObject msgJson = gson.fromJson(message, JsonObject.class);
             String type = msgJson.get("type").getAsString();
 
-            // ==========================================================
-            // ============ 这里是修改过的部分，使用新的事件类 ============
-            // ==========================================================
             switch (type) {
                 case "status_update":
                     FXGL.getEventBus().fireEvent(new FriendStatusEvent(msgJson));
@@ -126,7 +125,12 @@ public class NetworkManager {
                     int gameId = msgJson.get("gameId").getAsInt();
                     FXGL.getEventBus().fireEvent(new MatchSuccessEvent(serverAddress, gameId));
                     break;
-                // 在这里添加其他消息类型的处理...
+                case "new_friend_request":
+                    FXGL.getEventBus().fireEvent(new NewFriendRequestEvent(msgJson));
+                    break;
+                case "friend_request_accepted":
+                    FXGL.getEventBus().fireEvent(new FriendRequestAcceptedEvent(msgJson));
+                    break;
             }
         } catch (Exception e) {
             System.err.println("Failed to parse WebSocket message: " + message);
