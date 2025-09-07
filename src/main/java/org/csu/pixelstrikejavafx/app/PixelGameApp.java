@@ -99,6 +99,18 @@ public class PixelGameApp extends GameApplication {
         hud.getRoot().prefWidthProperty().bind(uiRoot.widthProperty());
         hud.getRoot().prefHeightProperty().bind(uiRoot.heightProperty());
         getGameScene().addUINode(hud.getRoot());
+
+//        var dock = new org.csu.pixelstrikejavafx.ui.MultiplayerDock();
+//        dock.setBaseUrls("http://localhost:8080", "ws://localhost:8080");
+//        dock.setCollapsed(false); // 保证初次就展开
+//
+//        // ★ 关键：用 layoutX 绑定到 UI 根宽度——面板宽度，实现“右对齐”
+//        var dockNode = (javafx.scene.layout.BorderPane) dock.getRoot();
+//        var uiRoot1 = (javafx.scene.layout.Region) getGameScene().getRoot();
+//        dockNode.layoutXProperty().bind(uiRoot1.widthProperty().subtract(dockNode.widthProperty())); // 右贴边
+//        dockNode.setLayoutY(20);                                                                     // 顶部 20 像素
+//
+//        getGameScene().addUINode(dockNode);
     }
     @Override
     protected void initInput() {

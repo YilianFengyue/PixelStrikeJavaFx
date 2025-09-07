@@ -1,9 +1,6 @@
 
-
-```
 ```
 PixelStrikeJavaFx
-
 ├─ .mvn
 │  └─ wrapper
 │     └─ maven-wrapper.properties
@@ -28,15 +25,28 @@ PixelStrikeJavaFx
       │           ├─ HelloController.java
       │           ├─ map
       │           │  └─ MapBuilder.java
+      │           ├─ net
+      │           │  ├─ ApiClient.java
+      │           │  └─ WsClient.java
       │           ├─ player
-      │           │  └─ Player.java
+      │           │  ├─ Player.java
+      │           │  ├─ PlayerAnimator.java
+      │           │  ├─ PlayerHealth.java
+      │           │  └─ PlayerShooting.java
       │           ├─ rendering
       │           ├─ ui
+      │           │  ├─ MultiplayerDock.java
+      │           │  └─ PlayerHUD.java
       │           └─ util
       └─ resources
          ├─ assets
          │  └─ textures
+         │     ├─ ash_attack.png
+         │     ├─ ash_avatar.png
+         │     ├─ ash_idle.png
+         │     ├─ ash_walk.png
          │     ├─ background.png
+         │     ├─ floating_platform.png
          │     ├─ ground_base.png
          │     ├─ ground_edge.png
          │     └─ lapu.png
