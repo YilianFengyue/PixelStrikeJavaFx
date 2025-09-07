@@ -55,7 +55,7 @@ public class PixelGameApp extends GameApplication {
         networkManager = new NetworkManager(this::onGameStateReceived, this::onMatchSuccess);
         MapBuilder.buildLevel();
         setupCamera();
-        setupCollisionHandlers();
+//        setupCollisionHandlers();
 
         run(() -> {
             if (networkManager.getMyPlayerId() != null) {
@@ -65,30 +65,30 @@ public class PixelGameApp extends GameApplication {
 
         startGameFlow();
     }
-    private void setupCollisionHandlers() {
-        // 这个碰撞处理器在网络版中可能不是必须的，
-        // 因为玩家是否在地面上的最终判断权在服务器。
-        // 但为了本地视觉表现的平滑，可以保留。
-        java.util.function.BiConsumer<Entity, Boolean> setGround = (playerEntity, on) -> {
-            Object ref = playerEntity.getProperties().getObject("playerRef");
-            if (ref instanceof Player p) {
-                // 注意：在网络版中，这里可能需要调整，
-                // 也许只是更新一个本地的 isGrounded 标志用于动画，
-                // 而不是直接影响跳跃逻辑。
-                // p.setOnGround(on);
-            }
-        };
-
-        getPhysicsWorld().addCollisionHandler(new CollisionHandler(GameType.PLAYER, GameType.GROUND) {
-            @Override protected void onCollisionBegin(Entity a, Entity b) { setGround.accept(a, true);  }
-            @Override protected void onCollisionEnd(Entity a, Entity b)   { setGround.accept(a, false); }
-        });
-
-        getPhysicsWorld().addCollisionHandler(new CollisionHandler(GameType.PLAYER, GameType.PLATFORM) {
-            @Override protected void onCollisionBegin(Entity a, Entity b) { setGround.accept(a, true);  }
-            @Override protected void onCollisionEnd(Entity a, Entity b)   { setGround.accept(a, false); }
-        });
-    }
+//    private void setupCollisionHandlers() {
+//        // 这个碰撞处理器在网络版中可能不是必须的，
+//        // 因为玩家是否在地面上的最终判断权在服务器。
+//        // 但为了本地视觉表现的平滑，可以保留。
+//        java.util.function.BiConsumer<Entity, Boolean> setGround = (playerEntity, on) -> {
+//            Object ref = playerEntity.getProperties().getObject("playerRef");
+//            if (ref instanceof Player p) {
+//                // 注意：在网络版中，这里可能需要调整，
+//                // 也许只是更新一个本地的 isGrounded 标志用于动画，
+//                // 而不是直接影响跳跃逻辑。
+//                // p.setOnGround(on);
+//            }
+//        };
+//
+//        getPhysicsWorld().addCollisionHandler(new CollisionHandler(GameType.PLAYER, GameType.GROUND) {
+//            @Override protected void onCollisionBegin(Entity a, Entity b) { setGround.accept(a, true);  }
+//            @Override protected void onCollisionEnd(Entity a, Entity b)   { setGround.accept(a, false); }
+//        });
+//
+//        getPhysicsWorld().addCollisionHandler(new CollisionHandler(GameType.PLAYER, GameType.PLATFORM) {
+//            @Override protected void onCollisionBegin(Entity a, Entity b) { setGround.accept(a, true);  }
+//            @Override protected void onCollisionEnd(Entity a, Entity b)   { setGround.accept(a, false); }
+//        });
+//    }
 
 
     private void setupCamera() {
@@ -98,7 +98,7 @@ public class PixelGameApp extends GameApplication {
     }
 
     private void startGameFlow() {
-        String username = "asd";
+        String username = "qwe";
         String password = "123456";
         getExecutor().startAsync(() -> {
             networkManager.login(username, password).thenAccept(success -> {

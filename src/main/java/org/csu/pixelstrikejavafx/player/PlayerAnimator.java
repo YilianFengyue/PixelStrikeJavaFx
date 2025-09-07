@@ -32,7 +32,7 @@ public class PlayerAnimator {
             fallAnimation = new AnimationChannel(image("ash_walk.png"), 14, 200, 200, Duration.seconds(1.0), 8, 8);
 
             try {
-                dieAnimation = new AnimationChannel(image("ash_die.png"), 8, 200, 200, Duration.seconds(1.5), 0, 7);
+                dieAnimation = new AnimationChannel(image("lapu.png"), 8, 200, 200, Duration.seconds(1.5), 0, 7);
             } catch (Exception e) {
                 dieAnimation = new AnimationChannel(image("ash_idle.png"), 15, 200, 200, Duration.seconds(1.0), 0, 0);
             }

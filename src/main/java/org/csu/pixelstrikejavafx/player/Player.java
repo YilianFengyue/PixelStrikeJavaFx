@@ -1,14 +1,12 @@
-// main/java/org/csu/pixelstrikejavafx/player/Player.java
-
 package org.csu.pixelstrikejavafx.player;
 
-import com.almasb.fxgl.core.math.FXGLMath;
 import com.almasb.fxgl.entity.Entity;
 import com.almasb.fxgl.entity.components.CollidableComponent;
 import javafx.geometry.Point2D;
 import javafx.scene.paint.Color;
 import javafx.scene.shape.Rectangle;
 import lombok.Getter;
+import org.csu.pixelstrikejavafx.core.GameConfig;
 import org.csu.pixelstrikejavafx.core.GameType;
 import org.csu.pixelstrikejavafx.net.dto.PlayerState;
 
@@ -34,11 +32,15 @@ public class Player {
     private Point2D networkTargetPosition;
     private static final double INTERPOLATION_FACTOR = 15.0; // 平滑插值系数
 
+    // -- 视觉修正常量 --
+    private static final double VISUAL_X_OFFSET = -80.0;
+
     public Player(double spawnX, double spawnY) {
-        this.networkTargetPosition = new Point2D(spawnX, spawnY);
+        double renderY = spawnY + GameConfig.Y_OFFSET;
+        this.networkTargetPosition = new Point2D(spawnX + VISUAL_X_OFFSET, renderY);
         entity = entityBuilder()
                 .type(GameType.PLAYER)
-                .at(spawnX, spawnY)
+                .at(spawnX, renderY)
                 .viewWithBBox(new Rectangle(86, 160, Color.TRANSPARENT))
                 .with(new CollidableComponent(false))
                 .zIndex(1000)
@@ -57,12 +59,17 @@ public class Player {
      * 由网络线程调用，用于更新目标位置和修正状态
      */
     public void networkUpdate(PlayerState serverState) {
+        // 坐标转换
+
+        double renderY = serverState.getY() + GameConfig.Y_OFFSET;
         // 1. 更新网络位置目标
-        this.networkTargetPosition = new Point2D(serverState.getX(), serverState.getY());
+        this.networkTargetPosition = new Point2D(serverState.getX() + VISUAL_X_OFFSET, renderY);
 
         // 2. 服务器是朝向、是否在地的唯一权威
         this.isFacingRight = serverState.isFacingRight();
-        this.onGround = serverState.getY() >= 499.0; // 用一个近似值判断
+
+        // this.onGround = serverState.getY() >= 499.0; // 用一个近似值判断
+        this.onGround = renderY >= (GameConfig.MAP_H - 211 - 10);
 
         // 3. 用服务器的权威动作来修正客户端的预测
         // 如果服务器说你在跳/下落/射击/死亡，客户端必须服从
