@@ -17,20 +17,27 @@ import java.util.concurrent.ThreadLocalRandom;
  */
 public class PlayerShooting {
 
+
+
+    // 伤害 / 击退
+
+    private static final double KB_X   = 220.0;
+    private static final double KB_Y   = 180.0;
+
     // ===== 射击参数配置 =====
     private static final double TIME_BETWEEN_BULLETS = 0.15;  // 射击间隔(秒)
     private static final double EFFECTS_DISPLAY_TIME = 0.2;   // 效果显示时间
-    private static final double SHOOT_RANGE = 800.0;          // 射击距离
-    private static final double DAMAGE = 25.0;                // 伤害值
+    private static final double SHOOT_RANGE = 1200.0;          // 射击距离
+    private static final double DAMAGE = 20.0;                // 伤害值
 
     // ===== 枪口/摆动/散布/后坐（都可手调） =====
-// 枪口偏移：只改这三项就能把射线对准你枪口
-    private static final double MUZZLE_RIGHT_X = 120;  // 朝右时 X 偏移（像素）
-    private static final double MUZZLE_LEFT_X  = 10;   // 朝左时 X 偏移（像素）
-    private static final double MUZZLE_Y       = 60;   // Y 偏移（像素，向下为正）
+    // 枪口偏移：只改这三项就能把射线对准你枪口
+    private static final double MUZZLE_RIGHT_X = 150;  // 朝右时 X 偏移（像素）
+    private static final double MUZZLE_LEFT_X  = 0;   // 朝左时 X 偏移（像素）
+    private static final double MUZZLE_Y       = 0;   // Y 偏移（像素，向下为正）
 
     // 上下摆动（视为“很轻微的抖动”）
-    private static final double SWAY_AMPL_DEG  = 1.2;  // 最大摆动角(°)
+    private static final double SWAY_AMPL_DEG  = 1.6;  // 最大摆动角(°)
     private static final double SWAY_SPEED     = 18.0; // 摆动速度（弧度/秒）
 
     // 每枪随机散布
@@ -87,6 +94,10 @@ public class PlayerShooting {
      */
     public void startShooting() {
         isShooting = true;
+
+        if (time < TIME_BETWEEN_BULLETS) time = TIME_BETWEEN_BULLETS;
+
+        System.out.println("[Shoot] start by " + player.hashCode());
     }
 
     /**
@@ -124,14 +135,15 @@ public class PlayerShooting {
 
         Point2D hitPoint = rayEnd;   // 先默认打空到射线终点
         Entity hitEntity = null;
-
+        System.out.println("[Shoot] ray " + shootOrigin + " -> " + rayEnd);
         // FXGL 的 RaycastResult 直接给 Optional<Point2D> / Optional<Entity>
         if (result.getPoint().isPresent()) {
             hitPoint = result.getPoint().get();
+
         }
         if (result.getEntity().isPresent()) {
             hitEntity = result.getEntity().get();
-
+            System.out.println("[Shoot] firstHit type=" + hitEntity.getType());
             // 命中玩家（避免自伤）
             if (hitEntity.getType() == GameType.PLAYER && hitEntity != player.getEntity()) {
                 dealDamageToPlayer(hitEntity);
@@ -173,19 +185,21 @@ public class PlayerShooting {
      * 对玩家造成伤害
      */
     private void dealDamageToPlayer(Entity targetEntity) {
-        // 防止自伤
-        if (targetEntity == player.getEntity()) {
+        if (targetEntity == player.getEntity()) return;  // 防自伤
+
+        // 从实体属性拿回 Player 引用（你在 Player.createEntity() 已 setProperty("playerRef", this)）
+        Object ref = targetEntity.getProperties().getObject("playerRef");
+        if (!(ref instanceof Player target)) {
+            System.out.println("[Hit] target has no playerRef");
             return;
         }
 
-        // TODO: 获取目标玩家的Health组件并造成伤害
-        System.out.println("对玩家造成 " + DAMAGE + " 点伤害");
+        double dir = player.getFacingRight() ? +1 : -1;  // 击退方向=射手朝向
+        target.applyHit((int) DAMAGE, dir * KB_X, KB_Y);
 
-        // 这里需要一个PlayerHealth系统来处理伤害
-        // PlayerHealth targetHealth = targetEntity.getComponent(PlayerHealth.class);
-        // if (targetHealth != null) {
-        //     targetHealth.takeDamage((int)DAMAGE);
-        // }
+        System.out.printf("[Hit] victim=%s hp=%d/%d knock=(%.0f,%.0f)%n",
+                target.hashCode(), target.getHealth().getHp(), target.getHealth().getMaxHp(),
+                dir*KB_X, KB_Y);
     }
 
     /**

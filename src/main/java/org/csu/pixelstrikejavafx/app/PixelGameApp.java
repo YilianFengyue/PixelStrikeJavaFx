@@ -1,5 +1,6 @@
 package org.csu.pixelstrikejavafx.app;
 
+import com.almasb.fxgl.app.ApplicationMode;
 import com.almasb.fxgl.app.GameApplication;
 import com.almasb.fxgl.app.GameSettings;
 import com.almasb.fxgl.entity.Entity;
@@ -22,6 +23,8 @@ public class PixelGameApp extends GameApplication {
     private Player player2;
     private CameraFollow cameraFollow;
 
+    private double bootWarmup = 0.20; // 200ms 预热
+
     private final double GROUND_TOP_Y = 980;  // ← “脚踩的那条线”，不对就只改这个数
     private final double GROUND_H     = 211;  // ← 你的 ground_base.png 高度
     @Override
@@ -34,6 +37,10 @@ public class PixelGameApp extends GameApplication {
         s.setMainMenuEnabled(false);
         s.setGameMenuEnabled(false);
         s.setScaleAffectedOnResize(false);
+
+        s.setApplicationMode(ApplicationMode.DEVELOPER); // 关键
+        s.setDeveloperMenuEnabled(true);                 // 关键
+        s.setScaleAffectedOnResize(true);
     }
 
     @Override
@@ -57,6 +64,8 @@ public class PixelGameApp extends GameApplication {
 
         // 4) 碰撞（落地）
         setupCollisionHandlers();
+
+
     }
 
     @Override
@@ -87,11 +96,23 @@ public class PixelGameApp extends GameApplication {
                 if (player != null) player.stopShooting();
             }
         }, KeyCode.J);  // 或者用鼠标左键
+
+
     }
 
     @Override
     protected void onUpdate(double tpf) {
+        // 冷启动阶段逐步吃掉大 tpf：既不跳帧，也不让角色猛冲
+        if (bootWarmup > 0) {
+            bootWarmup -= tpf;
+            // 预热期内，把给到你逻辑的 dt 钳得更小，且不响应突变
+            double dt = Math.min(tpf, 1.0 / 60.0);
+            if (player != null) player.update(dt);
+            if (cameraFollow != null) cameraFollow.update();
+            return;
+        }
 
+        double dt = Math.min(tpf, 1.0 / 30.0);
         if (player != null) player.update(tpf);
         if (cameraFollow != null) cameraFollow.update();
     }
@@ -119,14 +140,25 @@ public class PixelGameApp extends GameApplication {
         }
     }
     private void setupCollisionHandlers() {
+
+        // 通用设置函数：把事件里真正碰撞的那个玩家设为 on/off ground
+        java.util.function.BiConsumer<Entity, Boolean> setGround = (playerEntity, on) -> {
+            Object ref = playerEntity.getProperties().getObject("playerRef");
+            if (ref instanceof Player p) {
+                p.setOnGround(on);
+            }
+        };
+
+        // PLAYER vs GROUND
         getPhysicsWorld().addCollisionHandler(new CollisionHandler(GameType.PLAYER, GameType.GROUND) {
-            @Override protected void onCollisionBegin(Entity a, Entity b) { player.setOnGround(true); }
-            @Override protected void onCollisionEnd(Entity a, Entity b)   { player.setOnGround(false); }
+            @Override protected void onCollisionBegin(Entity a, Entity b) { setGround.accept(a, true);  }
+            @Override protected void onCollisionEnd(Entity a, Entity b)   { setGround.accept(a, false); }
         });
 
+        // PLAYER vs PLATFORM
         getPhysicsWorld().addCollisionHandler(new CollisionHandler(GameType.PLAYER, GameType.PLATFORM) {
-            @Override protected void onCollisionBegin(Entity a, Entity b) { player.setOnGround(true); }
-            @Override protected void onCollisionEnd(Entity a, Entity b)   { player.setOnGround(false); }
+            @Override protected void onCollisionBegin(Entity a, Entity b) { setGround.accept(a, true);  }
+            @Override protected void onCollisionEnd(Entity a, Entity b)   { setGround.accept(a, false); }
         });
     }
 

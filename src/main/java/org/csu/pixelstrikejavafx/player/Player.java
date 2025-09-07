@@ -38,9 +38,9 @@ public class Player {
     private static final double PLAYER_H = 200;
     // 碰撞体调整常量
     private static final double HB_OFF_X =  80;   // 水平居中偏移
-    private static final double HB_OFF_Y = 140;  // 垂直下移到脚部
-    private static final double HB_W = 86;       // 碰撞体宽度
-    private static final double HB_H = 40;       // 碰撞体高度
+    private static final double HB_OFF_Y = 20; // 垂直下移到脚部
+    private static final double HB_W = 86;   // 碰撞体宽度
+    private static final double HB_H =160;       // 碰撞体高度
 
     // —— 手感参数（可按需微调）——
     private static final double WALK_SPEED = 200.0;
