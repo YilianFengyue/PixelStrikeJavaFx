@@ -14,15 +14,20 @@ import org.csu.pixelstrikejavafx.core.GameConfig;
 import org.csu.pixelstrikejavafx.core.GameType;
 import org.csu.pixelstrikejavafx.map.MapBuilder;
 import org.csu.pixelstrikejavafx.player.Player;
-
+import javafx.scene.layout.Region;  // 文件头需要这行
 import static com.almasb.fxgl.dsl.FXGL.*;
+//简易UI逻辑
+import io.github.palexdev.materialfx.controls.*; // 仅为编译友好
+import javafx.scene.image.Image;
+import org.csu.pixelstrikejavafx.ui.PlayerHUD;
 
 public class PixelGameApp extends GameApplication {
 
     private Player player;
     private Player player2;
     private CameraFollow cameraFollow;
-
+    //UI左下角
+    private PlayerHUD hud;
     private double bootWarmup = 0.20; // 200ms 预热
 
     private final double GROUND_TOP_Y = 980;  // ← “脚踩的那条线”，不对就只改这个数
@@ -52,7 +57,7 @@ public class PixelGameApp extends GameApplication {
 
         // 2) 玩家
         setupPlayer();
-        setupPlayer2();         // ★ 新增 p2
+//        setupPlayer2();         // ★ 新增 p2
         // 3) 相机
         var vp = getGameScene().getViewport();
         vp.setBounds(0, 0,
@@ -67,7 +72,34 @@ public class PixelGameApp extends GameApplication {
 
 
     }
+    @Override
+    protected void initUI() {
+        Image avatar = null;
+        try { avatar = getAssetLoader().loadImage("ash_avatar.png"); } catch (Exception ignored) {}
 
+        hud = new PlayerHUD(
+                avatar,
+                () -> spawnOrRespawnP2(),                       // 生成/重生 P2
+                () -> { if (player != null) player.die(); },    // 击杀自己
+                () -> { if (player != null) {                   // 复活自己
+                    player.revive();
+                    player.onRevived();
+                }},
+                () -> {                                         // ★ P2 开火
+                    if (player2 == null) spawnOrRespawnP2();
+                    if (player2 != null) {
+                        player2.startShooting();
+                        runOnce(() -> { if (player2 != null) player2.stopShooting(); },
+                                javafx.util.Duration.seconds(0.25));
+                    }
+                }
+        );
+
+        Region uiRoot = (Region) getGameScene().getRoot();
+        hud.getRoot().prefWidthProperty().bind(uiRoot.widthProperty());
+        hud.getRoot().prefHeightProperty().bind(uiRoot.heightProperty());
+        getGameScene().addUINode(hud.getRoot());
+    }
     @Override
     protected void initInput() {
         // 保留你原先的回调写法
@@ -108,13 +140,29 @@ public class PixelGameApp extends GameApplication {
             // 预热期内，把给到你逻辑的 dt 钳得更小，且不响应突变
             double dt = Math.min(tpf, 1.0 / 60.0);
             if (player != null) player.update(dt);
+            //Player2测试
+            //Player2测试
+            //Player2测试
+            if (player2 != null) player2.update(dt);   // ★ 每帧也要驱动 P2
             if (cameraFollow != null) cameraFollow.update();
+            // ★ 刷 HUD
+            if (hud != null && player != null) {
+                hud.updateHP(player.getHealth().getHp(), player.getHealth().getMaxHp());
+            }
             return;
         }
 
         double dt = Math.min(tpf, 1.0 / 30.0);
-        if (player != null) player.update(tpf);
+        if (player != null) player.update(dt);
+        //Player2测试
+        //Player2测试
+        //Player2测试
+        if (player2 != null) player2.update(dt);       // ★ 关键：别忘了 P2
         if (cameraFollow != null) cameraFollow.update();
+        // ★ 刷 HUD
+        if (hud != null && player != null) {
+            hud.updateHP(player.getHealth().getHp(), player.getHealth().getMaxHp());
+        }
     }
 
     private void setupPlayer() {
@@ -161,6 +209,14 @@ public class PixelGameApp extends GameApplication {
             @Override protected void onCollisionEnd(Entity a, Entity b)   { setGround.accept(a, false); }
         });
     }
-
+    private void spawnOrRespawnP2() {
+        if (player2 == null) {
+            setupPlayer2();
+        } else {
+            player2.revive();
+            player2.onRevived();
+            player2.reset(1200, GameConfig.MAP_H - 211 - 128);
+        }
+    }
     public static void main(String[] args) { launch(args); }
 }

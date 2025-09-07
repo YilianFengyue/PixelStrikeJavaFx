@@ -24,11 +24,13 @@ public class PlayerShooting {
     private static final double KB_X   = 220.0;
     private static final double KB_Y   = 180.0;
 
+
+
     // ===== 射击参数配置 =====
     private static final double TIME_BETWEEN_BULLETS = 0.15;  // 射击间隔(秒)
     private static final double EFFECTS_DISPLAY_TIME = 0.2;   // 效果显示时间
     private static final double SHOOT_RANGE = 1200.0;          // 射击距离
-    private static final double DAMAGE = 20.0;                // 伤害值
+    private static final double DAMAGE = 10.0;                // 伤害值
 
     // ===== 枪口/摆动/散布/后坐（都可手调） =====
     // 枪口偏移：只改这三项就能把射线对准你枪口
@@ -49,7 +51,7 @@ public class PlayerShooting {
     private static final double RECOIL_RECOVER_DEG_PER_SEC = 8.0; // 不开火时恢复(°/s)
 
     // 施加在玩家身上的物理后坐力（速度增量）
-    private static final double RECOIL_KNOCKBACK_VX = 60.0; // 水平反冲速度
+    private static final double RECOIL_KNOCKBACK_VX = 200.0; // 水平反冲速度
     private static final double RECOIL_KNOCKBACK_UP = 20.0; // 轻微上抬速度
 
     // ===== 运行时状态 =====
@@ -194,12 +196,11 @@ public class PlayerShooting {
             return;
         }
 
-        double dir = player.getFacingRight() ? +1 : -1;  // 击退方向=射手朝向
-        target.applyHit((int) DAMAGE, dir * KB_X, KB_Y);
-
+        double dir = player.getFacingRight() ? +1 : -1;     // 向右推正，向左推负
+        target.applyHit((int) DAMAGE, dir * KB_X, 0);       // ★ 只做水平击退
         System.out.printf("[Hit] victim=%s hp=%d/%d knock=(%.0f,%.0f)%n",
                 target.hashCode(), target.getHealth().getHp(), target.getHealth().getMaxHp(),
-                dir*KB_X, KB_Y);
+                dir * KB_X, 0.0);                           // ★ 日志也改成 0
     }
 
     /**

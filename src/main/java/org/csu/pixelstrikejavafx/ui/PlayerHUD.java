@@ -2,79 +2,138 @@ package org.csu.pixelstrikejavafx.ui;
 
 import io.github.palexdev.materialfx.controls.MFXButton;
 import io.github.palexdev.materialfx.controls.MFXProgressBar;
+import javafx.scene.control.ProgressBar;
 import javafx.geometry.Insets;
 import javafx.geometry.Pos;
+import javafx.scene.control.Label;
 import javafx.scene.image.Image;
 import javafx.scene.layout.*;
+import javafx.scene.paint.Color;
 import javafx.scene.paint.ImagePattern;
 import javafx.scene.shape.Circle;
-import javafx.scene.control.Label;
 
-/** 左下角 HUD：头像 + 血条 + 三个测试按钮 */
 public class PlayerHUD {
 
-    private final StackPane root = new StackPane();
-    private final MFXProgressBar hpBar = new MFXProgressBar();
+    private static final double CARD_WIDTH  = 360; // ☆ 卡片更大
+    private static final double CARD_MARGIN = 0;  // ☆ 距离屏幕边缘（左下）
+
+    private final AnchorPane root = new AnchorPane();
+
+    private final ProgressBar hpBar = new ProgressBar();
     private final Label hpText = new Label("HP 100/100");
-    private final MFXButton btnSpawnP2 = new MFXButton("生成P2");
+
+    private final MFXButton btnSpawnP2 = new MFXButton("生成 P2");
     private final MFXButton btnKill    = new MFXButton("击杀自己");
     private final MFXButton btnRevive  = new MFXButton("复活");
+    private final MFXButton btnP2Shoot = new MFXButton("P2 开火");
 
     private Runnable onSpawnP2;
     private Runnable onKillSelf;
     private Runnable onRevive;
+    private Runnable onP2Shoot;
 
-    public PlayerHUD(Image avatar, Runnable onSpawnP2, Runnable onKillSelf, Runnable onRevive) {
+    // ☆ 构造函数新增 onP2Shoot
+    public PlayerHUD(Image avatar,
+                     Runnable onSpawnP2,
+                     Runnable onKillSelf,
+                     Runnable onRevive,
+                     Runnable onP2Shoot) {
         this.onSpawnP2 = onSpawnP2;
         this.onKillSelf = onKillSelf;
-        this.onRevive = onRevive;
+        this.onRevive  = onRevive;
+        this.onP2Shoot = onP2Shoot;
 
         // 头像
-        Circle avatarCircle = new Circle(28);
+        Circle avatarCircle = new Circle(20);
         if (avatar != null) avatarCircle.setFill(new ImagePattern(avatar));
+        else avatarCircle.setFill(Color.web("#E5E7EB"));
+        avatarCircle.setStroke(Color.WHITE);
+        avatarCircle.setStrokeWidth(2);
 
         // 名称 + 血条
         Label name = new Label("Player");
-        name.setStyle("-fx-font-size: 14px; -fx-text-fill: white;");
+        name.setStyle("-fx-font-size: 14px; -fx-text-fill: #111827; -fx-font-weight: bold;");
 
-        hpBar.setProgress(1.0);        // 0~1
-        hpBar.setPrefWidth(180);
-        hpBar.setMinWidth(180);
+        hpBar.setProgress(1.0);                     // 0..1
+        hpBar.setPrefWidth(CARD_WIDTH - 150);
+        hpBar.setMinHeight(8);
+        hpBar.setStyle("-fx-accent: #22c55e;");
 
         VBox infoBox = new VBox(4, name, hpBar, hpText);
         infoBox.setAlignment(Pos.CENTER_LEFT);
 
-        HBox topRow = new HBox(12, avatarCircle, infoBox);
+        HBox topRow = new HBox(10, avatarCircle, infoBox);
         topRow.setAlignment(Pos.CENTER_LEFT);
 
-        // 按钮
+        // ☆ 统一按钮尺寸，避免“省略号”
+        stylePrimary(btnSpawnP2);
+        styleOutlined(btnKill);
+        styleOutlined(btnRevive);
+        styleOutlined(btnP2Shoot);
+
+        btnSpawnP2.setPrefWidth(88);
+        btnKill.setPrefWidth(88);
+        btnRevive.setPrefWidth(88);
+        btnP2Shoot.setPrefWidth(88);
+
+        // 按钮行
+        HBox btnRow = new HBox(10, btnSpawnP2, btnKill, btnRevive, btnP2Shoot);
+        btnRow.setAlignment(Pos.CENTER_LEFT);
+
+        // 卡片
+        VBox card = new VBox(12, topRow, btnRow);
+        card.setPadding(new Insets(12));
+        card.setPrefWidth(CARD_WIDTH);
+        card.setMaxWidth(CARD_WIDTH);
+        card.setStyle("""
+            -fx-background-color: white;
+            -fx-background-radius: 14;
+            -fx-border-color: #E5E7EB;
+            -fx-border-radius: 14;
+            -fx-effect: dropshadow(gaussian, rgba(0,0,0,0.12), 12, 0.2, 0, 3);
+        """);
+        card.setMaxSize(Region.USE_PREF_SIZE, Region.USE_PREF_SIZE);
+
+        root.getChildren().add(card);
+        // ☆ 更靠屏幕左下角
+        AnchorPane.setLeftAnchor(card, CARD_MARGIN);
+        AnchorPane.setBottomAnchor(card, CARD_MARGIN);
+
+        root.setStyle("-fx-font-family: 'Segoe UI','Microsoft YaHei','Roboto';");
+
+        // 绑定动作
         btnSpawnP2.setOnAction(e -> { if (onSpawnP2 != null) onSpawnP2.run(); });
         btnKill.setOnAction(e -> { if (onKillSelf != null) onKillSelf.run(); });
         btnRevive.setOnAction(e -> { if (onRevive != null) onRevive.run(); });
+        btnP2Shoot.setOnAction(e -> { if (onP2Shoot != null) onP2Shoot.run(); });
+    }
 
-        HBox btnRow = new HBox(8, btnSpawnP2, btnKill, btnRevive);
-        btnRow.setAlignment(Pos.CENTER_LEFT);
-
-        VBox card = new VBox(10, topRow, btnRow);
-        card.setPadding(new Insets(10));
-        card.setMaxWidth(300);
-        card.setStyle("""
-            -fx-background-color: rgba(30,30,34,0.85);
-            -fx-background-radius: 12;
-            -fx-effect: dropshadow(gaussian, rgba(0,0,0,0.35), 14, 0.2, 0, 4);
+    private void stylePrimary(MFXButton b) {
+        b.setMinHeight(30);
+        b.setStyle("""
+            -fx-background-color: #3B82F6;
+            -fx-text-fill: white;
+            -fx-background-radius: 10;
+            -fx-font-size: 12px;
+            -fx-padding: 0 14 0 14;
         """);
+    }
 
-        root.getChildren().add(card);
-        StackPane.setAlignment(card, Pos.BOTTOM_LEFT);
-        StackPane.setMargin(card, new Insets(0, 0, 16, 16));
-
-        root.setStyle("-fx-font-family: 'Segoe UI','Microsoft YaHei','Roboto';");
-        hpText.setStyle("-fx-font-size: 12px; -fx-text-fill: #d0d0d0;");
+    private void styleOutlined(MFXButton b) {
+        b.setMinHeight(30);
+        b.setStyle("""
+            -fx-background-color: transparent;
+            -fx-border-color: #CBD5E1;
+            -fx-text-fill: #374151;
+            -fx-background-radius: 10;
+            -fx-border-radius: 10;
+            -fx-font-size: 12px;
+            -fx-padding: 0 14 0 14;
+        """);
     }
 
     public Pane getRoot() { return root; }
 
-    /** 刷新血条（0~max） */
     public void updateHP(int hp, int max) {
         double p = max > 0 ? Math.max(0, Math.min(1.0, hp / (double) max)) : 0;
         hpBar.setProgress(p);

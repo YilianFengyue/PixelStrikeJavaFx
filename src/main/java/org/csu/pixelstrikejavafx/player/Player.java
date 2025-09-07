@@ -60,6 +60,8 @@ public class Player {
     //角色射击组件
     private  PlayerShooting shootingSys;
 
+
+    private double knockVX = 0.0;   // ★ 水平击退临时速度（逐帧衰减）
     // 运行时状态
     private State  state = State.IDLE;
     private double vxTarget = 0.0;
@@ -190,7 +192,16 @@ public class Player {
         } else {
             vxCurrent = vxTarget;
         }
-        physics.setVelocityX(vxCurrent);
+        double totalVX = vxCurrent + knockVX;
+        physics.setVelocityX(totalVX);
+
+        // ★ 按时间衰减击退（与帧率无关）
+        double decel = 900 * tpf; // 每秒把绝对值减少约 900 像素/秒，可按手感调
+        if (Math.abs(knockVX) <= decel) {
+            knockVX = 0;
+        } else {
+            knockVX -= Math.signum(knockVX) * decel;
+        }
 
 
         //死亡和射击
@@ -373,6 +384,7 @@ public class Player {
         vxCurrent = vxTarget = 0;
         state = State.IDLE;
         facingRight = true;  // 新增这行
+        knockVX = 0;   // ★ 清掉残留击退
     }
 
 
@@ -424,9 +436,12 @@ public class Player {
 
     /** 受击击退：+X 向右 / -X 向左；Y 为向上（正值会抬起） */
     public void applyKnockback(double kx, double ky) {
-        if (physics == null) return;
-        physics.setVelocityX(physics.getVelocityX() + kx);
-        physics.setVelocityY(physics.getVelocityY() - ky);
+        // ★ 关键：X 不直接 setVelocity，避免被 update() 覆盖
+        knockVX += kx;
+
+        if (physics != null) {
+            physics.setVelocityY(physics.getVelocityY() - ky);
+        }
     }
 
     /** 受伤回调 —— 预留动画/闪烁/受击硬直（此处不做具体表现） */
@@ -443,7 +458,15 @@ public class Player {
             physics.setVelocityX(0);
             physics.setVelocityY(0);
         }
-
+        // ★ 关键：把 Box2D 刚体从物理世界“停用”，不再参与碰撞/射线
+        var body = physics.getBody();
+        if (body != null) {
+            body.setActive(false);
+        }
+        // ★ 清战斗状态，避免卡在 SHOOTING / 攻段
+        shooting = false;
+        stopQueued = false;
+        attackPhase = AttackPhase.BEGIN;
         // 先简单“消失”：隐藏 + 关闭碰撞（比 removeFromWorld 更安全，不影响相机引用）
         if (entity != null) {
             entity.setVisible(false);
@@ -457,10 +480,48 @@ public class Player {
     /** 复活回调 —— 恢复可见与碰撞，位置/血量由外部控制 */
     public void onRevived() {
         dead = false;
+
         if (entity != null) {
             entity.setVisible(true);
             var coll = entity.getComponentOptional(CollidableComponent.class).orElse(null);
             if (coll != null) coll.setValue(true);
+        }
+        // ★ 关键：把刚体重新激活
+        if (physics != null) {
+            var body = physics.getBody();
+            if (body != null) {
+                body.setActive(true);
+            }
+            physics.setVelocityX(0);
+            physics.setVelocityY(0);
+        }
+        // ★ 关键：清理战斗/移动/跳跃状态，避免卡在 SHOOTING 或无接触状态
+        shooting = false;
+        stopQueued = false;
+        attackPhase = AttackPhase.BEGIN;
+        lastShootEndTime = 0;
+        lastShootUpTime = 0;
+        attackPhaseStartTime = System.currentTimeMillis();
+
+        movingLeft = false;
+        movingRight = false;
+        running = false;
+
+        vxCurrent = 0;
+        vxTarget  = 0;
+        knockVX = 0;   // ★ 清掉残留击退
+        if (physics != null) {
+            physics.setVelocityX(0);
+            physics.setVelocityY(0);
+        }
+
+        jumpsUsed = 0;
+        onGround  = true;          // ★ 直接给落地，避免需要“先产生一次碰撞”才能跳
+        state     = State.IDLE;
+
+        // 轻微下压 1px，确保下一帧有接触稳定（有些情况下更稳）
+        if (entity != null) {
+            entity.translateY(1);
         }
     }
     // —— Getter ——
