@@ -11,6 +11,8 @@ import javafx.scene.layout.*;
 import javafx.scene.paint.Color;
 import javafx.scene.paint.ImagePattern;
 import javafx.scene.shape.Circle;
+import javafx.application.Platform;
+import javafx.scene.layout.Region;
 
 public class PlayerHUD {
 
@@ -54,10 +56,15 @@ public class PlayerHUD {
         Label name = new Label("Player");
         name.setStyle("-fx-font-size: 14px; -fx-text-fill: #111827; -fx-font-weight: bold;");
 
-        hpBar.setProgress(1.0);                     // 0..1
+        hpBar.setProgress(1.0);                       // 0..1
         hpBar.setPrefWidth(CARD_WIDTH - 150);
-        hpBar.setMinHeight(8);
-        hpBar.setStyle("-fx-accent: #22c55e;");
+        hpBar.setMinHeight(6);
+        hpBar.setPrefHeight(6);
+        hpBar.setMaxHeight(6);
+        hpBar.setStyle("-fx-accent: #22c55e; -fx-background-color: transparent; -fx-padding: 0;");
+
+        // 关键：等 skin / scene 就绪后，把内层 .track / .bar 做成“无边框+胶囊”
+        styleHpBar(hpBar);
 
         VBox infoBox = new VBox(4, name, hpBar, hpText);
         infoBox.setAlignment(Pos.CENTER_LEFT);
@@ -138,5 +145,25 @@ public class PlayerHUD {
         double p = max > 0 ? Math.max(0, Math.min(1.0, hp / (double) max)) : 0;
         hpBar.setProgress(p);
         hpText.setText("HP " + hp + "/" + max);
+    }
+    // 让 ProgressBar 看起来像“无边框的细绿色胶囊条”
+    private void styleHpBar(ProgressBar pb) {
+        // 任何一次创建/换皮肤/进场，都尝试美化一次
+        pb.skinProperty().addListener((obs, o, n) -> Platform.runLater(() -> tweakBar(pb)));
+        pb.sceneProperty().addListener((obs, o, n) -> Platform.runLater(() -> tweakBar(pb)));
+
+        // 构造完成后也先尝试一次（有时皮肤已就绪）
+        Platform.runLater(() -> tweakBar(pb));
+    }
+
+    private void tweakBar(ProgressBar pb) {
+        Region track = (Region) pb.lookup(".track");
+        Region bar   = (Region) pb.lookup(".bar");
+        if (track != null) {
+            track.setStyle("-fx-background-color: #e5e7eb; -fx-background-radius: 999; -fx-background-insets: 0;");
+        }
+        if (bar != null) {
+            bar.setStyle("-fx-background-color: #22c55e; -fx-background-radius: 999; -fx-background-insets: 0;");
+        }
     }
 }
