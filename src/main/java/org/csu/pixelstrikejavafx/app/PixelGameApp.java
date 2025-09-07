@@ -11,6 +11,7 @@ import org.csu.pixelstrikejavafx.core.GameConfig;
 import org.csu.pixelstrikejavafx.core.GameType;
 import org.csu.pixelstrikejavafx.map.MapBuilder;
 import org.csu.pixelstrikejavafx.player.Player;
+import org.csu.pixelstrikejavafx.ui.PixelStrikeSceneFactory;
 
 import static com.almasb.fxgl.dsl.FXGL.*;
 
@@ -28,8 +29,11 @@ public class PixelGameApp extends GameApplication {
         s.setTitle("PixelStrike - Map & Camera");
 
         s.setPixelsPerMeter(GameConfig.PPM);
-        s.setMainMenuEnabled(false);
-        s.setGameMenuEnabled(false);
+
+        s.setMainMenuEnabled(true); // 1. 启用主菜单
+        s.setGameMenuEnabled(false); // 游戏内菜单可以先禁用
+        s.setSceneFactory(new PixelStrikeSceneFactory());
+
         s.setScaleAffectedOnResize(false);
     }
 
