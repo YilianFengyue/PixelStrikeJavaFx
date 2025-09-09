@@ -72,4 +72,20 @@ public final class NetClient {
         );
         send(j);
     }
+    //10参版本
+    public void sendState(double x, double y, double vx, double vy, boolean facing, boolean onGround,
+                          String anim, String phase, long ts, long seq) {
+        StringBuilder sb = new StringBuilder(160);
+        sb.append("{\"type\":\"state\"")
+                .append(",\"x\":").append(String.format(java.util.Locale.US,"%.2f",x))
+                .append(",\"y\":").append(String.format(java.util.Locale.US,"%.2f",y))
+                .append(",\"vx\":").append(String.format(java.util.Locale.US,"%.2f",vx))
+                .append(",\"vy\":").append(String.format(java.util.Locale.US,"%.2f",vy))
+                .append(",\"facing\":").append(facing)
+                .append(",\"onGround\":").append(onGround);
+        if (anim  != null) sb.append(",\"anim\":\"").append(anim).append('"');
+        if (phase != null) sb.append(",\"phase\":\"").append(phase).append('"');
+        sb.append(",\"ts\":").append(ts).append(",\"seq\":").append(seq).append("}");
+        send(sb.toString());
+    }
 }

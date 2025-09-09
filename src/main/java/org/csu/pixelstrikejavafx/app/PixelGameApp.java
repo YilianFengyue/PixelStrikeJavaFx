@@ -29,6 +29,7 @@ import javafx.scene.shape.Rectangle;
 import java.util.Map;
 import java.util.concurrent.ConcurrentHashMap;
 
+import org.csu.pixelstrikejavafx.player.RemoteAvatar; // ★ 远端影子动画
 // ...
 
 public class PixelGameApp extends GameApplication {
@@ -62,13 +63,25 @@ public class PixelGameApp extends GameApplication {
 
 
 
-    // [NEW] 远端玩家轻量结构（矩形+插值目标）
     private static class RemotePlayer {
         Entity entity;
+        RemoteAvatar avatar;     // ★ 新增：影子动画
+
+        // 插值目标
         double targetX, targetY;
         boolean targetFacing;
+
+        // 状态同步字段（来自网络）
+        boolean onGround;        // ★ 新增
+        double lastVX, lastVY;   // ★ 新增
+        String anim, phase;      // ★ 新增
+
         long lastUpdate = System.currentTimeMillis();
-        RemotePlayer(Entity e) { this.entity = e; }
+
+        RemotePlayer(Entity e, RemoteAvatar a) {  // ★ 新构造
+            this.entity = e;
+            this.avatar = a;
+        }
     }
 
     @Override
@@ -270,7 +283,13 @@ public class PixelGameApp extends GameApplication {
             double ny = curY + (rp.targetY - curY) * lerpSpeed * tpf;
             rp.entity.setX(nx);
             rp.entity.setY(ny);
-            rp.entity.setScaleX(rp.targetFacing ? 1 : -1);
+            // 朝向 & 动画
+            if (rp.avatar != null) {
+                rp.avatar.setFacingRight(rp.targetFacing);                     // ★ 朝向
+                rp.avatar.playState(rp.anim, rp.phase, rp.lastVX, rp.onGround); // ★ 动画
+            }
+
+//            rp.entity.setScaleX(rp.targetFacing ? 1 : -1);
         }
     }
     // [NEW]
@@ -297,7 +316,8 @@ public class PixelGameApp extends GameApplication {
                     e.getX(), e.getY(),
                     phy.getVelocityX(), phy.getVelocityY(),
                     player.getFacingRight(), player.isOnGround(),
-                    System.currentTimeMillis(), seq++                // ← 新增 ts/seq
+                    player.getNetAnim(), player.getNetPhase(),      // ← 新增：把本地真实动画状态随 state 一起发；其余不动。
+                    System.currentTimeMillis(), seq++
             );
         }
     }
@@ -314,16 +334,32 @@ public class PixelGameApp extends GameApplication {
                     System.out.println("WELCOME, myId=" + myPlayerId);
                 }
                 case "state" -> {
-                    if (!joinedAck) {                                 // ← 新增：硬闸
+                    if (!joinedAck) {
                         System.out.println("IGNORE state before welcome");
                         return;
                     }
                     int id = extractInt(json, "\"id\":");
-                    if (id == 0 || id == myPlayerId) return;          // 自己/无效 id 直接过
+                    if (id == 0 || (myPlayerId != null && id == myPlayerId)) return;
+
                     double x = extractDouble(json, "\"x\":");
                     double y = extractDouble(json, "\"y\":");
+                    double vx = extractDouble(json, "\"vx\":");         // ★ 新增
+                    double vy = extractDouble(json, "\"vy\":");         // ★ 新增
                     boolean facing = json.contains("\"facing\":true");
+                    boolean onGround = json.contains("\"onGround\":true"); // ★ 新增
+                    String anim  = extractString(json, "\"anim\":\"");  // ★ 新增（可能为 null）
+                    String phase = extractString(json, "\"phase\":\""); // ★ 新增（可能为 null）
+
                     upsertRemotePlayer(id, x, y, facing);
+                    RemotePlayer rp = remotePlayers.get(id);
+                    if (rp != null) {
+                        rp.onGround = onGround;
+                        rp.lastVX = vx;
+                        rp.lastVY = vy;
+                        rp.anim = anim;
+                        rp.phase = phase;
+                        rp.lastUpdate = System.currentTimeMillis();
+                    }
                 }
                 case "join_broadcast" -> {
                     int id = extractInt(json, "\"id\":");
@@ -353,22 +389,35 @@ public class PixelGameApp extends GameApplication {
         return json.substring(s, e);
     }
 
-    // [NEW]
     private void upsertRemotePlayer(int id, double x, double y, boolean facing) {
         RemotePlayer rp = remotePlayers.get(id);
         if (rp == null) {
-            double hue = (id * 57) % 360;
-            var rect = new javafx.scene.shape.Rectangle(200, 200);
-            rect.setFill(javafx.scene.paint.Color.hsb(hue, 0.65, 0.95, 0.85));
-            rect.setStroke(javafx.scene.paint.Color.hsb(hue, 0.75, 0.55));
-            rect.setStrokeWidth(2);
+            // ★ 影子动画
+            RemoteAvatar avatar = new RemoteAvatar();
 
-            var ent = entityBuilder().at(x, y).view(rect).zIndex(999).buildAndAttach();
-            rp = new RemotePlayer(ent);
+            // ★ 视图 = 动画贴图；初始朝向
+            var ent = entityBuilder()
+                    .at(x, y)
+                    .view(avatar.view())
+                    .zIndex(999)
+                    .buildAndAttach();
+            avatar.setFacingRight(facing);
+
+            // ★ 按 id 稳定变色（可选）
+            double hue = ((id * 57) % 360) / 360.0;      // 0..1
+            var adj = new ColorAdjust();
+            adj.setHue(hue * 2 - 1);                     // -1..1
+            adj.setSaturation(0.2);
+            avatar.view().setEffect(adj);
+
+            rp = new RemotePlayer(ent, avatar);
             remotePlayers.put(id, rp);
             System.out.println("spawn remote " + id + " @(" + x + "," + y + ")");
         }
-        rp.targetX = x; rp.targetY = y; rp.targetFacing = facing;
+        // 更新插值目标
+        rp.targetX = x;
+        rp.targetY = y;
+        rp.targetFacing = facing;
         rp.lastUpdate = System.currentTimeMillis();
     }
 

@@ -542,4 +542,24 @@ public class Player {
     public boolean getFacingRight() {
         return facingRight;
     }
+
+    //动画同步
+    public String getNetAnim() {
+        if (dead) return "DIE";
+        if (shooting) return "SHOOT";
+        switch (state) {
+            case RUN:  return "RUN";
+            case WALK: return "WALK";
+            case JUMP: return "JUMP";
+            case FALL: return "FALL";
+            default:   return "IDLE";
+        }
+    }
+    public String getNetPhase() {
+        switch (attackPhase) {
+            case BEGIN: return "BEGIN";
+            case END:   return "END";
+            default:    return "IDLE";
+        }
+    }
 }
