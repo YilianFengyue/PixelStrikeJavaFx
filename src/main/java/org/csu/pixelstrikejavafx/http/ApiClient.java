@@ -1,9 +1,12 @@
 package org.csu.pixelstrikejavafx.http;
 
 import com.google.gson.Gson;
+import com.google.gson.JsonElement;
 import com.google.gson.JsonObject;
 import okhttp3.*;
 import org.csu.pixelstrikejavafx.state.GlobalState;
+
+import java.io.File;
 import java.util.List;
 import java.util.Map;
 import com.google.gson.reflect.TypeToken;
@@ -11,6 +14,7 @@ import java.lang.reflect.Type;
 import java.util.ArrayList;
 
 import java.io.IOException;
+import java.util.Objects;
 
 public class ApiClient {
     private static final String BASE_URL = "http://localhost:8080";
@@ -39,9 +43,7 @@ public class ApiClient {
             JsonObject jsonObject = gson.fromJson(responseBody, JsonObject.class);
 
             if (jsonObject.get("status").getAsInt() == 0) {
-                // ==========================================================
-                // ==================== 核心改动在这里 ====================
-                // ==========================================================
+
 
                 // 1. 获取 data 这个 JsonObject
                 JsonObject dataObject = jsonObject.getAsJsonObject("data");
@@ -56,6 +58,13 @@ public class ApiClient {
                 // 4. 从 userProfile 对象中获取具体信息并存入全局状态
                 GlobalState.userId = userProfileObject.get("userId").getAsLong();
                 GlobalState.nickname = userProfileObject.get("nickname").getAsString();
+
+                JsonElement avatarUrlElement = userProfileObject.get("avatarUrl");
+                if (avatarUrlElement != null && !avatarUrlElement.isJsonNull()) {
+                    GlobalState.avatarUrl = avatarUrlElement.getAsString();
+                } else {
+                    GlobalState.avatarUrl = null;
+                }
 
                 // 方法依然返回 token，表示登录成功
                 return token;
@@ -335,4 +344,387 @@ public class ApiClient {
         }
     }
 
+    /**
+     * 调用后端 API 创建一个自定义房间。
+     * [cite_start]对应文档："四、房间模块 I.创建房间" [cite: 1]
+     * @return 成功时返回房间的 ID 字符串。
+     * @throws IOException 当网络或业务逻辑失败时抛出。
+     */
+    public String createRoom() throws IOException {
+        if (GlobalState.authToken == null) throw new IllegalStateException("Not logged in");
+
+        String url = BASE_URL + "/custom-room/create";
+        RequestBody body = RequestBody.create(new byte[0]); // POST 请求需要一个请求体，即使是空的
+
+        Request request = new Request.Builder()
+                .url(url)
+                .addHeader("Authorization", "Bearer " + GlobalState.authToken)
+                .post(body)
+                .build();
+
+        try (Response response = client.newCall(request).execute()) {
+            if (!response.isSuccessful()) {
+                throw new IOException("创建房间请求失败: " + response.code());
+            }
+
+            String responseBody = Objects.requireNonNull(response.body()).string();
+            JsonObject jsonObject = gson.fromJson(responseBody, JsonObject.class);
+
+            if (jsonObject.get("status").getAsInt() == 0) {
+                // 成功时，从 "data" 字段获取房间 ID 并返回
+                return jsonObject.get("data").getAsString();
+            } else {
+                // 失败时，抛出后端返回的错误信息
+                throw new IOException(jsonObject.get("message").getAsString());
+            }
+        }
+    }
+
+    /**
+     * 调用后端 API 根据房间 ID 加入一个房间。
+     * [cite_start]对应文档："四、房间模块 II.加入房间" [cite: 1]
+     * @param roomId 要加入的房间的密钥/ID。
+     * @return 成功时返回房间的 ID 字符串。
+     * @throws IOException 当网络或业务逻辑失败时抛出。
+     */
+    public String joinRoom(String roomId) throws IOException {
+        if (GlobalState.authToken == null) throw new IllegalStateException("Not logged in");
+
+        // 使用 HttpUrl.Builder 来安全地构建带查询参数的 URL
+        HttpUrl url = Objects.requireNonNull(HttpUrl.parse(BASE_URL + "/custom-room/join"))
+                .newBuilder()
+                .addQueryParameter("roomId", roomId)
+                .build();
+
+        RequestBody body = RequestBody.create(new byte[0]);
+
+        Request request = new Request.Builder()
+                .url(url)
+                .addHeader("Authorization", "Bearer " + GlobalState.authToken)
+                .post(body)
+                .build();
+
+        try (Response response = client.newCall(request).execute()) {
+            if (!response.isSuccessful()) {
+                throw new IOException("加入房间请求失败: " + response.code());
+            }
+
+            String responseBody = Objects.requireNonNull(response.body()).string();
+            JsonObject jsonObject = gson.fromJson(responseBody, JsonObject.class);
+
+            if (jsonObject.get("status").getAsInt() == 0) {
+                return jsonObject.get("data").getAsString();
+            } else {
+                throw new IOException(jsonObject.get("message").getAsString());
+            }
+        }
+    }
+
+    /**
+     * 调用后端 API 离开当前所在的房间。
+     * [cite_start]对应文档："四、房间模块 III.离开房间" [cite: 1]
+     * @throws IOException 当网络或业务逻辑失败时抛出。
+     */
+    public void leaveRoom() throws IOException {
+        if (GlobalState.authToken == null) throw new IllegalStateException("Not logged in");
+
+        String url = BASE_URL + "/custom-room/leave";
+        RequestBody body = RequestBody.create(new byte[0]);
+
+        Request request = new Request.Builder()
+                .url(url)
+                .addHeader("Authorization", "Bearer " + GlobalState.authToken)
+                .post(body)
+                .build();
+
+        try (Response response = client.newCall(request).execute()) {
+            if (!response.isSuccessful()) {
+                throw new IOException("离开房间请求失败: " + response.code());
+            }
+
+            String responseBody = Objects.requireNonNull(response.body()).string();
+            JsonObject jsonObject = gson.fromJson(responseBody, JsonObject.class);
+
+            if (jsonObject.get("status").getAsInt() != 0) {
+                throw new IOException(jsonObject.get("message").getAsString());
+            }
+            // 离开房间成功，没有返回值，方法正常结束即可
+        }
+    }
+
+    /**
+     * (房主) 从房间中踢出一位玩家
+     * 对应文档："四、房间模块 V.踢出玩家"
+     * @param targetId 被踢出玩家的用户ID
+     */
+    public void kickPlayer(long targetId) throws IOException {
+        if (GlobalState.authToken == null) throw new IllegalStateException("Not logged in");
+
+        HttpUrl url = Objects.requireNonNull(HttpUrl.parse(BASE_URL + "/custom-room/kick"))
+                .newBuilder()
+                .addQueryParameter("targetId", String.valueOf(targetId))
+                .build();
+
+        RequestBody body = RequestBody.create(new byte[0]);
+
+        Request request = new Request.Builder()
+                .url(url)
+                .addHeader("Authorization", "Bearer " + GlobalState.authToken)
+                .post(body)
+                .build();
+
+        try (Response response = client.newCall(request).execute()) {
+            if (!response.isSuccessful()) throw new IOException("踢出玩家请求失败: " + response);
+
+            String responseBody = Objects.requireNonNull(response.body()).string();
+            JsonObject jsonObject = gson.fromJson(responseBody, JsonObject.class);
+
+            if (jsonObject.get("status").getAsInt() != 0) {
+                throw new IOException(jsonObject.get("message").getAsString());
+            }
+        }
+    }
+
+    /**
+     * 邀请好友加入当前所在的房间。
+     * 对应文档："四、房间模块 IV.邀请好友"
+     * @param friendId 被邀请好友的用户ID
+     * @throws IOException 当网络请求或业务逻辑失败时抛出异常
+     */
+    public void inviteFriend(long friendId) throws IOException {
+        // 检查是否已登录，因为所有需要认证的接口都依赖这个 token
+        if (GlobalState.authToken == null) {
+            throw new IllegalStateException("Not logged in");
+        }
+
+        // 1. 使用 OkHttp 的 HttpUrl.Builder 来安全地构建带查询参数的 URL
+        HttpUrl url = Objects.requireNonNull(HttpUrl.parse(BASE_URL + "/custom-room/invite"))
+                .newBuilder()
+                .addQueryParameter("friendId", String.valueOf(friendId))
+                .build();
+
+        // 2. 创建一个空的 POST 请求体，因为这个接口不需要发送 JSON 数据
+        RequestBody body = RequestBody.create(new byte[0]);
+
+        // 3. 构建请求，附上必需的 Authorization 请求头
+        Request request = new Request.Builder()
+                .url(url)
+                .addHeader("Authorization", "Bearer " + GlobalState.authToken)
+                .post(body)
+                .build();
+
+        // 4. 发送请求并处理响应
+        try (Response response = client.newCall(request).execute()) {
+            if (!response.isSuccessful()) {
+                throw new IOException("发送邀请请求失败: " + response);
+            }
+
+            String responseBody = Objects.requireNonNull(response.body()).string();
+            JsonObject jsonObject = gson.fromJson(responseBody, JsonObject.class);
+
+            // 5. 检查后端返回的业务状态码
+            if (jsonObject.get("status").getAsInt() != 0) {
+                // 如果失败，将后端返回的友好提示信息作为异常抛出
+                throw new IOException(jsonObject.get("message").getAsString());
+            }
+
+            // 如果 status 为 0，说明邀请已成功发送，方法正常结束
+            System.out.println("成功发送邀请给用户: " + friendId);
+        }
+    }
+
+    /**
+     * 接受房间邀请。
+     * 对应文档："四、房间模块 IX.接收房间邀请"
+     * @param roomId 要加入的房间的ID
+     * @throws IOException 当网络或业务逻辑失败时抛出
+     */
+    public void acceptInvite(String roomId) throws IOException {
+        if (GlobalState.authToken == null) throw new IllegalStateException("Not logged in");
+
+        HttpUrl url = Objects.requireNonNull(HttpUrl.parse(BASE_URL + "/custom-room/accept-invite"))
+                .newBuilder()
+                .addQueryParameter("roomId", roomId)
+                .build();
+
+        RequestBody body = RequestBody.create(new byte[0]); // 空的POST请求体
+
+        Request request = new Request.Builder()
+                .url(url)
+                .addHeader("Authorization", "Bearer " + GlobalState.authToken)
+                .post(body)
+                .build();
+
+        try (Response response = client.newCall(request).execute()) {
+            if (!response.isSuccessful()) {
+                throw new IOException("接受邀请请求失败: " + response.code());
+            }
+
+            String responseBody = Objects.requireNonNull(response.body()).string();
+            JsonObject jsonObject = gson.fromJson(responseBody, JsonObject.class);
+
+            if (jsonObject.get("status").getAsInt() != 0) {
+                throw new IOException(jsonObject.get("message").getAsString());
+            }
+
+            System.out.println("成功接受邀请，加入房间: " + roomId);
+        }
+    }
+
+    /**
+     * 拒绝房间邀请。
+     * 对应文档："四、房间模块 X.拒绝房间邀请"
+     * @param inviterId 邀请者的用户ID
+     * @throws IOException 当网络或业务逻辑失败时抛出
+     */
+    public void rejectInvite(long inviterId) throws IOException {
+        if (GlobalState.authToken == null) throw new IllegalStateException("Not logged in");
+
+        HttpUrl url = Objects.requireNonNull(HttpUrl.parse(BASE_URL + "/custom-room/reject-invite"))
+                .newBuilder()
+                .addQueryParameter("inviterId", String.valueOf(inviterId))
+                .build();
+
+        RequestBody body = RequestBody.create(new byte[0]);
+
+        Request request = new Request.Builder()
+                .url(url)
+                .addHeader("Authorization", "Bearer " + GlobalState.authToken)
+                .post(body)
+                .build();
+
+        try (Response response = client.newCall(request).execute()) {
+            if (!response.isSuccessful()) {
+                throw new IOException("拒绝邀请请求失败: " + response.code());
+            }
+
+            String responseBody = Objects.requireNonNull(response.body()).string();
+            JsonObject jsonObject = gson.fromJson(responseBody, JsonObject.class);
+
+            if (jsonObject.get("status").getAsInt() != 0) {
+                // 根据文档，拒绝邀请失败时也可能返回 status:0 message:"操作成功"，所以这里可能不需要抛异常
+                // 但为了严谨，我们仍然检查非0状态
+                throw new IOException(jsonObject.get("message").getAsString());
+            }
+
+            System.out.println("成功拒绝来自用户 " + inviterId + " 的邀请");
+        }
+    }
+
+    /**
+     * 更新用户昵称
+     * @param newNickname 新的昵称
+     * @return 包含更新后用户信息的 JsonObject
+     */
+    public JsonObject updateNickname(String newNickname) throws IOException {
+        if (GlobalState.authToken == null) throw new IllegalStateException("Not logged in");
+
+        HttpUrl url = Objects.requireNonNull(HttpUrl.parse(BASE_URL + "/users/me/nickname"))
+                .newBuilder()
+                .addQueryParameter("newNickname", newNickname)
+                .build();
+
+        // PUT 请求需要一个请求体，即使是空的
+        RequestBody body = RequestBody.create(new byte[0]);
+
+        Request request = new Request.Builder()
+                .url(url)
+                .addHeader("Authorization", "Bearer " + GlobalState.authToken)
+                .put(body)
+                .build();
+
+        try (Response response = client.newCall(request).execute()) {
+            if (!response.isSuccessful()) throw new IOException("更新昵称失败: " + response);
+
+            String responseBody = Objects.requireNonNull(response.body()).string();
+            JsonObject jsonObject = gson.fromJson(responseBody, JsonObject.class);
+
+            if (jsonObject.get("status").getAsInt() == 0) {
+                return jsonObject.getAsJsonObject("data");
+            } else {
+                throw new IOException(jsonObject.get("message").getAsString());
+            }
+        }
+    }
+
+    public List<Map<String, Object>> getHistory() throws IOException {
+        if (GlobalState.authToken == null) throw new IllegalStateException("Not logged in");
+        String url = BASE_URL + "/history";
+        Request request = new Request.Builder().url(url).addHeader("Authorization", "Bearer " + GlobalState.authToken).build();
+        try (Response response = client.newCall(request).execute()) {
+            if (!response.isSuccessful()) throw new IOException("获取历史战绩失败: " + response);
+            String responseBody = Objects.requireNonNull(response.body()).string();
+            JsonObject jsonObject = gson.fromJson(responseBody, JsonObject.class);
+            if (jsonObject.get("status").getAsInt() == 0) {
+                Type listType = new TypeToken<List<Map<String, Object>>>(){}.getType();
+                return gson.fromJson(jsonObject.get("data"), listType);
+            } else {
+                throw new IOException(jsonObject.get("message").getAsString());
+            }
+        }
+    }
+
+    public JsonObject getHistoryDetails(long matchId) throws IOException {
+        if (GlobalState.authToken == null) throw new IllegalStateException("Not logged in");
+        String url = BASE_URL + "/history/" + matchId;
+        Request request = new Request.Builder().url(url).addHeader("Authorization", "Bearer " + GlobalState.authToken).build();
+        try (Response response = client.newCall(request).execute()) {
+            if (!response.isSuccessful()) throw new IOException("获取战绩详情失败: " + response);
+            String responseBody = Objects.requireNonNull(response.body()).string();
+            JsonObject jsonObject = gson.fromJson(responseBody, JsonObject.class);
+            if (jsonObject.get("status").getAsInt() == 0) {
+                return jsonObject.getAsJsonObject("data");
+            } else {
+                throw new IOException(jsonObject.get("message").getAsString());
+            }
+        }
+    }
+
+    /**
+     * 上传用户头像文件
+     * @param avatarFile 用户选择的图片文件
+     * @return 包含更新后用户信息的 JsonObject
+     */
+    public JsonObject uploadAvatar(File avatarFile) throws IOException {
+        if (GlobalState.authToken == null) throw new IllegalStateException("Not logged in");
+
+        String url = BASE_URL + "/users/me/avatar";
+
+        // 判断文件类型，用于设置 MediaType
+        String contentType = "image/png"; // 默认为 png
+        if (avatarFile.getName().toLowerCase().endsWith(".jpg") || avatarFile.getName().toLowerCase().endsWith(".jpeg")) {
+            contentType = "image/jpeg";
+        }
+
+        // 1. 创建一个 MultipartBody，用于文件上传
+        RequestBody requestBody = new MultipartBody.Builder()
+                .setType(MultipartBody.FORM)
+                .addFormDataPart(
+                        "avatar", // 这个是后端接口定义的参数名
+                        avatarFile.getName(), // 文件名
+                        RequestBody.create(avatarFile, MediaType.parse(contentType)) // 文件内容
+                )
+                .build();
+
+        // 2. 创建 POST 请求
+        Request request = new Request.Builder()
+                .url(url)
+                .addHeader("Authorization", "Bearer " + GlobalState.authToken)
+                .post(requestBody)
+                .build();
+
+        // 3. 发送请求并解析响应
+        try (Response response = client.newCall(request).execute()) {
+            if (!response.isSuccessful()) throw new IOException("上传头像失败: " + response);
+            String responseBody = Objects.requireNonNull(response.body()).string();
+            JsonObject jsonObject = gson.fromJson(responseBody, JsonObject.class);
+            if (jsonObject.get("status").getAsInt() == 0) {
+                return jsonObject.getAsJsonObject("data");
+            } else {
+                throw new IOException(jsonObject.get("message").getAsString());
+            }
+        }
+    }
 }
+
+

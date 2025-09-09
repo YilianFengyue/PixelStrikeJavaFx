@@ -4,10 +4,7 @@ import com.almasb.fxgl.dsl.FXGL;
 import com.google.gson.Gson;
 import com.google.gson.JsonObject;
 import jakarta.websocket.ClientEndpoint;
-import org.csu.pixelstrikejavafx.events.FriendRequestAcceptedEvent;
-import org.csu.pixelstrikejavafx.events.FriendStatusEvent;
-import org.csu.pixelstrikejavafx.events.MatchSuccessEvent;
-import org.csu.pixelstrikejavafx.events.NewFriendRequestEvent;
+import org.csu.pixelstrikejavafx.events.*;
 import org.csu.pixelstrikejavafx.state.GlobalState;
 
 import java.net.URI;
@@ -38,6 +35,7 @@ public class NetworkManager {
     private final Gson gson = new Gson();
     private boolean isConnecting = false;
     private boolean intentionalDisconnect = false;
+    private volatile JsonObject cachedRoomUpdate = null;
 
     private final ScheduledExecutorService scheduler = Executors.newSingleThreadScheduledExecutor();
 
@@ -116,6 +114,10 @@ public class NetworkManager {
             JsonObject msgJson = gson.fromJson(message, JsonObject.class);
             String type = msgJson.get("type").getAsString();
 
+            String roomId;
+            String inviterNickname;
+            long inviterId;
+
             switch (type) {
                 case "status_update":
                     FXGL.getEventBus().fireEvent(new FriendStatusEvent(msgJson));
@@ -131,7 +133,26 @@ public class NetworkManager {
                 case "friend_request_accepted":
                     FXGL.getEventBus().fireEvent(new FriendRequestAcceptedEvent(msgJson));
                     break;
+                case "room_update":
+                    this.cachedRoomUpdate = msgJson;
+                    FXGL.getEventBus().fireEvent(new RoomUpdateEvent(msgJson));
+                    break;
+                case "room_invitation":
+                    roomId = msgJson.get("roomId").getAsString();
+                    inviterNickname = msgJson.get("inviterNickname").getAsString();
+                    inviterId = msgJson.get("inviterId").getAsLong();
+                    FXGL.getEventBus().fireEvent(new RoomInvitationEvent(roomId, inviterNickname, inviterId));
+                    break;
+                case "invitation_rejected":
+                    long rejectorId = msgJson.get("rejectorId").getAsLong();
+                    FXGL.getEventBus().fireEvent(new InvitationRejectedEvent(rejectorId));
+                    break;
+                case "kicked_from_room":
+                    roomId = msgJson.get("roomId").getAsString();
+                    FXGL.getEventBus().fireEvent(new KickedFromRoomEvent(roomId));
+                    break;
             }
+
         } catch (Exception e) {
             System.err.println("Failed to parse WebSocket message: " + message);
             e.printStackTrace();
@@ -160,5 +181,18 @@ public class NetworkManager {
     private void handleDisconnection() {
         System.out.println("Will attempt to reconnect in 5 seconds...");
         scheduler.schedule(this::connect, 5, TimeUnit.SECONDS);
+    }
+
+    /**
+     * 获取并清除缓存的 room_update 消息。
+     * “检查信箱”这个动作本身就会把信取走，防止下次再读到旧信。
+     * @return 如果有缓存的消息则返回该消息，否则返回 null。
+     */
+    public JsonObject getAndClearCachedRoomUpdate() {
+        JsonObject message = this.cachedRoomUpdate;
+        if (message != null) {
+            this.cachedRoomUpdate = null; // 取走后清空信箱
+        }
+        return message;
     }
 }

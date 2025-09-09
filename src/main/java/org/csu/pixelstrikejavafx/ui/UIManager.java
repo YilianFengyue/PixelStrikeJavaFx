@@ -3,6 +3,7 @@ package org.csu.pixelstrikejavafx.ui;
 import com.almasb.fxgl.dsl.FXGL;
 import javafx.fxml.FXMLLoader;
 import javafx.scene.Parent;
+import javafx.scene.image.Image;
 import javafx.scene.layout.Pane;
 import java.io.IOException;
 import java.net.URL;
@@ -19,6 +20,14 @@ public final class UIManager {
 
     // 静态变量，持有对主 UI 容器的引用
     private static Pane rootContainer;
+
+    /**
+     * 获取主 UI 容器。
+     * @return 根布局 Pane。
+     */
+    public static Pane getRoot() {
+        return rootContainer;
+    }
 
     /**
      * 初始化 UIManager，必须在程序启动时由主菜单调用一次。
@@ -54,5 +63,25 @@ public final class UIManager {
             System.err.println("Failed to load FXML: " + fxmlName);
             e.printStackTrace();
         }
+    }
+
+    private static final Image DEFAULT_AVATAR = FXGL.getAssetLoader().loadImage("default_avatar.png");
+
+    /**
+     * 根据 URL 加载头像，如果 URL 无效或加载失败，则返回默认头像。
+     * @param avatarUrl 头像的 URL 地址，可以为 null。
+     * @return JavaFX Image 对象。
+     */
+    public static Image loadAvatar(String avatarUrl) {
+        try {
+            if (avatarUrl != null && !avatarUrl.isEmpty()) {
+                // true 表示在后台线程加载，不会阻塞UI
+                return new Image(avatarUrl, true);
+            }
+        } catch (Exception e) {
+            System.err.println("加载头像失败，URL: " + avatarUrl + ", Error: " + e.getMessage());
+        }
+        // 如果 URL 为 null、为空或加载失败，都返回默认头像
+        return DEFAULT_AVATAR;
     }
 }

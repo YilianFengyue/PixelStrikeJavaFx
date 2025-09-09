@@ -1,7 +1,10 @@
 package org.csu.pixelstrikejavafx.state;
+import com.google.gson.JsonObject;
 
 public class GlobalState {
     public static String authToken = null;
     public static Long userId = null;
     public static String nickname = null;
+    public static JsonObject currentRoomInfo = null;
+    public static String avatarUrl = null;
 }

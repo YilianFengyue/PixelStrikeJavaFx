@@ -1,0 +1,22 @@
+<?xml version="1.0" encoding="UTF-8"?>
+
+<?import javafx.geometry.Insets?>
+<?import javafx.scene.control.Label?>
+<?import javafx.scene.control.ListView?>
+<?import javafx.scene.layout.VBox?>
+<?import javafx.scene.text.Font?>
+
+<VBox alignment="CENTER" maxHeight="600.0" maxWidth="400.0" prefHeight="600.0" prefWidth="400.0" spacing="10.0" style="-fx-background-color: #34495e; -fx-border-color: #ecf0f1; -fx-border-width: 2;" xmlns="http://javafx.com/javafx/21" xmlns:fx="http://javafx.com/fxml/1" fx:controller="org.csu.pixelstrikejavafx.ui.InviteFriendController">
+    <padding>
+        <Insets bottom="20.0" left="20.0" right="20.0" top="20.0" />
+    </padding>
+    <children>
+        <Label text="邀请好友" textFill="white">
+            <font>
+                <Font name="System Bold" size="24.0" />
+            </font>
+        </Label>
+        <Label text="仅显示在线的好友" textFill="#bdc3c7" />
+        <ListView fx:id="onlineFriendsListView" prefHeight="500.0" VBox.vgrow="ALWAYS" />
+    </children>
+</VBox>

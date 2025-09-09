@@ -1,30 +1,29 @@
 package org.csu.pixelstrikejavafx.ui;
 
 import com.almasb.fxgl.dsl.FXGL;
+import com.google.gson.JsonElement;
 import com.google.gson.JsonObject;
 import javafx.application.Platform;
 import javafx.fxml.FXML;
 import javafx.fxml.Initializable;
+import javafx.geometry.Insets;
 import javafx.scene.control.*;
-import javafx.scene.layout.HBox;
-import javafx.scene.layout.Priority;
+import javafx.scene.image.Image;
+import javafx.scene.image.ImageView;
+import javafx.scene.layout.*;
 import javafx.scene.text.Text;
 import javafx.geometry.Pos;
-import javafx.scene.layout.Region;
 
 
-import org.csu.pixelstrikejavafx.events.FriendRequestAcceptedEvent;
-import org.csu.pixelstrikejavafx.events.FriendStatusEvent;
-import org.csu.pixelstrikejavafx.events.MatchSuccessEvent;
-import org.csu.pixelstrikejavafx.events.NewFriendRequestEvent;
+import javafx.stage.FileChooser;
+import org.csu.pixelstrikejavafx.events.*;
 import org.csu.pixelstrikejavafx.http.ApiClient;
 import org.csu.pixelstrikejavafx.network.NetworkManager;
 import org.csu.pixelstrikejavafx.state.GlobalState;
 
+import java.io.File;
 import java.net.URL;
-import java.util.Map;
-import java.util.List;
-import java.util.ResourceBundle;
+import java.util.*;
 
 
 /**
@@ -34,7 +33,7 @@ import java.util.ResourceBundle;
 public class LobbyController implements Initializable {
 
     @FXML
-    private ListView<String> friendsListView; // 假设你的 FXML 中有一个 ListView 来显示好友
+    private ListView<Map<String, Object>> friendsListView;
 
     @FXML
     private Button startMatchButton;
@@ -43,11 +42,16 @@ public class LobbyController implements Initializable {
     private Label matchStatusLabel;
 
     @FXML
+    private TextField roomIdField;
+
+    @FXML
     private Label nicknameLabel;
 
     @FXML private TextField searchUserField;
     @FXML private ListView<Map<String, Object>> searchResultListView;
     @FXML private ListView<Map<String, Object>> requestsListView;
+    @FXML private ImageView avatarImageView;
+    private final Set<Long> friendIds = new HashSet<>();
 
     private final ApiClient apiClient = new ApiClient();
 
@@ -93,12 +97,19 @@ public class LobbyController implements Initializable {
             });
         });
 
-        // 初始加载好友列表 (可以在这里或用一个刷新按钮来触发)
-        loadFriendsList();
-        loadFriendRequests();
+
+        // 1. 立即为所有 ListView 设置它们的“美化”方法
+        setupFriendsCellFactory();
         setupSearchResultCellFactory();
         setupRequestsCellFactory();
+
+        // 2. 设置事件监听器
         setupEventHandlers();
+
+        // 3. 加载初始数据
+        loadFriendsList();
+        loadFriendRequests();
+        loadAvatar();
 
         if (GlobalState.nickname != null) {
             nicknameLabel.setText("昵称: " + GlobalState.nickname);
@@ -174,43 +185,33 @@ public class LobbyController implements Initializable {
 
     @FXML
     private void loadFriendsList() {
-        friendsListView.getItems().clear(); // 先清空旧数据
-        friendsListView.getItems().add("正在加载好友..."); // 提示用户
+        friendsListView.getItems().clear();
 
         new Thread(() -> {
             try {
-                // 调用API获取好友数据
+                // 1. 调用API获取好友数据
                 List<Map<String, Object>> friends = apiClient.getFriends();
 
-                // 在UI线程更新 ListView
+                // 2. 更新好友ID缓存 (这部分逻辑不变)
+                friendIds.clear();
+                for (Map<String, Object> friend : friends) {
+                    friendIds.add(((Number) friend.get("userId")).longValue());
+                }
+
+                // 3. 在UI线程更新 ListView
                 Platform.runLater(() -> {
-                    friendsListView.getItems().clear(); // 清空“加载中”提示
                     if (friends.isEmpty()) {
-                        friendsListView.getItems().add("好友列表为空");
                     } else {
-                        for (Map<String, Object> friend : friends) {
-                            String nickname = (String) friend.get("nickname");
-                            String status = (String) friend.get("onlineStatus");
-
-                            // API文档中 null 代表离线，我们做一下转换
-                            if (status == null) {
-                                status = "离线";
-                            }
-
-                            friendsListView.getItems().add(String.format("%s [%s]", nickname, status));
-                        }
+                        friendsListView.getItems().setAll(friends);
                     }
                 });
             } catch (Exception e) {
                 Platform.runLater(() -> {
-                    friendsListView.getItems().clear();
-                    friendsListView.getItems().add("加载好友失败: " + e.getMessage());
+                    e.printStackTrace();
                 });
-                e.printStackTrace();
             }
         }).start();
     }
-
     /**
      * 处理点击“搜索”按钮的事件
      */
@@ -251,64 +252,76 @@ public class LobbyController implements Initializable {
      */
     private void setupSearchResultCellFactory() {
         searchResultListView.setCellFactory(lv -> new ListCell<Map<String, Object>>() {
-            private HBox hbox = new HBox(10);
-            private Text userInfo = new Text();
-            private Button addButton = new Button("添加");
+            private final HBox hbox = new HBox(10);
+            private final ImageView avatarView = new ImageView();
+            private final Label userInfoLabel = new Label();
+            private final Region spacer = new Region();
+            private final Button actionButton = new Button();
 
             {
-                // 布局单元格内的控件
-                HBox.setHgrow(userInfo, Priority.ALWAYS);
+                avatarView.setFitHeight(40);
+                avatarView.setFitWidth(40);
+                HBox.setHgrow(spacer, Priority.ALWAYS);
                 hbox.setAlignment(Pos.CENTER_LEFT);
-                hbox.getChildren().addAll(userInfo, addButton);
+                hbox.getChildren().addAll(avatarView, userInfoLabel, spacer, actionButton);
             }
 
             @Override
             protected void updateItem(Map<String, Object> user, boolean empty) {
                 super.updateItem(user, empty);
                 if (empty || user == null) {
-                    setText(null);
                     setGraphic(null);
                 } else if (user.containsKey("loading")) {
                     setText("正在搜索...");
                     setGraphic(null);
                 }
                 else {
-                    // 从 Map 中获取数据并显示
+                    setText(null);
                     String nickname = (String) user.get("nickname");
                     String status = (String) user.get("onlineStatus");
                     status = (status == null) ? "离线" : status;
-                    userInfo.setText(String.format("%s [%s]", nickname, status));
+                    userInfoLabel.setText(String.format("%s [%s]", nickname, status));
+                    avatarView.setImage(UIManager.loadAvatar((String) user.get("avatarUrl")));
+                    long userId = ((Number) user.get("userId")).longValue();
 
-                    // 为“添加”按钮设置点击事件
-                    addButton.setOnAction(event -> {
-                        addButton.setDisable(true);
-                        addButton.setText("已申请");
 
-                        // 从 user Map 中获取 userId
-                        // 注意：JSON数字可能被解析为Double，需要安全转换
-                        long userId = ((Number) user.get("userId")).longValue();
 
-                        new Thread(() -> {
-                            try {
-                                apiClient.sendFriendRequest(userId);
-                            } catch (Exception e) {
-                                Platform.runLater(() -> {
-                                    addButton.setDisable(false);
-                                    addButton.setText("添加");
-                                    // 在这里可以弹出一个提示框显示错误信息，e.getMessage()
-                                    FXGL.getDialogService().showMessageBox(e.getMessage());
-                                });
-                                e.printStackTrace();
-                            }
-                        }).start();
-                    });
+                    // 1. 判断是不是自己
+                    if (GlobalState.userId != null && GlobalState.userId == userId) {
+                        actionButton.setDisable(true);
+                        actionButton.setText("自己");
+                    }
+                    // 2. 判断是不是已经是好友
+                    else if (friendIds.contains(userId)) {
+                        actionButton.setDisable(true);
+                        actionButton.setText("已是好友");
+                    }
+                    // 3. 否则就是陌生人，可以添加
+                    else {
+                        actionButton.setDisable(false);
+                        actionButton.setText("添加");
+                        actionButton.setOnAction(event -> {
+                            actionButton.setDisable(true);
+                            actionButton.setText("已申请");
+
+                            new Thread(() -> {
+                                try {
+                                    apiClient.sendFriendRequest(userId);
+                                } catch (Exception e) {
+                                    Platform.runLater(() -> {
+                                        FXGL.getDialogService().showMessageBox("申请失败: " + e.getMessage());
+                                        // 失败后可以恢复按钮状态，但为了防止刷屏，暂时不恢复
+                                    });
+                                }
+                            }).start();
+                        });
+                    }
 
                     setGraphic(hbox);
                 }
             }
         });
     }
-
     /**
      * 加载待处理的好友申请并更新UI
      */
@@ -345,6 +358,7 @@ public class LobbyController implements Initializable {
     private void setupRequestsCellFactory() {
         requestsListView.setCellFactory(lv -> new ListCell<Map<String, Object>>() {
             private final HBox hbox = new HBox(10);
+            private final ImageView avatarView = new ImageView();
 
             // 2. 使用 Label 显示用户信息，它比 Text 更适合布局
             private final Label requestInfoLabel = new Label();
@@ -357,6 +371,8 @@ public class LobbyController implements Initializable {
             private final Button rejectButton = new Button("拒绝"); // 顺便加上拒绝按钮
 
             {
+                avatarView.setFitHeight(40);
+                avatarView.setFitWidth(40);
                 // 5. 设置“弹簧”：让它占据所有可用的水平空间
                 HBox.setHgrow(spacer, Priority.ALWAYS);
 
@@ -366,7 +382,7 @@ public class LobbyController implements Initializable {
 
                 // 6. 将所有控件按顺序放入 HBox
                 hbox.setAlignment(Pos.CENTER_LEFT);
-                hbox.getChildren().addAll(requestInfoLabel, spacer, acceptButton, rejectButton);
+                hbox.getChildren().addAll(avatarView, requestInfoLabel, spacer, acceptButton, rejectButton);
             }
 
             @Override
@@ -388,6 +404,7 @@ public class LobbyController implements Initializable {
 
                     // 3. 将昵称和状态格式化后，设置给 Label
                     requestInfoLabel.setText(String.format("%s [%s]", nickname, status));
+                    avatarView.setImage(UIManager.loadAvatar((String) request.get("avatarUrl")));
 
                     acceptButton.setDisable(false);
                     acceptButton.setText("同意");
@@ -440,36 +457,28 @@ public class LobbyController implements Initializable {
 
         // 监听“好友申请被接受”事件
         FXGL.getEventBus().addEventHandler(FriendRequestAcceptedEvent.ANY, this::onFriendRequestAccepted);
+
+        FXGL.getEventBus().addEventHandler(RoomInvitationEvent.ANY, this::onRoomInvitation);
     }
 
     private void onFriendStatusUpdate(FriendStatusEvent event) {
         // 确保所有UI操作都在JavaFX应用线程中执行
         Platform.runLater(() -> {
             JsonObject data = event.getData();
-            // 从事件中解析出是哪个好友，以及他的新状态
-            String nickname = data.get("nickname").getAsString();
+            long userId = data.get("userId").getAsLong();
             String status = data.get("status").getAsString();
+            String nickname = data.get("nickname").getAsString(); // 用于打印日志
 
-            System.out.println(String.format("UI Handling: Friend '%s' status changed to '%s'", nickname, status));
+            System.out.println(String.format("UI Handling: Friend '%s' (ID: %d) status changed to '%s'", nickname, userId, status));
+            for (Map<String, Object> friend : friendsListView.getItems()) {
 
-            // 1. 遍历当前好友列表 (ListView) 中的每一项
-            for (int i = 0; i < friendsListView.getItems().size(); i++) {
-                String itemText = friendsListView.getItems().get(i);
-
-                // 2. 检查这一行是不是我们要找的那个好友
-                // 我们假设列表项的格式是 "昵称 [状态]"
-                if (itemText.startsWith(nickname + " [") || itemText.equals(nickname)) {
-
-                    // 3. 创建新的显示文本
-                    String newStatusText = String.format("%s [%s]", nickname, status);
-
-                    // 4. 使用 set 方法更新 ListView 中特定行的内容
-                    friendsListView.getItems().set(i, newStatusText);
-
-                    // 5. 找到并更新后，就可以退出循环了
+                long currentFriendId = ((Number) friend.get("userId")).longValue();
+                if (currentFriendId == userId) {
+                    friend.put("onlineStatus", status);
                     break;
                 }
             }
+            friendsListView.refresh();
         });
     }
 
@@ -498,6 +507,274 @@ public class LobbyController implements Initializable {
             loadFriendsList();
         });
     }
+
+    @FXML
+    private void handleCreateRoom() {
+        // 可以在这里禁用按钮，防止重复点击
+        // createRoomButton.setDisable(true);
+
+        // 因为需要进行网络请求，所以必须在后台线程中执行
+        new Thread(() -> {
+            try {
+                // 1. 调用 ApiClient 的 createRoom 方法
+                String roomId = apiClient.createRoom();
+
+                // 2. 房间创建成功后，后端会通过 WebSocket 推送一个 room_update 消息。
+                //    我们的 RoomController 会监听到这个消息并用它来更新房间的初始状态。
+                //    因此，客户端在这里只需要做一件事：切换到房间界面。
+                Platform.runLater(() -> {
+                    System.out.println("房间创建成功，ID: " + roomId + "，正在进入房间...");
+                    UIManager.load("room-view.fxml");
+                });
+
+            } catch (Exception e) {
+                // 如果创建失败（例如，玩家已在另一个房间），在UI上显示错误
+                Platform.runLater(() -> {
+                    FXGL.getDialogService().showMessageBox("创建房间失败: " + e.getMessage());
+                    // createRoomButton.setDisable(false); // 恢复按钮
+                });
+                e.printStackTrace();
+            }
+        }).start();
+    }
+
+    @FXML
+    private void handleJoinRoom() {
+        String roomId = roomIdField.getText().trim(); // 获取输入并去除首尾空格
+
+        if (roomId.isEmpty()) {
+            FXGL.getDialogService().showMessageBox("请输入房间ID！");
+            return;
+        }
+
+        // 在后台线程执行网络请求
+        new Thread(() -> {
+            try {
+                // 调用我们之前在 ApiClient 中写好的 joinRoom 方法
+                apiClient.joinRoom(roomId);
+
+                // 加入成功后，后端会通过 WebSocket 推送 room_update 消息，
+                // 我们的 RoomController 会监听到并更新UI。
+                // 客户端只需要切换到房间界面即可。
+                Platform.runLater(() -> {
+                    System.out.println("成功加入房间: " + roomId);
+                    UIManager.load("room-view.fxml");
+                });
+
+            } catch (Exception e) {
+                // 如果加入失败（例如房间不存在、已满员），在UI上显示错误弹窗
+                Platform.runLater(() -> {
+                    FXGL.getDialogService().showMessageBox("加入房间失败: "+e.getMessage());
+                });
+                e.printStackTrace();
+            }
+        }).start();
+    }
+
+    /**
+     * 当收到房间邀请时，动态创建一个通知栏并显示在屏幕上 (最终调试版)
+     */
+    private void onRoomInvitation(RoomInvitationEvent event) {
+        Platform.runLater(() -> {
+            try {
+                // 1. 创建UI控件 (这部分不变)
+                HBox notificationPane = new HBox(20);
+                notificationPane.setAlignment(Pos.CENTER);
+                notificationPane.setPadding(new Insets(10));
+                notificationPane.setStyle("-fx-background-color: rgba(0, 0, 0, 0.7); -fx-background-radius: 10;");
+
+                Label infoLabel = new Label(event.getInviterNickname() + " 邀请你加入房间");
+                infoLabel.setStyle("-fx-text-fill: white; -fx-font-size: 18px;");
+
+                Button acceptButton = new Button("同意");
+                Button rejectButton = new Button("拒绝");
+
+                notificationPane.getChildren().addAll(infoLabel, acceptButton, rejectButton);
+
+                // 2. 为按钮添加逻辑 (移除通知栏的逻辑也需要修改)
+                acceptButton.setOnAction(e -> {
+                    acceptButton.setDisable(true);
+                    rejectButton.setDisable(true);
+                    new Thread(() -> {
+                        try {
+                            apiClient.acceptInvite(event.getRoomId());
+                            Platform.runLater(() -> UIManager.load("room-view.fxml"));
+                        } catch (Exception ex) {
+                            Platform.runLater(() -> FXGL.getDialogService().showMessageBox("加入失败: " + ex.getMessage()));
+                        } finally {
+                            // 从我们自己的 UI 容器中移除
+                            Platform.runLater(() -> UIManager.getRoot().getChildren().remove(notificationPane));
+                        }
+                    }).start();
+                });
+
+                rejectButton.setOnAction(e -> {
+                    acceptButton.setDisable(true);
+                    rejectButton.setDisable(true);
+                    new Thread(() -> {
+                        try {
+                            apiClient.rejectInvite(event.getInviterId());
+                        } catch (Exception ex) {
+                            ex.printStackTrace();
+                        } finally {
+                            // 从我们自己的 UI 容器中移除
+                            Platform.runLater(() -> UIManager.getRoot().getChildren().remove(notificationPane));
+                        }
+                    }).start();
+                });
+
+                // ==========================================================
+                // ==================== 核心改动在这里 ====================
+                // ==========================================================
+                // 3. 将通知栏添加到我们自己管理的、当前可见的 UI 根容器中
+                Pane root = UIManager.getRoot();
+                if (root != null) {
+                    root.getChildren().add(notificationPane);
+
+                    // 4. 因为我们的根容器是 StackPane，所以用 StackPane 的方式来定位
+                    StackPane.setAlignment(notificationPane, Pos.BOTTOM_CENTER);
+                    StackPane.setMargin(notificationPane, new Insets(0, 0, 50, 0)); // 距离底部50像素
+                }
+
+            } catch (Exception e) {
+                System.err.println("创建或显示通知栏时发生严重错误！");
+                e.printStackTrace();
+            }
+        });
+    }
+
+    @FXML
+    private void handleChangeNickname() {
+        // 使用 FXGL 的输入对话框，让用户输入新昵称
+        FXGL.getDialogService().showInputBox("请输入新的昵称:", newNickname -> {
+            if (newNickname.isEmpty()) {
+                return; // 用户没输入，则不做任何事
+            }
+
+            // 在后台线程执行网络请求
+            new Thread(() -> {
+                try {
+                    JsonObject updatedProfile = apiClient.updateNickname(newNickname);
+                    String confirmedNickname = updatedProfile.get("nickname").getAsString();
+
+                    // 成功后，在UI线程更新全局状态和界面显示
+                    Platform.runLater(() -> {
+                        GlobalState.nickname = confirmedNickname;
+                        nicknameLabel.setText("昵称: " + confirmedNickname);
+                        FXGL.getNotificationService().pushNotification("昵称已更新！");
+                    });
+                } catch (Exception e) {
+                    Platform.runLater(() -> FXGL.getDialogService().showMessageBox("修改失败: " + e.getMessage()));
+                }
+            }).start();
+        });
+    }
+
+    @FXML
+    private void handleShowHistory() {
+        UIManager.load("history-view.fxml");
+    }
+
+    /**
+     * 加载并显示当前用户的头像
+     */
+    private void loadAvatar() {
+        String avatarUrl = GlobalState.avatarUrl;
+        Image avatarImage;
+        try {
+            if (avatarUrl != null && !avatarUrl.isEmpty()) {
+                // 如果用户有头像URL，则尝试从网络加载
+                avatarImage = new Image(avatarUrl, true); // true 表示后台加载
+            } else {
+                // 否则，加载本地的默认头像
+                avatarImage = FXGL.getAssetLoader().loadImage("default_avatar.png");
+            }
+        } catch (Exception e) {
+            // 如果加载失败（比如URL无效），也加载默认头像
+            System.err.println("加载头像失败: " + e.getMessage());
+            avatarImage = FXGL.getAssetLoader().loadImage("default_avatar.png");
+        }
+        avatarImageView.setImage(avatarImage);
+    }
+
+    /**
+     * 处理点击头像上传的事件
+     */
+    @FXML
+    private void handleUploadAvatar() {
+        // 1. 创建文件选择器
+        FileChooser fileChooser = new FileChooser();
+        fileChooser.setTitle("选择头像图片");
+        fileChooser.getExtensionFilters().addAll(
+                new FileChooser.ExtensionFilter("Image Files", "*.png", "*.jpg", "*.jpeg")
+        );
+
+        // 2. 显示文件选择对话框
+        // getPrimaryStage() 可以在 FXGL 的任何地方获取主窗口
+        File selectedFile = fileChooser.showOpenDialog(FXGL.getPrimaryStage());
+
+        if (selectedFile != null) {
+            // 3. 在后台线程执行上传操作
+            new Thread(() -> {
+                try {
+                    JsonObject updatedProfile = apiClient.uploadAvatar(selectedFile);
+
+                    // 4. 上传成功后，在UI线程更新全局状态和界面显示
+                    Platform.runLater(() -> {
+                        JsonElement newAvatarUrlElement = updatedProfile.get("avatarUrl");
+                        if (newAvatarUrlElement != null && !newAvatarUrlElement.isJsonNull()) {
+                            GlobalState.avatarUrl = newAvatarUrlElement.getAsString();
+                        }
+                        // 重新加载头像以显示最新版本
+                        loadAvatar();
+                        FXGL.getNotificationService().pushNotification("头像更新成功！");
+                    });
+                } catch (Exception e) {
+                    Platform.runLater(() -> FXGL.getDialogService().showMessageBox("上传失败: " + e.getMessage()));
+                }
+            }).start();
+        }
+    }
+
+    private void setupFriendsCellFactory() {
+        friendsListView.setCellFactory(lv -> new ListCell<Map<String, Object>>() {
+            // HBox 作为根容器
+            private final HBox hbox = new HBox(10);
+            // 用于显示头像
+            private final ImageView avatarView = new ImageView();
+            // 用于显示昵称和状态
+            private final Label infoLabel = new Label();
+
+            {
+                // 初始化单元格布局
+                avatarView.setFitHeight(40);
+                avatarView.setFitWidth(40);
+                hbox.setAlignment(Pos.CENTER_LEFT);
+                hbox.getChildren().addAll(avatarView, infoLabel);
+            }
+
+            @Override
+            protected void updateItem(Map<String, Object> friend, boolean empty) {
+                super.updateItem(friend, empty);
+                if (empty || friend == null) {
+                    setGraphic(null); // 空行不显示任何东西
+                } else {
+                    // 从 Map 中获取数据并设置到控件上
+                    String nickname = (String) friend.get("nickname");
+                    String status = (String) friend.get("onlineStatus");
+                    status = (status == null) ? "离线" : status;
+
+                    infoLabel.setText(String.format("%s [%s]", nickname, status));
+                    avatarView.setImage(UIManager.loadAvatar((String) friend.get("avatarUrl")));
+
+                    // 将 HBox 设置为这个单元格的图形内容
+                    setGraphic(hbox);
+                }
+            }
+        });
+    }
+
+
 
 
 }
