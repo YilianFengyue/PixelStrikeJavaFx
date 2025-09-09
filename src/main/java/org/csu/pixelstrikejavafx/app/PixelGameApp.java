@@ -221,6 +221,14 @@ public class PixelGameApp extends GameApplication {
     private void setupPlayer() {
         // 你已有的 Player 构造，摆个合理出生点（贴着地面）
         player = new Player(500, GameConfig.MAP_H - 211 - 128);  // MAP底 - 地面高 - 角色高
+
+        // [NEW] 把射击上报接入网络（joinedAck为真才发）
+        player.getShootingSys().setShotReporter((ox, oy, dx, dy, range, dmg, ts) -> {
+            if (netClient != null && joinedAck) {
+                netClient.sendShot(ox, oy, dx, dy, range, dmg, ts, seq++);
+            }
+        });
+
     }
 
     private void setupCollisionHandlers() {
@@ -247,23 +255,7 @@ public class PixelGameApp extends GameApplication {
     }
 
 
-//    // [NEW]
-//    private void pumpNetwork(double tpf) {
-//        if (netClient == null || player == null) return;
-//        sendTimer += tpf;
-//        if (sendTimer >= SEND_INTERVAL) {
-//            sendTimer = 0;
-//            var e = player.getEntity();
-//            var phy = player.getPhysics();
-//            double x = e.getX();
-//            double y = e.getY();
-//            double vx = phy.getVelocityX();
-//            double vy = phy.getVelocityY();
-//            boolean facing = player.getFacingRight();
-//            boolean onGround = player.isOnGround();
-//            netClient.sendState(x, y, vx, vy, facing, onGround);
-//        }
-//    }
+
     // [NEW]
     private void updateRemotePlayers(double tpf) {
         long now = System.currentTimeMillis();
@@ -372,7 +364,34 @@ public class PixelGameApp extends GameApplication {
                     RemotePlayer rp = remotePlayers.remove(id);
                     if (rp != null && rp.entity != null) rp.entity.removeFromWorld();
                 }
-
+                // 在 handleServerMessage(String json) 的 switch(type) 里增加两个分支
+                case "shot" -> {
+                    // 远端表现：只播一条射线（不做命中）
+                    double ox = extractDouble(json, "\"ox\":");
+                    double oy = extractDouble(json, "\"oy\":");
+                    double dx = extractDouble(json, "\"dx\":");
+                    double dy = extractDouble(json, "\"dy\":");
+                    double range = extractDouble(json, "\"range\":");
+                    playShotEffect(ox, oy, dx, dy, range);                 // [NEW]
+                }
+                case "damage" -> {
+                    int victim = extractInt(json, "\"victim\":");
+                    int hp     = extractInt(json, "\"hp\":");
+                    boolean dead = json.contains("\"dead\":true");
+                    if (myPlayerId != null && victim == myPlayerId && player != null) {
+                        // 自己被打：以服务器为准改血/死亡
+                        if (hp <= 0 || dead) {
+                            player.getHealth().reviveFull(); // 先确保组件可写
+                            // 用服务器的权威结论：置 0 并触发死亡表现
+                            player.getHealth().takeDamage(player.getHealth().getHp());
+                        } else {
+                            int cur = player.getHealth().getHp();
+                            int delta = Math.max(0, cur - hp);
+                            if (delta > 0) player.getHealth().takeDamage(delta);
+                        }
+                    }
+                    // 远端被打：此处可选做闪红/飘字；现在先忽略（你没有远端 HP 组件）
+                }
                 default -> { /* ignore */ }
             }
         } catch (Exception e) {
@@ -446,6 +465,17 @@ public class PixelGameApp extends GameApplication {
         if (s == e) return 0.0;
         try { return Double.parseDouble(json.substring(s, e)); } catch (NumberFormatException ex) { return 0.0; }
     }
+    // 极小的射线特效工具
+    private void playShotEffect(double ox, double oy, double dx, double dy, double range) {
+        var line = new javafx.scene.shape.Line(0, 0, dx * range, dy * range);
+        line.setStroke(javafx.scene.paint.Color.ORANGE);
+        line.setStrokeWidth(3);
+        line.setOpacity(0.85);
+        var fx = entityBuilder().at(ox, oy).view(line).zIndex(2000).buildAndAttach();
 
+        // ★ 用 JavaFX 的 Duration，别用 java.time.Duration
+        runOnce(() -> { if (fx.isActive()) fx.removeFromWorld(); }, javafx.util.Duration.millis(100));
+        //                      ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^  ← 关键
+    }
     public static void main(String[] args) { launch(args); }
 }

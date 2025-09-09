@@ -88,4 +88,13 @@ public final class NetClient {
         sb.append(",\"ts\":").append(ts).append(",\"seq\":").append(seq).append("}");
         send(sb.toString());
     }
+    // [NEW] 本地射击上报（hitscan）
+    public void sendShot(double ox, double oy, double dx, double dy,
+                         double range, int damage, long ts, long seq) {
+        String j = String.format(java.util.Locale.US,
+                "{\"type\":\"shot\",\"ox\":%.2f,\"oy\":%.2f,\"dx\":%.4f,\"dy\":%.4f," +
+                        "\"range\":%.2f,\"damage\":%d,\"ts\":%d,\"seq\":%d}",
+                ox, oy, dx, dy, range, damage, ts, seq);
+        send(j);
+    }
 }

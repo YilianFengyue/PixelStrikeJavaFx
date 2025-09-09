@@ -68,6 +68,13 @@ public class PlayerShooting {
         this.player = player;
     }
 
+    // 不侵入 PixelGameApp把“网络发送器”塞进来。
+    public interface ShotReporter {
+        void onShot(double ox, double oy, double dx, double dy, double range, int damage, long ts);
+    }
+    private ShotReporter reporter;
+    public void setShotReporter(ShotReporter r) { this.reporter = r; }
+
     /**
      * 每帧更新 - 处理射击逻辑和效果
      */
@@ -161,6 +168,15 @@ public class PlayerShooting {
         // 连发后坐角累积（上限保护）+ 给角色一个小反冲
         recoilAngleDeg = Math.min(RECOIL_MAX_DEG, recoilAngleDeg + RECOIL_KICK_DEG);
         applyRecoilToPlayer();
+
+        //末尾“报送一次射击
+        if (reporter != null) {
+            reporter.onShot(
+                    shootOrigin.getX(), shootOrigin.getY(),
+                    shootDirection.getX(), shootDirection.getY(),
+                    SHOOT_RANGE, (int)DAMAGE, System.currentTimeMillis()   // [NEW]
+            );
+        }
     }
 
     /**
