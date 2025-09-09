@@ -21,10 +21,20 @@ import io.github.palexdev.materialfx.controls.*; // 仅为编译友好
 import javafx.scene.image.Image;
 import org.csu.pixelstrikejavafx.ui.PlayerHUD;
 
+// [NEW] 网络
+import org.csu.pixelstrikejavafx.net.NetClient;
+import javafx.application.Platform;
+import javafx.scene.paint.Color;
+import javafx.scene.shape.Rectangle;
+import java.util.Map;
+import java.util.concurrent.ConcurrentHashMap;
+
+// ...
+
 public class PixelGameApp extends GameApplication {
 
     private Player player;
-    private Player player2;
+
     private CameraFollow cameraFollow;
     //UI左下角
     private PlayerHUD hud;
@@ -32,6 +42,35 @@ public class PixelGameApp extends GameApplication {
 
     private final double GROUND_TOP_Y = 980;  // ← “脚踩的那条线”，不对就只改这个数
     private final double GROUND_H     = 211;  // ← 你的 ground_base.png 高度
+
+    // [NEW] 网络
+    private static final String WS_URL = "ws://localhost:81/ws/game";
+    private NetClient netClient;
+    private Integer myPlayerId = null;
+    private boolean joinedAck = false;       // ← 新增：拿到 welcome 才算就绪
+    private long seq = 1;                    // ← 新增：本地递增序号
+
+    private String myName = "Player_" + System.currentTimeMillis();
+
+    // [NEW] 发送频率控制（60Hz → 0.0167s；可改 30Hz=0.033）
+    private double sendTimer = 0;
+    private static final double SEND_INTERVAL = 1.0 / 60.0;
+
+    // [NEW] 远端玩家容器
+    private final Map<Integer, RemotePlayer> remotePlayers = new ConcurrentHashMap<>();
+
+
+
+
+    // [NEW] 远端玩家轻量结构（矩形+插值目标）
+    private static class RemotePlayer {
+        Entity entity;
+        double targetX, targetY;
+        boolean targetFacing;
+        long lastUpdate = System.currentTimeMillis();
+        RemotePlayer(Entity e) { this.entity = e; }
+    }
+
     @Override
     protected void initSettings(GameSettings s) {
         s.setWidth(GameConfig.WINDOW_W);
@@ -57,7 +96,7 @@ public class PixelGameApp extends GameApplication {
 
         // 2) 玩家
         setupPlayer();
-//        setupPlayer2();         // ★ 新增 p2
+
         // 3) 相机
         var vp = getGameScene().getViewport();
         vp.setBounds(0, 0,
@@ -70,6 +109,8 @@ public class PixelGameApp extends GameApplication {
         // 4) 碰撞（落地）
         setupCollisionHandlers();
 
+        // [NEW] 连接服务器
+        connectToServer();
 
     }
     @Override
@@ -79,20 +120,13 @@ public class PixelGameApp extends GameApplication {
 
         hud = new PlayerHUD(
                 avatar,
-                () -> spawnOrRespawnP2(),                       // 生成/重生 P2
+                null,  // onSpawnP2  -> null                     // 生成/重生 P2
                 () -> { if (player != null) player.die(); },    // 击杀自己
                 () -> { if (player != null) {                   // 复活自己
                     player.revive();
                     player.onRevived();
                 }},
-                () -> {                                         // ★ P2 开火
-                    if (player2 == null) spawnOrRespawnP2();
-                    if (player2 != null) {
-                        player2.startShooting();
-                        runOnce(() -> { if (player2 != null) player2.stopShooting(); },
-                                javafx.util.Duration.seconds(0.25));
-                    }
-                }
+                null   // onP2Shoot -> null
         );
 
         Region uiRoot = (Region) getGameScene().getRoot();
@@ -100,17 +134,7 @@ public class PixelGameApp extends GameApplication {
         hud.getRoot().prefHeightProperty().bind(uiRoot.heightProperty());
         getGameScene().addUINode(hud.getRoot());
 
-//        var dock = new org.csu.pixelstrikejavafx.ui.MultiplayerDock();
-//        dock.setBaseUrls("http://localhost:8080", "ws://localhost:8080");
-//        dock.setCollapsed(false); // 保证初次就展开
-//
-//        // ★ 关键：用 layoutX 绑定到 UI 根宽度——面板宽度，实现“右对齐”
-//        var dockNode = (javafx.scene.layout.BorderPane) dock.getRoot();
-//        var uiRoot1 = (javafx.scene.layout.Region) getGameScene().getRoot();
-//        dockNode.layoutXProperty().bind(uiRoot1.widthProperty().subtract(dockNode.widthProperty())); // 右贴边
-//        dockNode.setLayoutY(20);                                                                     // 顶部 20 像素
-//
-//        getGameScene().addUINode(dockNode);
+
     }
     @Override
     protected void initInput() {
@@ -155,7 +179,7 @@ public class PixelGameApp extends GameApplication {
             //Player2测试
             //Player2测试
             //Player2测试
-            if (player2 != null) player2.update(dt);   // ★ 每帧也要驱动 P2
+//            if (player2 != null) player2.update(dt);   // ★ 每帧也要驱动 P2
             if (cameraFollow != null) cameraFollow.update();
             // ★ 刷 HUD
             if (hud != null && player != null) {
@@ -169,36 +193,23 @@ public class PixelGameApp extends GameApplication {
         //Player2测试
         //Player2测试
         //Player2测试
-        if (player2 != null) player2.update(dt);       // ★ 关键：别忘了 P2
+//        if (player2 != null) player2.update(dt);       // ★ 关键：别忘了 P2
         if (cameraFollow != null) cameraFollow.update();
         // ★ 刷 HUD
         if (hud != null && player != null) {
             hud.updateHP(player.getHealth().getHp(), player.getHealth().getMaxHp());
         }
+
+        // [NEW] 发快照 + 远端插值
+        pumpNetwork(tpf);
+        updateRemotePlayers(tpf);
     }
 
     private void setupPlayer() {
         // 你已有的 Player 构造，摆个合理出生点（贴着地面）
         player = new Player(500, GameConfig.MAP_H - 211 - 128);  // MAP底 - 地面高 - 角色高
     }
-    private void setupPlayer2() {
-        player2 = new Player(1200, GameConfig.MAP_H - 211 - 128);
 
-        // 直接对实体 view children 上色（不改 Player 源码）
-        ColorAdjust ca = new ColorAdjust();
-        ca.setHue(+0.35);
-        var ent = player2.getEntity();
-        if (ent != null) {
-            var children = ent.getViewComponent().getChildren();
-            if (children != null) {
-                for (Node n : children) {
-                    if (n != null) n.setEffect(ca);
-                }
-            } else {
-//                ent.getViewComponent().setEffect(ca);
-            }
-        }
-    }
     private void setupCollisionHandlers() {
 
         // 通用设置函数：把事件里真正碰撞的那个玩家设为 on/off ground
@@ -221,14 +232,171 @@ public class PixelGameApp extends GameApplication {
             @Override protected void onCollisionEnd(Entity a, Entity b)   { setGround.accept(a, false); }
         });
     }
-    private void spawnOrRespawnP2() {
-        if (player2 == null) {
-            setupPlayer2();
-        } else {
-            player2.revive();
-            player2.onRevived();
-            player2.reset(1200, GameConfig.MAP_H - 211 - 128);
+
+
+//    // [NEW]
+//    private void pumpNetwork(double tpf) {
+//        if (netClient == null || player == null) return;
+//        sendTimer += tpf;
+//        if (sendTimer >= SEND_INTERVAL) {
+//            sendTimer = 0;
+//            var e = player.getEntity();
+//            var phy = player.getPhysics();
+//            double x = e.getX();
+//            double y = e.getY();
+//            double vx = phy.getVelocityX();
+//            double vy = phy.getVelocityY();
+//            boolean facing = player.getFacingRight();
+//            boolean onGround = player.isOnGround();
+//            netClient.sendState(x, y, vx, vy, facing, onGround);
+//        }
+//    }
+    // [NEW]
+    private void updateRemotePlayers(double tpf) {
+        long now = System.currentTimeMillis();
+        for (var it : remotePlayers.entrySet()) {
+            RemotePlayer rp = it.getValue();
+            if (rp.entity == null) continue;
+            // 超时清理（5s没更新）
+            if (now - rp.lastUpdate > 5000) {
+                rp.entity.removeFromWorld();
+                remotePlayers.remove(it.getKey());
+                continue;
+            }
+            double curX = rp.entity.getX();
+            double curY = rp.entity.getY();
+            double lerpSpeed = 10.0; // 插值速度：10 越大越“追得紧”
+            double nx = curX + (rp.targetX - curX) * lerpSpeed * tpf;
+            double ny = curY + (rp.targetY - curY) * lerpSpeed * tpf;
+            rp.entity.setX(nx);
+            rp.entity.setY(ny);
+            rp.entity.setScaleX(rp.targetFacing ? 1 : -1);
         }
     }
+    // [NEW]
+    private void connectToServer() {
+        System.out.println("=== WS connect: " + WS_URL + " as " + myName);
+        netClient = new NetClient();
+        netClient.connect(WS_URL,
+                () -> {
+                    netClient.sendJoin(myName);
+                },
+                msg -> Platform.runLater(() -> handleServerMessage(msg))
+        );
+    }
+
+    // 2) pumpNetwork：没有 welcome 前一律不发
+    private void pumpNetwork(double tpf) {
+        if (netClient == null || player == null || !joinedAck) return;  // ← 新增 joinedAck
+        sendTimer += tpf;
+        if (sendTimer >= SEND_INTERVAL) {
+            sendTimer = 0;
+            var e = player.getEntity();
+            var phy = player.getPhysics();
+            netClient.sendState(
+                    e.getX(), e.getY(),
+                    phy.getVelocityX(), phy.getVelocityY(),
+                    player.getFacingRight(), player.isOnGround(),
+                    System.currentTimeMillis(), seq++                // ← 新增 ts/seq
+            );
+        }
+    }
+    // [NEW]
+    private void handleServerMessage(String json) {
+        try {
+            String type = extractString(json, "\"type\":\"");
+            if (type == null) return;
+
+            switch (type) {
+                case "welcome" -> {
+                    myPlayerId = extractInt(json, "\"id\":");
+                    joinedAck = true;                                 // ← 新增
+                    System.out.println("WELCOME, myId=" + myPlayerId);
+                }
+                case "state" -> {
+                    if (!joinedAck) {                                 // ← 新增：硬闸
+                        System.out.println("IGNORE state before welcome");
+                        return;
+                    }
+                    int id = extractInt(json, "\"id\":");
+                    if (id == 0 || id == myPlayerId) return;          // 自己/无效 id 直接过
+                    double x = extractDouble(json, "\"x\":");
+                    double y = extractDouble(json, "\"y\":");
+                    boolean facing = json.contains("\"facing\":true");
+                    upsertRemotePlayer(id, x, y, facing);
+                }
+                case "join_broadcast" -> {
+                    int id = extractInt(json, "\"id\":");
+                    if (myPlayerId != null && id == myPlayerId) return;
+                    // 可选：先占位，等第一条 state 再拉过去
+                    // upsertRemotePlayer(id, 0, 0, true);
+                }
+                case "leave" -> {
+                    int id = extractInt(json, "\"id\":");
+                    RemotePlayer rp = remotePlayers.remove(id);
+                    if (rp != null && rp.entity != null) rp.entity.removeFromWorld();
+                }
+
+                default -> { /* ignore */ }
+            }
+        } catch (Exception e) {
+            System.err.println("handleServerMessage error: " + e.getMessage());
+        }
+    }
+
+    private String extractString(String json, String keyPrefix) {
+        int i = json.indexOf(keyPrefix);
+        if (i < 0) return null;
+        int s = i + keyPrefix.length();
+        int e = json.indexOf('"', s);
+        if (e < 0) return null;
+        return json.substring(s, e);
+    }
+
+    // [NEW]
+    private void upsertRemotePlayer(int id, double x, double y, boolean facing) {
+        RemotePlayer rp = remotePlayers.get(id);
+        if (rp == null) {
+            double hue = (id * 57) % 360;
+            var rect = new javafx.scene.shape.Rectangle(200, 200);
+            rect.setFill(javafx.scene.paint.Color.hsb(hue, 0.65, 0.95, 0.85));
+            rect.setStroke(javafx.scene.paint.Color.hsb(hue, 0.75, 0.55));
+            rect.setStrokeWidth(2);
+
+            var ent = entityBuilder().at(x, y).view(rect).zIndex(999).buildAndAttach();
+            rp = new RemotePlayer(ent);
+            remotePlayers.put(id, rp);
+            System.out.println("spawn remote " + id + " @(" + x + "," + y + ")");
+        }
+        rp.targetX = x; rp.targetY = y; rp.targetFacing = facing;
+        rp.lastUpdate = System.currentTimeMillis();
+    }
+
+    // [NEW]
+    private int extractInt(String json, String key) {
+        int i = json.indexOf(key);
+        if (i < 0) return 0;
+        int s = i + key.length();
+        while (s < json.length() && (json.charAt(s) == ' ' || json.charAt(s) == '"')) s++;
+        int e = s;
+        while (e < json.length() && (Character.isDigit(json.charAt(e)) || json.charAt(e) == '-')) e++;
+        if (s == e) return 0;
+        try { return Integer.parseInt(json.substring(s, e)); } catch (NumberFormatException ex) { return 0; }
+    }
+
+    private double extractDouble(String json, String key) {
+        int i = json.indexOf(key);
+        if (i < 0) return 0.0;
+        int s = i + key.length();
+        while (s < json.length() && (json.charAt(s) == ' ' || json.charAt(s) == '"')) s++;
+        int e = s;
+        while (e < json.length()) {
+            char c = json.charAt(e);
+            if (("0123456789-+.eE").indexOf(c) >= 0) e++; else break;
+        }
+        if (s == e) return 0.0;
+        try { return Double.parseDouble(json.substring(s, e)); } catch (NumberFormatException ex) { return 0.0; }
+    }
+
     public static void main(String[] args) { launch(args); }
 }

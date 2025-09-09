@@ -82,7 +82,13 @@ public class PlayerHUD {
         btnKill.setPrefWidth(88);
         btnRevive.setPrefWidth(88);
         btnP2Shoot.setPrefWidth(88);
+        // … 按钮已创建 & styleOutlined/stylePrimary 之后
 
+// [NEW] 如果回调是 null，则隐藏对应按钮（不占位）
+        if (onSpawnP2 == null) { btnSpawnP2.setVisible(false); btnSpawnP2.setManaged(false); }
+        if (onKillSelf == null) { btnKill.setVisible(false); btnKill.setManaged(false); }
+        if (onRevive  == null) { btnRevive.setVisible(false); btnRevive.setManaged(false); }
+        if (onP2Shoot == null) { btnP2Shoot.setVisible(false); btnP2Shoot.setManaged(false); }
         // 按钮行
         HBox btnRow = new HBox(10, btnSpawnP2, btnKill, btnRevive, btnP2Shoot);
         btnRow.setAlignment(Pos.CENTER_LEFT);
