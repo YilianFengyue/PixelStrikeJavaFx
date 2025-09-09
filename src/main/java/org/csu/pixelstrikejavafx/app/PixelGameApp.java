@@ -66,7 +66,7 @@ public class PixelGameApp extends GameApplication {
     private static class RemotePlayer {
         Entity entity;
         RemoteAvatar avatar;     // ★ 新增：影子动画
-
+        long lastSeq = -1;   // ★ 新增：记录最新处理到的state序号（单调递增过滤）
         // 插值目标
         double targetX, targetY;
         boolean targetFacing;
@@ -259,29 +259,45 @@ public class PixelGameApp extends GameApplication {
     // [NEW]
     private void updateRemotePlayers(double tpf) {
         long now = System.currentTimeMillis();
-        for (var it : remotePlayers.entrySet()) {
-            RemotePlayer rp = it.getValue();
-            if (rp.entity == null) continue;
-            // 超时清理（5s没更新）
-            if (now - rp.lastUpdate > 5000) {
+        java.util.List<Integer> toRemove = new java.util.ArrayList<>();
+
+        for (var entry : remotePlayers.entrySet()) {
+            int rid = entry.getKey();
+            RemotePlayer rp = entry.getValue();
+            if (rp == null || rp.entity == null) { toRemove.add(rid); continue; }
+
+            // ★ 短超时：3s 无更新直接回收
+            if (now - rp.lastUpdate > 3000) {
                 rp.entity.removeFromWorld();
-                remotePlayers.remove(it.getKey());
+                toRemove.add(rid);
                 continue;
             }
+
+            // ★ 温和插值 + 1px 死区，避免“抖1像素”
             double curX = rp.entity.getX();
             double curY = rp.entity.getY();
-            double lerpSpeed = 10.0; // 插值速度：10 越大越“追得紧”
-            double nx = curX + (rp.targetX - curX) * lerpSpeed * tpf;
-            double ny = curY + (rp.targetY - curY) * lerpSpeed * tpf;
-            rp.entity.setX(nx);
-            rp.entity.setY(ny);
+            double dx = rp.targetX - curX;
+            double dy = rp.targetY - curY;
+
+            if (Math.abs(dx) < 0.8) curX = rp.targetX; // ★ 死区：小于1px 直接贴到目标
+            else curX = curX + dx * 10.0 * tpf;        //   否则按速度插值
+
+            if (Math.abs(dy) < 0.8) curY = rp.targetY;
+            else curY = curY + dy * 10.0 * tpf;
+
+            rp.entity.setX(curX);
+            rp.entity.setY(curY);
+
             // 朝向 & 动画
             if (rp.avatar != null) {
-                rp.avatar.setFacingRight(rp.targetFacing);                     // ★ 朝向
-                rp.avatar.playState(rp.anim, rp.phase, rp.lastVX, rp.onGround); // ★ 动画
+                rp.avatar.setFacingRight(rp.targetFacing);
+                rp.avatar.playState(rp.anim, rp.phase, rp.lastVX, rp.onGround);
             }
+        }
 
-//            rp.entity.setScaleX(rp.targetFacing ? 1 : -1);
+        // ★ 统一删除，遍历更稳
+        for (int id : toRemove) {
+            remotePlayers.remove(id);
         }
     }
     // [NEW]
@@ -321,37 +337,52 @@ public class PixelGameApp extends GameApplication {
 
             switch (type) {
                 case "welcome" -> {
+                    // ★ 先彻底清理旧远端实体，避免重影
+                    remotePlayers.values().forEach(rp -> {
+                        if (rp.entity != null) rp.entity.removeFromWorld();
+                    });
+                    remotePlayers.clear();
+
                     myPlayerId = extractInt(json, "\"id\":");
-                    joinedAck = true;                                 // ← 新增
+                    joinedAck = true;
                     System.out.println("WELCOME, myId=" + myPlayerId);
                 }
                 case "state" -> {
-                    if (!joinedAck) {
-                        System.out.println("IGNORE state before welcome");
-                        return;
-                    }
+                    if (!joinedAck) { System.out.println("IGNORE state before welcome"); return; }
+
                     int id = extractInt(json, "\"id\":");
                     if (id == 0 || (myPlayerId != null && id == myPlayerId)) return;
 
                     double x = extractDouble(json, "\"x\":");
                     double y = extractDouble(json, "\"y\":");
-                    double vx = extractDouble(json, "\"vx\":");         // ★ 新增
-                    double vy = extractDouble(json, "\"vy\":");         // ★ 新增
-                    boolean facing = json.contains("\"facing\":true");
-                    boolean onGround = json.contains("\"onGround\":true"); // ★ 新增
-                    String anim  = extractString(json, "\"anim\":\"");  // ★ 新增（可能为 null）
-                    String phase = extractString(json, "\"phase\":\""); // ★ 新增（可能为 null）
+                    double vx = extractDouble(json, "\"vx\":");
+                    double vy = extractDouble(json, "\"vy\":");
+                    boolean facing   = json.contains("\"facing\":true");
+                    boolean onGround = json.contains("\"onGround\":true");
+                    String  anim  = extractString(json, "\"anim\":\"");
+                    String  phase = extractString(json, "\"phase\":\"");
+                    long    seq   = extractLong(json, "\"seq\":");     // ★ 新：读取序号
 
                     upsertRemotePlayer(id, x, y, facing);
                     RemotePlayer rp = remotePlayers.get(id);
-                    if (rp != null) {
-                        rp.onGround = onGround;
-                        rp.lastVX = vx;
-                        rp.lastVY = vy;
-                        rp.anim = anim;
-                        rp.phase = phase;
-                        rp.lastUpdate = System.currentTimeMillis();
+                    if (rp == null) return;
+
+                    // ★ 单调过滤：旧包/乱序直接丢弃
+                    if (seq > 0 && seq <= rp.lastSeq) {
+                        return;
                     }
+                    rp.lastSeq = seq;
+
+                    // 更新目标和状态
+                    rp.onGround   = onGround;
+                    rp.lastVX     = vx;
+                    rp.lastVY     = vy;
+                    rp.anim       = anim;
+                    rp.phase      = phase;
+                    rp.targetX    = x;
+                    rp.targetY    = y;
+                    rp.targetFacing = facing;
+                    rp.lastUpdate = System.currentTimeMillis();
                 }
                 case "join_broadcast" -> {
                     int id = extractInt(json, "\"id\":");
@@ -375,22 +406,20 @@ public class PixelGameApp extends GameApplication {
                     playShotEffect(ox, oy, dx, dy, range);                 // [NEW]
                 }
                 case "damage" -> {
+                    // ★ 统一用 applyHit：一次性处理击退 + 扣血 + 死亡表现
                     int victim = extractInt(json, "\"victim\":");
-                    int hp     = extractInt(json, "\"hp\":");
-                    boolean dead = json.contains("\"dead\":true");
+                    int dmg    = extractInt(json, "\"damage\":");                // ★ 新：伤害值
+                    boolean hasKx = json.contains("\"kx\":");                    // ★ 新：是否带击退向量
+                    boolean hasKy = json.contains("\"ky\":");
+                    double kx  = hasKx ? extractDouble(json, "\"kx\":")
+                            : (player != null && player.getFacingRight() ? -220.0 : 220.0); // ★ 兜底
+                    double ky  = hasKy ? extractDouble(json, "\"ky\":") : 0.0;  // ★ 兜底
+
                     if (myPlayerId != null && victim == myPlayerId && player != null) {
-                        // 自己被打：以服务器为准改血/死亡
-                        if (hp <= 0 || dead) {
-                            player.getHealth().reviveFull(); // 先确保组件可写
-                            // 用服务器的权威结论：置 0 并触发死亡表现
-                            player.getHealth().takeDamage(player.getHealth().getHp());
-                        } else {
-                            int cur = player.getHealth().getHp();
-                            int delta = Math.max(0, cur - hp);
-                            if (delta > 0) player.getHealth().takeDamage(delta);
-                        }
+                        int damage = Math.max(10, dmg); // 防止0伤害导致看不到反馈
+                        player.applyHit(damage, kx, ky);  // ★ 关键：先击退再扣血（由内部实现保证）
                     }
-                    // 远端被打：此处可选做闪红/飘字；现在先忽略（你没有远端 HP 组件）
+                    // 远端被击中：你暂不维护远端HP，这里可选播一下闪红特效，暂忽略
                 }
                 default -> { /* ignore */ }
             }
@@ -451,7 +480,17 @@ public class PixelGameApp extends GameApplication {
         if (s == e) return 0;
         try { return Integer.parseInt(json.substring(s, e)); } catch (NumberFormatException ex) { return 0; }
     }
-
+    /** 从JSON里解析 long（形如 "key":12345），失败返回0 */
+    private long extractLong(String json, String key) {
+        int i = json.indexOf(key);
+        if (i < 0) return 0L;
+        int s = i + key.length();
+        while (s < json.length() && (json.charAt(s) == ' ' || json.charAt(s) == '"')) s++;
+        int e = s;
+        while (e < json.length() && (Character.isDigit(json.charAt(e)) || json.charAt(e) == '-')) e++;
+        if (s == e) return 0L;
+        try { return Long.parseLong(json.substring(s, e)); } catch (NumberFormatException ex) { return 0L; }
+    }
     private double extractDouble(String json, String key) {
         int i = json.indexOf(key);
         if (i < 0) return 0.0;
