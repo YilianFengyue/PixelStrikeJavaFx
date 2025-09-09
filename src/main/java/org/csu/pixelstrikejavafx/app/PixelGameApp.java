@@ -29,6 +29,7 @@ import javafx.scene.shape.Rectangle;
 import java.util.Map;
 import java.util.concurrent.ConcurrentHashMap;
 
+
 import org.csu.pixelstrikejavafx.player.RemoteAvatar; // ★ 远端影子动画
 // ...
 
@@ -60,6 +61,8 @@ public class PixelGameApp extends GameApplication {
     // [NEW] 远端玩家容器
     private final Map<Integer, RemotePlayer> remotePlayers = new ConcurrentHashMap<>();
 
+    // 【NEW】记录本次欢迎的服务器时刻，作为“代际栅栏”
+    private long welcomeSrvTS = 0L;
 
 
 
@@ -337,22 +340,30 @@ public class PixelGameApp extends GameApplication {
 
             switch (type) {
                 case "welcome" -> {
-                    // ★ 先彻底清理旧远端实体，避免重影
-                    remotePlayers.values().forEach(rp -> {
-                        if (rp.entity != null) rp.entity.removeFromWorld();
-                    });
+                    // ★ 清表，防止旧影子
+                    remotePlayers.values().forEach(rp -> { if (rp.entity != null) rp.entity.removeFromWorld(); });
                     remotePlayers.clear();
 
-                    myPlayerId = extractInt(json, "\"id\":");
-                    joinedAck = true;
-                    System.out.println("WELCOME, myId=" + myPlayerId);
+                    myPlayerId   = extractInt(json, "\"id\":");
+                    welcomeSrvTS = extractLong(json, "\"serverTime\":");   // 【NEW】代际时间栅栏
+                    joinedAck    = true;
+                    System.out.println("WELCOME myId=" + myPlayerId + " srvTS=" + welcomeSrvTS);
                 }
+
                 case "state" -> {
-                    if (!joinedAck) { System.out.println("IGNORE state before welcome"); return; }
+                    if (!joinedAck) return;
+
+                    // 【NEW】丢弃“早于 welcome 的旧时代包”
+                    long srvTS = readSrvTS(json);
+                    if (welcomeSrvTS > 0 && srvTS > 0 && srvTS < welcomeSrvTS) {
+                        // System.out.println("DROP old state srvTS=" + srvTS);
+                        return;
+                    }
 
                     int id = extractInt(json, "\"id\":");
                     if (id == 0 || (myPlayerId != null && id == myPlayerId)) return;
 
+                    // ...（原有解析与 upsertRemotePlayer 保持不变）...
                     double x = extractDouble(json, "\"x\":");
                     double y = extractDouble(json, "\"y\":");
                     double vx = extractDouble(json, "\"vx\":");
@@ -361,66 +372,64 @@ public class PixelGameApp extends GameApplication {
                     boolean onGround = json.contains("\"onGround\":true");
                     String  anim  = extractString(json, "\"anim\":\"");
                     String  phase = extractString(json, "\"phase\":\"");
-                    long    seq   = extractLong(json, "\"seq\":");     // ★ 新：读取序号
+                    long    seq   = extractLong(json, "\"seq\":");
 
                     upsertRemotePlayer(id, x, y, facing);
                     RemotePlayer rp = remotePlayers.get(id);
                     if (rp == null) return;
 
-                    // ★ 单调过滤：旧包/乱序直接丢弃
-                    if (seq > 0 && seq <= rp.lastSeq) {
-                        return;
-                    }
+                    // 单调过滤
+                    if (seq > 0 && seq <= rp.lastSeq) return;
                     rp.lastSeq = seq;
 
-                    // 更新目标和状态
-                    rp.onGround   = onGround;
-                    rp.lastVX     = vx;
-                    rp.lastVY     = vy;
-                    rp.anim       = anim;
-                    rp.phase      = phase;
-                    rp.targetX    = x;
-                    rp.targetY    = y;
+                    rp.onGround     = onGround;
+                    rp.lastVX       = vx;
+                    rp.lastVY       = vy;
+                    rp.anim         = anim;
+                    rp.phase        = phase;
+                    rp.targetX      = x;
+                    rp.targetY      = y;
                     rp.targetFacing = facing;
-                    rp.lastUpdate = System.currentTimeMillis();
+                    rp.lastUpdate   = System.currentTimeMillis();
                 }
-                case "join_broadcast" -> {
-                    int id = extractInt(json, "\"id\":");
-                    if (myPlayerId != null && id == myPlayerId) return;
-                    // 可选：先占位，等第一条 state 再拉过去
-                    // upsertRemotePlayer(id, 0, 0, true);
-                }
-                case "leave" -> {
-                    int id = extractInt(json, "\"id\":");
-                    RemotePlayer rp = remotePlayers.remove(id);
-                    if (rp != null && rp.entity != null) rp.entity.removeFromWorld();
-                }
-                // 在 handleServerMessage(String json) 的 switch(type) 里增加两个分支
+
                 case "shot" -> {
-                    // 远端表现：只播一条射线（不做命中）
+                    // 【NEW】代际栅栏
+                    long srvTS = readSrvTS(json);
+                    if (welcomeSrvTS > 0 && srvTS > 0 && srvTS < welcomeSrvTS) return;
+
                     double ox = extractDouble(json, "\"ox\":");
                     double oy = extractDouble(json, "\"oy\":");
                     double dx = extractDouble(json, "\"dx\":");
                     double dy = extractDouble(json, "\"dy\":");
                     double range = extractDouble(json, "\"range\":");
-                    playShotEffect(ox, oy, dx, dy, range);                 // [NEW]
+                    playShotEffect(ox, oy, dx, dy, range);
                 }
+
                 case "damage" -> {
-                    // ★ 统一用 applyHit：一次性处理击退 + 扣血 + 死亡表现
+                    // 【NEW】代际栅栏
+                    long srvTS = readSrvTS(json);
+                    if (welcomeSrvTS > 0 && srvTS > 0 && srvTS < welcomeSrvTS) return;
+
                     int victim = extractInt(json, "\"victim\":");
-                    int dmg    = extractInt(json, "\"damage\":");                // ★ 新：伤害值
-                    boolean hasKx = json.contains("\"kx\":");                    // ★ 新：是否带击退向量
+                    int dmg    = extractInt(json, "\"damage\":");
+                    boolean hasKx = json.contains("\"kx\":");
                     boolean hasKy = json.contains("\"ky\":");
                     double kx  = hasKx ? extractDouble(json, "\"kx\":")
-                            : (player != null && player.getFacingRight() ? -220.0 : 220.0); // ★ 兜底
-                    double ky  = hasKy ? extractDouble(json, "\"ky\":") : 0.0;  // ★ 兜底
+                            : (player != null && player.getFacingRight() ? -220.0 : 220.0);
+                    double ky  = hasKy ? extractDouble(json, "\"ky\":") : 0.0;
 
                     if (myPlayerId != null && victim == myPlayerId && player != null) {
-                        int damage = Math.max(10, dmg); // 防止0伤害导致看不到反馈
-                        player.applyHit(damage, kx, ky);  // ★ 关键：先击退再扣血（由内部实现保证）
+                        player.applyHit(Math.max(1, dmg), kx, ky);
                     }
-                    // 远端被击中：你暂不维护远端HP，这里可选播一下闪红特效，暂忽略
                 }
+
+                case "leave" -> {
+                    int id = extractInt(json, "\"id\":");
+                    RemotePlayer rp = remotePlayers.remove(id);
+                    if (rp != null && rp.entity != null) rp.entity.removeFromWorld();
+                }
+
                 default -> { /* ignore */ }
             }
         } catch (Exception e) {
@@ -436,6 +445,7 @@ public class PixelGameApp extends GameApplication {
         if (e < 0) return null;
         return json.substring(s, e);
     }
+
 
     private void upsertRemotePlayer(int id, double x, double y, boolean facing) {
         RemotePlayer rp = remotePlayers.get(id);
@@ -515,6 +525,13 @@ public class PixelGameApp extends GameApplication {
         // ★ 用 JavaFX 的 Duration，别用 java.time.Duration
         runOnce(() -> { if (fx.isActive()) fx.removeFromWorld(); }, javafx.util.Duration.millis(100));
         //                      ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^  ← 关键
+    }
+
+    // 【NEW】统一读取消息里的服务器时刻（state 用 serverTime；shot/damage 用 srvTS）
+    private long readSrvTS(String json) {
+        long t = extractLong(json, "\"serverTime\":");
+        if (t == 0L) t = extractLong(json, "\"srvTS\":");
+        return t;
     }
     public static void main(String[] args) { launch(args); }
 }
