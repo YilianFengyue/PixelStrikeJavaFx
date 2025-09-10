@@ -25,12 +25,10 @@ public final class MapBuilder {
         addBackground();
         buildMainGroundStrip(0, GameConfig.MAP_H - 211, GameConfig.MAP_W);  // 211=你的地面贴图高度
 //        buildMainGroundStrip(150, GameConfig.MAP_H - 211 - 300, 400);  // 离地面150像素高，宽400像素
-        buildAirPlatform(800, GameConfig.MAP_H - 430, 925, "floating_platform.png");
+        buildAirPlatform(800, GameConfig.MAP_H - 470, 925, "floating_platform.png");
         buildAirPlatform(2000, GameConfig.MAP_H - 600, 925, "floating_platform.png");
         // --- 若干跳台（简单矩形，可走） ---
-//        solidPlatform(600, 760, 320, 20, Color.web("#999999"));
-//        solidPlatform(1150, 660, 300, 20, Color.web("#aaaaaa"));
-//        solidPlatform(1750, 780, 340, 20, Color.web("#888888"));
+
 
 
     }

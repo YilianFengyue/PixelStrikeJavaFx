@@ -5,7 +5,7 @@ public final class GameConfig {
     private GameConfig() {}
 
     // --- 窗口（1080p） ---
-    public static final int WINDOW_W = 1920;
+    public static final int WINDOW_W = 1020;
     public static final int WINDOW_H = 1080;
 
     // --- 世界/地图尺寸（按你的背景图） ---
@@ -25,5 +25,5 @@ public final class GameConfig {
     public static final String G_BASE_STRIP = "ground_base.png";
 
 
-  
+
 }

@@ -81,19 +81,22 @@ public class LobbyController implements Initializable {
         // 2. 监听匹配成功事件
         FXGL.getEventBus().addEventHandler(MatchSuccessEvent.ANY, event -> {
             Platform.runLater(() -> {
-                System.out.println("UI received: Match Success!");
-                matchStatusLabel.setText("匹配成功！准备进入游戏...");
+                System.out.println("UI received: Match Success! Preparing to start game...");
+                if(matchStatusLabel != null) {
+                    matchStatusLabel.setText("匹配成功！正在进入游戏...");
+                }
 
-                // 断开当前的全局 WebSocket
+                // 1. 将游戏服务器地址存入全局状态，以便游戏场景启动时读取
+                GlobalState.currentGameServerUrl = event.getServerAddress();
+                System.out.println("Game Server URL saved to GlobalState: " + GlobalState.currentGameServerUrl);
+
+                // 2. 断开当前的全局(大厅) WebSocket
                 NetworkManager.getInstance().disconnect();
+                System.out.println("Lobby WebSocket disconnected.");
 
-                // 准备连接到游戏服务器...
-                String gameServerUrl = event.getServerAddress();
-                System.out.println("Game Server URL: " + gameServerUrl);
-
-                // 在这里，你需要编写切换到游戏场景的逻辑
-                // 例如：FXGL.getGameController().startNewGame();
-                // 并且在游戏场景的 initGame() 中，使用 gameServerUrl 建立新的游戏内 WebSocket 连接
+                // 3. 【关键修复】启动游戏场景
+                System.out.println("Starting new game scene...");
+                FXGL.getGameController().startNewGame();
             });
         });
 
@@ -123,20 +126,35 @@ public class LobbyController implements Initializable {
      */
     @FXML
     private void handleStartMatch() {
-        matchStatusLabel.setText("正在寻找对局...");
-        startMatchButton.setDisable(true); // 防止重复点击
+        // 确保 matchStatusLabel 不为 null 后再使用
+        if (matchStatusLabel != null) {
+            matchStatusLabel.setText("正在发送匹配请求...");
+        }
+        startMatchButton.setDisable(true); // 禁用按钮，防止重复点击
 
-        // 后台线程调用匹配 API
+        // 必须在后台线程中执行网络请求，否则UI会卡死
         new Thread(() -> {
             try {
-                // 假设你的 ApiClient 有一个 startMatchmaking 方法
-                // apiClient.startMatchmaking();
-                Platform.runLater(() -> matchStatusLabel.setText("已进入匹配队列，等待服务器通知..."));
-            } catch (Exception e) {
+                // 调用我们刚刚在 ApiClient 中添加的方法
+                apiClient.startMatchmaking();
+
+                // 网络请求成功后，在UI线程上更新界面
                 Platform.runLater(() -> {
-                    matchStatusLabel.setText("开始匹配失败: " + e.getMessage());
-                    startMatchButton.setDisable(false);
+                    if (matchStatusLabel != null) {
+                        matchStatusLabel.setText("已进入匹配队列，等待服务器通知...");
+                    }
+                    // 可以在这里启用“取消匹配”按钮（如果需要）
                 });
+
+            } catch (Exception e) {
+                // 如果请求失败（例如网络问题或后端返回错误），在UI线程上显示错误信息
+                Platform.runLater(() -> {
+                    if (matchStatusLabel != null) {
+                        matchStatusLabel.setText("开始匹配失败: " + e.getMessage());
+                    }
+                    startMatchButton.setDisable(false); // 恢复按钮的可点击状态
+                });
+                e.printStackTrace(); // 在控制台打印详细错误，便于调试
             }
         }).start();
     }
