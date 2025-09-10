@@ -89,6 +89,7 @@ public class LobbyController implements Initializable {
                 // 1. 将游戏服务器地址存入全局状态，以便游戏场景启动时读取
                 GlobalState.currentGameServerUrl = event.getServerAddress();
                 System.out.println("Game Server URL saved to GlobalState: " + GlobalState.currentGameServerUrl);
+                GlobalState.currentGameId = event.getGameId();
 
                 // 2. 断开当前的全局(大厅) WebSocket
                 NetworkManager.getInstance().disconnect();

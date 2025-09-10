@@ -229,27 +229,37 @@ public class PixelGameApp extends GameApplication {
         });
     }
 
-    // [MODIFIED] 连接逻辑
     private void connectToGameServer() {
-        // 从 GlobalState 获取游戏服务器地址
-        String gameWsUrl = GlobalState.currentGameServerUrl;
-        if (gameWsUrl == null || gameWsUrl.isBlank()) {
+        String baseUrl = GlobalState.currentGameServerUrl;
+        if (baseUrl == null || baseUrl.isBlank()) {
             getDialogService().showMessageBox("错误：找不到游戏服务器地址！", () -> getGameController().gotoMainMenu());
             return;
         }
 
-        System.out.println("=== Connecting to game server: " + gameWsUrl);
+        String token = GlobalState.authToken;
+        if (token == null) {
+            getDialogService().showMessageBox("错误：无法连接游戏服务器，用户未认证！", () -> getGameController().gotoMainMenu());
+            return;
+        }
+
+        Long gameId = GlobalState.currentGameId;
+        if (gameId == null) {
+            getDialogService().showMessageBox("错误：找不到游戏ID！", () -> getGameController().gotoMainMenu());
+            return;
+        }
+
+        // URL 构建逻辑是正确的，保持不变
+        String finalUrl = baseUrl + "?gameId=" + gameId + "&token=" + token;
+
+        System.out.println("=== Connecting to game server with final URL: " + finalUrl);
         netClient = new NetClient();
-        netClient.connect(gameWsUrl,
+
+        // --- 【核心修改】 ---
+        netClient.connect(finalUrl,
                 () -> {
-                    // 连接成功后，发送带有昵称和Token的join消息
-                    String nickname = GlobalState.nickname != null ? GlobalState.nickname : "Player";
-                    String token = GlobalState.authToken;
-                    String joinMsg = String.format(
-                            "{\"type\":\"join\",\"name\":\"%s\",\"token\":\"%s\"}",
-                            nickname, token
-                    );
-                    netClient.send(joinMsg);
+                    // onOpen 回调变为空。我们不再需要发送任何消息。
+                    // 服务器会在连接建立后自动处理我们的加入逻辑。
+                    System.out.println("[WS] >> Connection opened. Waiting for 'welcome' message from server...");
                 },
                 msg -> Platform.runLater(() -> handleServerMessage(msg))
         );
@@ -270,6 +280,19 @@ public class PixelGameApp extends GameApplication {
                     welcomeSrvTS = extractLong(json, "\"serverTime\":");   // 【NEW】代际时间栅栏
                     joinedAck    = true;
                     System.out.println("WELCOME myId=" + myPlayerId + " srvTS=" + welcomeSrvTS);
+                }
+
+                case "join_broadcast" -> {
+                    if (!joinedAck) return; // 必须在自己 welcome 之后才处理别人的加入
+
+                    int id = extractInt(json, "\"id\":");
+                    // 如果是自己的加入广播，则忽略
+                    if (myPlayerId != null && id == myPlayerId) return;
+
+                    System.out.println("A new player joined with id: " + id);
+                    // 我们不知道新玩家的确切位置，暂时在 (0,0) 创建一个影子
+                    // 服务器下一次广播这个新玩家的 state 时，它的位置就会被正确更新
+                    upsertRemotePlayer(id, 0, 0, true);
                 }
 
                 case "state" -> {
@@ -513,14 +536,6 @@ public class PixelGameApp extends GameApplication {
         if (t == 0L) t = extractLong(json, "\"srvTS\":");
         return t;
     }
-
-    // handleServerMessage, pumpNetwork, updateRemotePlayers, upsertRemotePlayer,
-    // extractString, extractInt, extractLong, extractDouble, playShotEffect, readSrvTS
-    // 这些方法从 java 直接复制过来，保持不变
-    // (此处省略这些方法的代码，请直接从原文件复制)
-    // ...
-    // ... [请将 PixelGameAppGame 中所有网络处理和玩家同步的方法粘贴到这里] ...
-    // ...
 
     public static void main(String[] args) {
         launch(args);

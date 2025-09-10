@@ -124,7 +124,7 @@ public class NetworkManager {
                     break;
                 case "match_success":
                     String serverAddress = msgJson.get("serverAddress").getAsString();
-                    int gameId = msgJson.get("gameId").getAsInt();
+                    long gameId = msgJson.get("gameId").getAsLong();
                     FXGL.getEventBus().fireEvent(new MatchSuccessEvent(serverAddress, gameId));
                     break;
                 case "new_friend_request":

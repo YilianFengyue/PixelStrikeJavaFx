@@ -8,5 +8,6 @@ public class GlobalState {
     public static JsonObject currentRoomInfo = null;
     public static String avatarUrl = null;
     public static String currentGameServerUrl = null;
+    public static Long currentGameId = null;
 
 }

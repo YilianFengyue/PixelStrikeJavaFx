@@ -11,9 +11,9 @@ public class MatchSuccessEvent extends Event {
     public static final EventType<MatchSuccessEvent> ANY = new EventType<>(Event.ANY, "MATCH_SUCCESS");
 
     private final String serverAddress;
-    private final int gameId;
+    private final long gameId;
 
-    public MatchSuccessEvent(String serverAddress, int gameId) {
+    public MatchSuccessEvent(String serverAddress, long gameId) {
         super(ANY);
         this.serverAddress = serverAddress;
         this.gameId = gameId;
@@ -23,7 +23,7 @@ public class MatchSuccessEvent extends Event {
         return serverAddress;
     }
 
-    public int getGameId() {
+    public long getGameId() {
         return gameId;
     }
 }
