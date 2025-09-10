@@ -623,9 +623,6 @@ public class LobbyController implements Initializable {
                     }).start();
                 });
 
-                // ==========================================================
-                // ==================== 核心改动在这里 ====================
-                // ==========================================================
                 // 3. 将通知栏添加到我们自己管理的、当前可见的 UI 根容器中
                 Pane root = UIManager.getRoot();
                 if (root != null) {
@@ -744,30 +741,50 @@ public class LobbyController implements Initializable {
             private final ImageView avatarView = new ImageView();
             // 用于显示昵称和状态
             private final Label infoLabel = new Label();
+            private final Region spacer = new Region();
+            private final Button deleteButton = new Button("刪除");
 
             {
                 // 初始化单元格布局
                 avatarView.setFitHeight(40);
                 avatarView.setFitWidth(40);
+                HBox.setHgrow(spacer, Priority.ALWAYS);
                 hbox.setAlignment(Pos.CENTER_LEFT);
-                hbox.getChildren().addAll(avatarView, infoLabel);
+                hbox.getChildren().addAll(avatarView, infoLabel, spacer, deleteButton);
             }
 
             @Override
             protected void updateItem(Map<String, Object> friend, boolean empty) {
                 super.updateItem(friend, empty);
-                if (empty || friend == null) {
-                    setGraphic(null); // 空行不显示任何东西
+                if (empty || friend == null || friend.get("nickname") == null) {
+                    setGraphic(null);
+                    setText(null);
                 } else {
-                    // 从 Map 中获取数据并设置到控件上
-                    String nickname = (String) friend.get("nickname");
-                    String status = (String) friend.get("onlineStatus");
-                    status = (status == null) ? "离线" : status;
-
-                    infoLabel.setText(String.format("%s [%s]", nickname, status));
+                    setText(null);
+                    infoLabel.setText(String.format("%s [%s]", friend.get("nickname"), friend.get("onlineStatus") == null ? "离线" : friend.get("onlineStatus")));
                     avatarView.setImage(UIManager.loadAvatar((String) friend.get("avatarUrl")));
 
-                    // 将 HBox 设置为这个单元格的图形内容
+                    // 為刪除按鈕設定點擊事件
+                    deleteButton.setOnAction(event -> {
+                        long friendId = ((Number) friend.get("userId")).longValue();
+                        String nickname = (String) friend.get("nickname");
+
+                        // 彈出確認對話方塊，防止誤刪
+                        FXGL.getDialogService().showConfirmationBox("確定要刪除好友 " + nickname + " 吗？", (yes) -> {
+                            if (yes) {
+                                new Thread(() -> {
+                                    try {
+                                        apiClient.deleteFriend(friendId);
+                                        // 成功後，在UI執行緒重新載入好友列表
+                                        Platform.runLater(() -> loadFriendsList());
+                                    } catch (Exception e) {
+                                        Platform.runLater(() -> FXGL.getDialogService().showMessageBox("刪除失敗: " + e.getMessage()));
+                                    }
+                                }).start();
+                            }
+                        });
+                    });
+
                     setGraphic(hbox);
                 }
             }

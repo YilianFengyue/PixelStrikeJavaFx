@@ -725,6 +725,38 @@ public class ApiClient {
             }
         }
     }
+
+    /**
+     * 刪除好友
+     * @param friendId 要刪除的好友的用戶 ID
+     * @throws IOException 當網路或業務邏輯失敗時拋出
+     */
+    public void deleteFriend(long friendId) throws IOException {
+        if (GlobalState.authToken == null) throw new IllegalStateException("Not logged in");
+
+        // 根據我們建議的 API 設計，URL 是 /friends/{friendId}
+        String url = BASE_URL + "/friends/" + friendId;
+
+        // 建立一個 DELETE 請求
+        Request request = new Request.Builder()
+                .url(url)
+                .addHeader("Authorization", "Bearer " + GlobalState.authToken)
+                .delete() // 使用 DELETE 方法
+                .build();
+
+        try (Response response = client.newCall(request).execute()) {
+            if (!response.isSuccessful()) {
+                throw new IOException("刪除好友請求失敗: " + response);
+            }
+
+            String responseBody = Objects.requireNonNull(response.body()).string();
+            JsonObject jsonObject = gson.fromJson(responseBody, JsonObject.class);
+
+            if (jsonObject.get("status").getAsInt() != 0) {
+                throw new IOException(jsonObject.get("message").getAsString());
+            }
+        }
+    }
 }
 
 
