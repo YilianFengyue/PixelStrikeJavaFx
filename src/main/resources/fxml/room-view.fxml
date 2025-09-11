@@ -8,7 +8,7 @@
 <?import javafx.scene.layout.VBox?>
 <?import javafx.scene.text.Font?>
 
-<AnchorPane prefHeight="1080.0" prefWidth="1920.0" style="-fx-background-color: #34495e;" xmlns="http://javafx.com/javafx/21" xmlns:fx="http://javafx.com/fxml/1" fx:controller="org.csu.pixelstrikejavafx.ui.RoomController">
+<AnchorPane prefHeight="1080.0" prefWidth="1920.0" style="-fx-background-color: #34495e;" xmlns="http://javafx.com/javafx/21" xmlns:fx="http://javafx.com/fxml/1" fx:controller="org.csu.pixelstrikejavafx.lobby.ui.RoomController">
     <children>
         <Label fx:id="roomIdLabel" text="房间ID: 等待中..." textFill="white" AnchorPane.leftAnchor="50.0" AnchorPane.topAnchor="50.0">
             <font><Font name="System Bold" size="36.0" /></font>

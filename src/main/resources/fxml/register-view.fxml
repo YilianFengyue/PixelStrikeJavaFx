@@ -12,7 +12,7 @@
 <?import javafx.scene.image.ImageView?>
 <StackPane fx:id="rootPane" prefHeight="1080.0" prefWidth="1920.0"
            xmlns="http://javafx.com/javafx/21" xmlns:fx="http://javafx.com/fxml/1"
-           fx:controller="org.csu.pixelstrikejavafx.ui.RegisterController"
+           fx:controller="org.csu.pixelstrikejavafx.lobby.ui.RegisterController"
            stylesheets="/assets/css/register-style.css">
 
     <ImageView fx:id="backgroundImageView" fitHeight="1080.0" fitWidth="1920.0" pickOnBounds="true" preserveRatio="false"/>

@@ -103,7 +103,7 @@
                         <!-- Default configuration for running with: mvn clean javafx:run -->
                         <id>default-cli</id>
                         <configuration>
-                            <mainClass>org.csu.pixelstrikejavafx/org.csu.pixelstrikejavafx.HelloApplication</mainClass>
+                            <mainClass>org.csu.pixelstrikejavafx/org.csu.pixelstrikejavafx.PixelGameApp</mainClass>
                             <launcher>app</launcher>
                             <jlinkZipName>app</jlinkZipName>
                             <jlinkImageName>app</jlinkImageName>
