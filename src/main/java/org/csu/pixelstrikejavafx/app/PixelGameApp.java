@@ -277,6 +277,21 @@ public class PixelGameApp extends GameApplication {
                         playerManager.updateRemotePlayer(id, x, y, true, "IDLE", "IDLE", 0, 0, true, 0);
                     }
                 }
+
+                case "game_over" -> {
+                    System.out.println("Received game over message from server.");
+                    // 禁用玩家控制
+                    if(playerManager.getLocalPlayer() != null) {
+                        // 你可以在Player类中添加一个方法来禁用输入
+                    }
+                    // 显示 "GAME OVER" 浮层
+                    getGameScene().getViewport().fade(() -> getDialogService().showMessageBox("游戏结束!", () -> {
+                        // 点击确认后返回大厅
+                        networkService.sendLeaveMessage(); // 确保断开连接
+                        getGameController().gotoMainMenu();
+                    }));
+                }
+
                 case "leave" -> playerManager.removeRemotePlayer(extractInt(json, "\"id\":"));
             }
         } catch (Exception e) {
