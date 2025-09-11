@@ -34,9 +34,15 @@ public class HistoryController implements Initializable {
                     // 从 map 中安全地获取 K/D 数据，如果不存在则默认为 0
                     Object killsObj = match.get("myKills");
                     Object deathsObj = match.get("myDeaths");
-
                     int kills = (killsObj instanceof Number) ? ((Number) killsObj).intValue() : 0;
                     int deaths = (deathsObj instanceof Number) ? ((Number) deathsObj).intValue() : 0;
+
+                    // ★ 核心修复：安全地获取排名数据
+                    Object rankingObj = match.get("ranking");
+                    String rankingText = "N/A"; // 默认显示 "N/A"
+                    if (rankingObj instanceof Number) {
+                        rankingText = String.valueOf(((Number) rankingObj).intValue());
+                    }
 
                     // 设置最终显示的文本格式
                     setText(String.format("模式: %s  |  K/D: %d/%d  |  地图: %s  |  排名: %s",
@@ -44,7 +50,7 @@ public class HistoryController implements Initializable {
                             kills,
                             deaths,
                             match.get("mapName"),
-                            ((Number)match.get("ranking")).intValue()));
+                            rankingText)); // 使用我们安全获取的排名文本
                 }
             }
         });

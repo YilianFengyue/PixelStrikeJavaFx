@@ -4,24 +4,38 @@
 <?import javafx.scene.control.Button?>
 <?import javafx.scene.control.Label?>
 <?import javafx.scene.control.ListView?>
+<?import javafx.scene.layout.AnchorPane?>
 <?import javafx.scene.layout.BorderPane?>
-<?import javafx.scene.layout.VBox?>
 <?import javafx.scene.text.Font?>
 
-<BorderPane prefHeight="1080.0" prefWidth="1920.0" style="-fx-background-color: #2c3e50;" xmlns="http://javafx.com/javafx/21" xmlns:fx="http://javafx.com/fxml/1" fx:controller="org.csu.pixelstrikejavafx.ui.HistoryController">
-    <top>
-        <Label text="历史战绩" textFill="white" alignment="CENTER" BorderPane.alignment="CENTER">
-            <font><Font name="System Bold" size="48.0" /></font>
-            <BorderPane.margin><Insets top="50.0" bottom="50.0" /></BorderPane.margin>
-        </Label>
-    </top>
-    <center>
-        <ListView fx:id="historyListView" prefWidth="1200.0" maxWidth="1200.0" />
-    </center>
-    <bottom>
-        <Button onAction="#handleBackToLobby" text="返回大厅" BorderPane.alignment="CENTER">
-            <font><Font size="22.0" /></font>
-            <BorderPane.margin><Insets top="50.0" bottom="50.0" /></BorderPane.margin>
-        </Button>
-    </bottom>
-</BorderPane>
+<AnchorPane prefHeight="1080.0" prefWidth="1920.0" style="-fx-background-color: #2c3e50;"
+            xmlns="http://javafx.com/javafx/21" xmlns:fx="http://javafx.com/fxml/1"
+            fx:controller="org.csu.pixelstrikejavafx.ui.HistoryController">
+    <children>
+        <BorderPane AnchorPane.bottomAnchor="0.0" AnchorPane.leftAnchor="0.0" AnchorPane.rightAnchor="0.0" AnchorPane.topAnchor="0.0">
+            <top>
+                <Label text="历史战绩" textFill="white" alignment="CENTER" BorderPane.alignment="CENTER">
+                    <font>
+                        <Font name="System Bold" size="48.0"/>
+                    </font>
+                    <BorderPane.margin>
+                        <Insets top="50.0" bottom="50.0"/>
+                    </BorderPane.margin>
+                </Label>
+            </top>
+            <center>
+                <ListView fx:id="historyListView" prefWidth="1200.0" maxWidth="1200.0" BorderPane.alignment="CENTER"/>
+            </center>
+            <bottom>
+                <Button onAction="#handleBackToLobby" text="返回大厅" BorderPane.alignment="CENTER">
+                    <font>
+                        <Font size="22.0"/>
+                    </font>
+                    <BorderPane.margin>
+                        <Insets top="50.0" bottom="50.0"/>
+                    </BorderPane.margin>
+                </Button>
+            </bottom>
+        </BorderPane>
+    </children>
+</AnchorPane>

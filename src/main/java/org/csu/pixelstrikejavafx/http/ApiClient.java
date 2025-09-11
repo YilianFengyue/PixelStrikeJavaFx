@@ -649,7 +649,7 @@ public class ApiClient {
 
     public List<Map<String, Object>> getHistory() throws IOException {
         if (GlobalState.authToken == null) throw new IllegalStateException("Not logged in");
-        String url = BASE_URL + "/history";
+        String url = BASE_URL + "/matches/me";
         Request request = new Request.Builder().url(url).addHeader("Authorization", "Bearer " + GlobalState.authToken).build();
         try (Response response = client.newCall(request).execute()) {
             if (!response.isSuccessful()) throw new IOException("获取历史战绩失败: " + response);
