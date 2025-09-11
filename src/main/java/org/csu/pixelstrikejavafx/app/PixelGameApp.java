@@ -369,6 +369,30 @@ public class PixelGameApp extends GameApplication {
                     }
                 }
 
+                case "respawn" -> {
+                    int id = extractInt(json, "\"id\":");
+                    double x = extractDouble(json, "\"x\":");
+                    double y = extractDouble(json, "\"y\":");
+
+                    if (myPlayerId != null && id == myPlayerId) {
+                        // 是我复活了！
+                        System.out.println("Received respawn event for myself.");
+                        if (player != null) {
+                            player.reset(x, y); // 使用服务器给定的坐标重置玩家
+                            player.revive();    // 执行复活逻辑 (恢复HP, 启用实体等)
+                        }
+                    } else {
+                        // 是其他玩家复活了
+                        System.out.println("Received respawn event for remote player " + id);
+                        RemotePlayer rp = remotePlayers.get(id);
+                        if (rp != null && rp.entity != null) {
+                            rp.entity.setPosition(x, y);
+                            rp.entity.setVisible(true); // 确保影子可见
+                            rp.lastUpdate = System.currentTimeMillis();
+                        }
+                    }
+                }
+
                 case "leave" -> {
                     int id = extractInt(json, "\"id\":");
                     RemotePlayer rp = remotePlayers.remove(id);
