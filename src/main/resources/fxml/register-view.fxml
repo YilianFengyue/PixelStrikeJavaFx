@@ -8,33 +8,31 @@
 <?import javafx.scene.layout.VBox?>
 <?import javafx.scene.text.Font?>
 
-<VBox alignment="CENTER" prefHeight="1080.0" prefWidth="1920.0" spacing="20.0" style="-fx-background-color: #282c34;" xmlns="http://javafx.com/javafx/21" xmlns:fx="http://javafx.com/fxml/1" fx:controller="org.csu.pixelstrikejavafx.ui.RegisterController">
-    <children>
-        <Label text="创建新账户" textFill="white">
-            <font>
-                <Font name="System Bold" size="48.0" />
-            </font>
-            <VBox.margin>
-                <Insets bottom="50.0" />
-            </VBox.margin>
-        </Label>
-        <TextField fx:id="usernameField" maxWidth="350.0" promptText="用户名" />
-        <PasswordField fx:id="passwordField" maxWidth="350.0" promptText="密码" />
-        <TextField fx:id="emailField" maxWidth="350.0" promptText="邮箱" />
-        <TextField fx:id="nicknameField" maxWidth="350.0" promptText="昵称" />
-        <Button onAction="#handleRegister" prefHeight="40.0" prefWidth="200.0" text="注 册">
-            <font>
-                <Font size="18.0" />
-            </font>
-            <VBox.margin>
-                <Insets top="30.0" />
-            </VBox.margin>
-        </Button>
-        <Button onAction="#handleBackToLogin" prefWidth="200.0" style="-fx-background-color: transparent; -fx-text-fill: #cccccc;" text="返回登录" />
-        <Label fx:id="statusLabel" textFill="#ff6347" wrapText="true">
-            <VBox.margin>
-                <Insets top="10.0" />
-            </VBox.margin>
-        </Label>
-    </children>
-</VBox>
+<?import javafx.scene.layout.StackPane?>
+<?import javafx.scene.image.ImageView?>
+<StackPane fx:id="rootPane" prefHeight="1080.0" prefWidth="1920.0"
+           xmlns="http://javafx.com/javafx/21" xmlns:fx="http://javafx.com/fxml/1"
+           fx:controller="org.csu.pixelstrikejavafx.ui.RegisterController"
+           stylesheets="/assets/css/register-style.css">
+
+    <ImageView fx:id="backgroundImageView" fitHeight="1080.0" fitWidth="1920.0" pickOnBounds="true" preserveRatio="false"/>
+
+    <VBox alignment="CENTER" maxWidth="500.0" spacing="20.0" styleClass="register-form-container">
+        <padding>
+            <Insets top="40.0" right="50.0" bottom="40.0" left="50.0" />
+        </padding>
+
+        <Label styleClass="page-title" text="PIXEL STRIKE" />
+
+        <TextField fx:id="usernameField" promptText="用户名" />
+        <TextField fx:id="nicknameField" promptText="昵称" />
+        <TextField fx:id="emailField" promptText="邮箱" />
+        <PasswordField fx:id="passwordField" promptText="密码" />
+
+        <Button onAction="#handleRegister" text="注 册" styleClass="register-button" />
+        <Button onAction="#handleBackToLogin" text="已有账户？返回登录" styleClass="back-link" />
+
+        <Label fx:id="statusLabel" styleClass="status-label" />
+
+    </VBox>
+</StackPane>

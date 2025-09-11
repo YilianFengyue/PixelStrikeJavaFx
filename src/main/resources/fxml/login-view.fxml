@@ -17,7 +17,7 @@
 
     <ImageView fx:id="backgroundImageView" fitHeight="1080.0" fitWidth="1920.0" pickOnBounds="true" preserveRatio="false"/>
 
-    <VBox alignment="CENTER" maxWidth="500.0" spacing="25.0" styleClass="login-form-container">
+    <VBox alignment="CENTER" maxWidth="550.0" spacing="25.0" styleClass="login-form-container">
         <padding>
             <Insets top="40.0" right="40.0" bottom="40.0" left="40.0" />
         </padding>

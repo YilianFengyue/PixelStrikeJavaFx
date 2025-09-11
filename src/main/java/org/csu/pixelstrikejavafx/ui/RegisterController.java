@@ -5,7 +5,11 @@ import javafx.fxml.FXML;
 import javafx.scene.control.Label;
 import javafx.scene.control.PasswordField;
 import javafx.scene.control.TextField;
+import javafx.scene.image.Image;
+import javafx.scene.image.ImageView;
 import org.csu.pixelstrikejavafx.http.ApiClient;
+
+import java.util.Objects;
 
 public class RegisterController {
 
@@ -14,6 +18,7 @@ public class RegisterController {
     @FXML private TextField emailField;
     @FXML private TextField nicknameField;
     @FXML private Label statusLabel;
+    @FXML private ImageView backgroundImageView;
 
     private final ApiClient apiClient = new ApiClient();
 
@@ -55,5 +60,15 @@ public class RegisterController {
     private void handleBackToLogin() {
         // 使用 UIManager 返回登录界面
         UIManager.load("login-view.fxml");
+    }
+
+    @FXML
+    public void initialize() {
+        try {
+            Image bg = new Image(Objects.requireNonNull(getClass().getResourceAsStream("/assets/textures/background.png")));
+            backgroundImageView.setImage(bg);
+        } catch (Exception e) {
+            System.err.println("注册页背景图加载失败: " + e.getMessage());
+        }
     }
 }
