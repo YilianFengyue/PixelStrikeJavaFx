@@ -8,30 +8,31 @@
 <?import javafx.scene.layout.VBox?>
 <?import javafx.scene.text.Font?>
 
-<VBox alignment="CENTER" maxHeight="-Infinity" maxWidth="-Infinity" minHeight="-Infinity" minWidth="-Infinity" prefHeight="1080.0" prefWidth="1920.0" spacing="20.0" style="-fx-background-color: #282c34;" xmlns="http://javafx.com/javafx/21" xmlns:fx="http://javafx.com/fxml/1" fx:controller="org.csu.pixelstrikejavafx.ui.LoginController">
-        <Label text="Pixel Strike" textFill="white">
-            <font>
-                <Font name="Arial Bold" size="64.0" />
-            </font>
-        </Label>
-        <Label text="混乱大枪战" textFill="#cccccc">
-            <font>
-                <Font size="24.0" />
-            </font>
-            <VBox.margin>
-                <Insets bottom="50.0" />
-            </VBox.margin>
-        </Label>
-        <TextField fx:id="usernameField" maxWidth="300.0" promptText="用户名" />
-        <PasswordField fx:id="passwordField" maxWidth="300.0" promptText="密码" />
-        <Button fx:id="loginButton" mnemonicParsing="false" onAction="#handleLogin" prefWidth="150.0" text="登 录">
-            <font>
-                <Font size="18.0" />
-            </font>
-            <VBox.margin>
-                <Insets top="30.0" />
-            </VBox.margin>
-        </Button>
-      <Button onAction="#handleGoToRegister" prefWidth="150.0" style="-fx-background-color: transparent; -fx-text-fill: #cccccc;" text="还没有账户？立即注册" />
-        <Label fx:id="statusLabel" textFill="#ff6347" />
-</VBox>
+<?import javafx.scene.image.ImageView?>
+<?import javafx.scene.layout.StackPane?>
+<StackPane fx:id="rootPane" prefHeight="1080.0" prefWidth="1920.0"
+           xmlns="http://javafx.com/javafx/21" xmlns:fx="http://javafx.com/fxml/1"
+           fx:controller="org.csu.pixelstrikejavafx.ui.LoginController"
+           stylesheets="/assets/css/login-style.css">
+
+    <ImageView fx:id="backgroundImageView" fitHeight="1080.0" fitWidth="1920.0" pickOnBounds="true" preserveRatio="false"/>
+
+    <VBox alignment="CENTER" maxWidth="500.0" spacing="25.0" styleClass="login-form-container">
+        <padding>
+            <Insets top="40.0" right="40.0" bottom="40.0" left="40.0" />
+        </padding>
+
+       <Label styleClass="game-title" text="PIXEL STRIKE" />
+
+       <TextField fx:id="usernameField" promptText="用户名" styleClass="login-field1" />
+
+       <PasswordField fx:id="passwordField" promptText="密码" styleClass="login-field2" />
+
+       <Button fx:id="loginButton" onAction="#handleLogin" text="登 录" styleClass="login-button" />
+
+       <Button onAction="#handleGoToRegister" text="还没有账户？立即注册" styleClass="register-link"/>
+
+      <Label fx:id="statusLabel" styleClass="status-label" />
+
+    </VBox>
+</StackPane>

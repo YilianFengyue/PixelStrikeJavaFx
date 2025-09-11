@@ -7,12 +7,16 @@ import javafx.scene.control.Button;
 import javafx.scene.control.Label;
 import javafx.scene.control.PasswordField;
 import javafx.scene.control.TextField;
+import javafx.scene.image.Image;
+import javafx.scene.image.ImageView;
 import org.csu.pixelstrikejavafx.http.ApiClient;
 import org.csu.pixelstrikejavafx.network.NetworkManager;
 import com.auth0.jwt.JWT;
 import com.auth0.jwt.interfaces.DecodedJWT;
 import org.csu.pixelstrikejavafx.state.GlobalState;
 import org.csu.pixelstrikejavafx.ui.UIManager;
+
+import java.util.Objects;
 
 /**
  * LoginController 负责处理 login-view.fxml 的所有用户交互。
@@ -32,6 +36,9 @@ public class LoginController {
     @FXML
     private Button loginButton;
 
+    @FXML
+    private ImageView backgroundImageView;
+
     // 创建 ApiClient 实例，用于发起 HTTP 请求
     private final ApiClient apiClient = new ApiClient();
 
@@ -41,6 +48,20 @@ public class LoginController {
     @FXML
     private void handleGoToRegister() {
         UIManager.load("register-view.fxml");
+    }
+
+
+    @FXML
+    public void initialize() {
+        // 加载背景图
+        try {
+            // 这行代码就是加载背景图的关键
+            Image bg = new Image(Objects.requireNonNull(getClass().getResourceAsStream("/assets/textures/background.png")));
+
+            backgroundImageView.setImage(bg);
+        } catch (Exception e) {
+            System.err.println("登录页背景图加载失败: " + e.getMessage());
+        }
     }
 
     @FXML

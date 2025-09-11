@@ -139,7 +139,7 @@ public class Player {
                 .density(1.0f);
         physics.setFixtureDef(fd);
         // 添加这两行防止旋转和稳定物理
-        // ✅ 关键：用 BodyDef 锁定旋转 + 设为 DYNAMIC
+        // 关键：用 BodyDef 锁定旋转 + 设为 DYNAMIC
         com.almasb.fxgl.physics.box2d.dynamics.BodyDef bd =
                 new com.almasb.fxgl.physics.box2d.dynamics.BodyDef();
         bd.setType(BodyType.DYNAMIC);

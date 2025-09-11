@@ -1,0 +1,97 @@
+@font-face {
+    font-family: 'Anton';
+    src: url('/assets/fonts/anton-regular.ttf');
+}
+
+.root {
+    -fx-background-color: #1a1a1a;
+}
+
+.login-form-container {
+    -fx-background-color: rgba(255, 255, 255, 0.25);
+    -fx-background-radius: 12;
+    -fx-border-color: rgba(255, 255, 255, 0);
+    -fx-border-width: 1px;
+    -fx-border-radius: 10;
+    -fx-effect: dropshadow(gaussian, rgba(255, 255, 255, 0), 20, 0, 0, 0);
+}
+
+.game-title {
+    -fx-font-family: "Anton", sans-serif;
+    -fx-font-size: 80px;
+    -fx-text-fill: #FFFFFF;
+    -fx-effect: dropshadow(gaussian, rgba(0, 0, 0, 0.8), 3, 0, 0, 2);
+    -fx-padding: -20px 0 5px 0;
+}
+
+/* --- 输入框样式 (已修改) --- */
+.login-field1, .login-field2 {
+    -fx-pref-width: 350px;
+    -fx-max-width: 350px;
+    -fx-min-width: 350px;
+
+    /* 将原本作用于 .text-input 的样式直接应用到这里 */
+    -fx-background-color: rgba(0, 0, 0, 0.7);
+    -fx-border-color: rgba(255, 255, 255, 0.3);
+    -fx-border-width: 1px;
+    -fx-border-radius: 6px;
+    -fx-background-radius: 6px;
+    -fx-prompt-text-fill: #BBBBBB;
+    -fx-text-fill: #FFFFFF;
+    -fx-font-family: sans-serif;
+    -fx-font-size: 16px;
+    -fx-padding: 12px;
+    -fx-caret-color: white;
+}
+
+.login-field1:focused, .login-field2:focused {
+    -fx-border-color: #FFFFFF;
+}
+
+/* --- [已移除] 密码框特殊调整 --- */
+/* 原本针对 MFXPasswordField 的样式已不再需要，可以安全删除 */
+
+
+/* --- 按钮样式 (已修改) --- */
+.login-button, .register-link {
+    -fx-pref-width: 350px;
+    -fx-pref-height: 45px;
+    -fx-font-family: sans-serif;
+    -fx-font-size: 16px;
+    -fx-background-color: rgba(0, 0, 0, 0.7); /* 移除了 !important */
+    -fx-text-fill: #FFFFFF;
+    -fx-border-color: rgba(255, 255, 255, 0.3);
+    -fx-border-width: 1px;
+    -fx-border-radius: 6px;
+    -fx-background-radius: 6px;
+    -fx-translate-y: 50px;
+}
+
+.login-button:hover, .register-link:hover {
+    -fx-background-color: rgba(20, 20, 20, 0.8);
+    -fx-border-color: rgba(255, 255, 255, 0.6);
+}
+
+.login-button:armed, .register-link:armed {
+    -fx-background-color: rgba(40, 40, 40, 0.9);
+}
+
+.register-link {
+    -fx-background-color: transparent;
+    -fx-text-fill: #BBBBBB;
+    -fx-border-width: 0px;
+}
+
+.register-link:hover {
+    -fx-text-fill: #252525; /* 将文字颜色改回白色以获得更好的对比度 */
+    -fx-underline: true;
+    -fx-background-color: transparent;
+}
+
+/* 状态/错误信息标签 */
+.status-label {
+    -fx-text-fill: #E57373;
+    -fx-font-size: 14px;
+   /* -fx-effect: dropshadow(gaussian, rgba(0, 0, 0, 0.8), 2, 0.8, 0, 1);*/
+    -fx-translate-y: 15px;
+}
