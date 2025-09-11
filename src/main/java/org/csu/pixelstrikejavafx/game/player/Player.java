@@ -34,13 +34,13 @@ public class Player {
     }
 
     // 角色贴图
-    private static final double PLAYER_W = 200;  // 匹配精灵图尺寸
-    private static final double PLAYER_H = 200;
+    public static final double PLAYER_W = 200;  // 匹配精灵图尺寸
+    public static final double PLAYER_H = 200;
     // 碰撞体调整常量
-    private static final double HB_OFF_X =  80;   // 水平居中偏移
-    private static final double HB_OFF_Y = 20; // 垂直下移到脚部
-    private static final double HB_W = 86;   // 碰撞体宽度
-    private static final double HB_H =160;       // 碰撞体高度
+    public static final double HB_OFF_X =  80;   // 水平居中偏移
+    public static final double HB_OFF_Y = 20; // 垂直下移到脚部
+    public static final double HB_W = 86;   // 碰撞体宽度
+    public static final double HB_H =160;       // 碰撞体高度
 
     // —— 手感参数（可按需微调）——
     private static final double WALK_SPEED = 200.0;

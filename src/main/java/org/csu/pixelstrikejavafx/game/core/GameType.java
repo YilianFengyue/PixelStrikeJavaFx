@@ -12,5 +12,6 @@ public enum GameType {
     ITEM,        // 道具
     ENEMY,       // 敌人 (预留)
     PROJECTILE,  // 投射物 (预留)
-    DECORATION   // 装饰物 (预留)
+    DECORATION,  // 装饰物 (预留)
+    BULLET       // 子弹
 }

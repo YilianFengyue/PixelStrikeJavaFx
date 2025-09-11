@@ -3,6 +3,7 @@ package org.csu.pixelstrikejavafx;
 import com.almasb.fxgl.app.ApplicationMode;
 import com.almasb.fxgl.app.GameApplication;
 import com.almasb.fxgl.app.GameSettings;
+import com.almasb.fxgl.dsl.components.ProjectileComponent;
 import com.almasb.fxgl.entity.Entity;
 import com.almasb.fxgl.input.UserAction;
 import com.almasb.fxgl.physics.CollisionHandler;
@@ -20,6 +21,7 @@ import org.csu.pixelstrikejavafx.core.GlobalState;
 import org.csu.pixelstrikejavafx.core.PixelStrikeSceneFactory;
 import org.csu.pixelstrikejavafx.game.ui.PlayerHUD;
 import org.csu.pixelstrikejavafx.lobby.ui.UIManager;
+import org.csu.pixelstrikejavafx.game.player.BulletComponent;
 
 import static com.almasb.fxgl.dsl.FXGL.*;
 
@@ -243,25 +245,32 @@ public class PixelGameApp extends GameApplication {
                             extractLong(json, "\"seq\":")
                     );
                 }
-                case "shot" -> {
-                    long srvTS = readSrvTS(json);
-                    if (networkService.getWelcomeSrvTS() > 0 && srvTS > 0 && srvTS < networkService.getWelcomeSrvTS()) return;
-                    playShotEffect(
-                            extractDouble(json, "\"ox\":"), extractDouble(json, "\"oy\":"),
-                            extractDouble(json, "\"dx\":"), extractDouble(json, "\"dy\":"),
-                            extractDouble(json, "\"range\":")
-                    );
-                }
                 case "damage" -> {
                     long srvTS = readSrvTS(json);
                     if (networkService.getWelcomeSrvTS() > 0 && srvTS > 0 && srvTS < networkService.getWelcomeSrvTS()) return;
-                    int victim = extractInt(json, "\"victim\":");
-                    if (networkService.getMyPlayerId() != null && victim == networkService.getMyPlayerId()) {
+
+                    int victimId = extractInt(json, "\"victim\":");
+                    boolean isDead = json.contains("\"dead\":true");
+
+                    // ★ 核心修复：无论是本地玩家还是远程玩家，都需要处理
+                    if (networkService.getMyPlayerId() != null && victimId == networkService.getMyPlayerId()) {
+                        // 是我被击中了
                         double kx = json.contains("\"kx\":") ? extractDouble(json, "\"kx\":") : (playerManager.getLocalPlayer().getFacingRight() ? -220.0 : 220.0);
                         double ky = json.contains("\"ky\":") ? extractDouble(json, "\"ky\":") : 0.0;
                         playerManager.getLocalPlayer().applyHit(
                                 Math.max(1, extractInt(json, "\"damage\":")), kx, ky
                         );
+                    } else {
+                        // 是其他玩家被击中了
+                        RemotePlayer remotePlayer = playerManager.getRemotePlayers().get(victimId);
+                        if (remotePlayer != null && remotePlayer.entity != null) {
+                            // 如果伤害消息表明该玩家已死亡，则隐藏其模型
+                            if (isDead) {
+                                System.out.println("Hiding remote player " + victimId + " because they died.");
+                                remotePlayer.entity.setVisible(false);
+                            }
+                            // （可选）在这里也可以为远程玩家添加受击特效
+                        }
                     }
                 }
                 case "respawn" -> {
@@ -273,20 +282,23 @@ public class PixelGameApp extends GameApplication {
                         playerManager.getLocalPlayer().reset(x, y);
                         playerManager.getLocalPlayer().revive();
                     } else {
-                        playerManager.updateRemotePlayer(id, x, y, true, "IDLE", "IDLE", 0, 0, true, 0);
+                        // ★ 核心修复：远程玩家复活时，不仅要更新位置，还要确保模型可见
+                        RemotePlayer remotePlayer = playerManager.getRemotePlayers().get(id);
+                        if (remotePlayer != null && remotePlayer.entity != null) {
+                            remotePlayer.entity.setPosition(x, y);
+                            remotePlayer.entity.setVisible(true); // 确保模型恢复可见
+                            System.out.println("Showing remote player " + id + " because they respawned.");
+                        } else {
+                            // 如果玩家不存在（可能是在死亡期间加入的），则直接创建
+                            playerManager.updateRemotePlayer(id, x, y, true, "IDLE", "IDLE", 0, 0, true, 0);
+                        }
                     }
                 }
 
                 case "game_over" -> {
                     System.out.println("Received game over message from server.");
-                    // 禁用玩家控制
-                    if(playerManager.getLocalPlayer() != null) {
-                        // 你可以在Player类中添加一个方法来禁用输入
-                    }
-                    // 显示 "GAME OVER" 浮层
                     getGameScene().getViewport().fade(() -> getDialogService().showMessageBox("游戏结束!", () -> {
-                        // 点击确认后返回大厅
-                        networkService.sendLeaveMessage(); // 确保断开连接
+                        networkService.sendLeaveMessage();
                         getGameController().gotoMainMenu();
                     }));
                 }
@@ -331,11 +343,17 @@ public class PixelGameApp extends GameApplication {
     }
 
     private void setupCollisionHandlers() {
+        // --- 核心修改：使用 .exists() 来安全地检查属性 ---
         java.util.function.BiConsumer<Entity, Boolean> setGround = (playerEntity, on) -> {
-            Object ref = playerEntity.getProperties().getObject("playerRef");
-            if (ref instanceof Player p) {
-                p.setOnGround(on);
+            // 首先，使用正确的方法 .exists() 检查 'playerRef' 属性是否存在
+            if (playerEntity.getProperties().exists("playerRef")) {
+                // 只有当这个属性存在时（意味着这是本地玩家），才继续执行
+                Object ref = playerEntity.getProperties().getObject("playerRef");
+                if (ref instanceof Player p) {
+                    p.setOnGround(on);
+                }
             }
+            // 如果属性不存在（意味着这是远程玩家），则什么也不做，优雅地跳过。
         };
 
         getPhysicsWorld().addCollisionHandler(new CollisionHandler(GameType.PLAYER, GameType.GROUND) {
@@ -347,9 +365,39 @@ public class PixelGameApp extends GameApplication {
             @Override protected void onCollisionBegin(Entity a, Entity b) { setGround.accept(a, true);  }
             @Override protected void onCollisionEnd(Entity a, Entity b)   { setGround.accept(a, false); }
         });
+
+        // --- 子弹的碰撞处理器 ---
+        // 子弹碰到地面或平台就消失
+        getPhysicsWorld().addCollisionHandler(new CollisionHandler(GameType.BULLET, GameType.GROUND) {
+            @Override
+            protected void onCollisionBegin(Entity bullet, Entity ground) {
+                bullet.removeFromWorld();
+            }
+        });
+
+        getPhysicsWorld().addCollisionHandler(new CollisionHandler(GameType.BULLET, GameType.PLATFORM) {
+            @Override
+            protected void onCollisionBegin(Entity bullet, Entity platform) {
+                bullet.removeFromWorld();
+            }
+        });
+        // 子弹碰到玩家
+        getPhysicsWorld().addCollisionHandler(new CollisionHandler(GameType.BULLET, GameType.PLAYER) {
+            @Override
+            protected void onCollisionBegin(Entity bullet, Entity playerEntity) {
+                // 从子弹实体中获取 BulletComponent
+                BulletComponent bulletData = bullet.getComponent(BulletComponent.class);
+
+                // 确保子弹不能伤害射手自己
+                if (bulletData.getShooter().equals(playerEntity)) {
+                    return;
+                }
+                // 无论如何，子弹在碰撞后都应该消失
+                bullet.removeFromWorld();
+            }
+        });
     }
 
-    // --- 工具方法 (全部保留) ---
     private String extractString(String json, String keyPrefix) {
         int i = json.indexOf(keyPrefix);
         if (i < 0) return null;
@@ -393,15 +441,6 @@ public class PixelGameApp extends GameApplication {
         }
         if (s == e) return 0.0;
         try { return Double.parseDouble(json.substring(s, e)); } catch (NumberFormatException ex) { return 0.0; }
-    }
-
-    private void playShotEffect(double ox, double oy, double dx, double dy, double range) {
-        var line = new javafx.scene.shape.Line(0, 0, dx * range, dy * range);
-        line.setStroke(javafx.scene.paint.Color.ORANGE);
-        line.setStrokeWidth(3);
-        line.setOpacity(0.85);
-        var fx = entityBuilder().at(ox, oy).view(line).zIndex(2000).buildAndAttach();
-        runOnce(() -> { if (fx.isActive()) fx.removeFromWorld(); }, javafx.util.Duration.millis(100));
     }
 
     private long readSrvTS(String json) {

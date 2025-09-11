@@ -2,9 +2,12 @@ package org.csu.pixelstrikejavafx.game.services;
 
 import com.almasb.fxgl.dsl.FXGL;
 import com.almasb.fxgl.entity.Entity;
+import com.almasb.fxgl.entity.components.CollidableComponent;
+import javafx.geometry.Point2D;
 import javafx.scene.effect.ColorAdjust;
 import org.csu.pixelstrikejavafx.PixelGameApp;
 import org.csu.pixelstrikejavafx.game.core.GameConfig;
+import org.csu.pixelstrikejavafx.game.core.GameType;
 import org.csu.pixelstrikejavafx.game.player.Player;
 import org.csu.pixelstrikejavafx.game.player.RemoteAvatar;
 
@@ -48,8 +51,14 @@ public class PlayerManager {
     private PixelGameApp.RemotePlayer createRemotePlayer(int id, double x, double y, boolean facing) {
         RemoteAvatar avatar = new RemoteAvatar();
         Entity entity = FXGL.entityBuilder()
+                .type(GameType.PLAYER)
                 .at(x, y)
                 .view(avatar.view())
+                .bbox(new com.almasb.fxgl.physics.HitBox(
+                        new Point2D(Player.HB_OFF_X, Player.HB_OFF_Y),
+                        com.almasb.fxgl.physics.BoundingShape.box(Player.HB_W, Player.HB_H)
+                ))
+                .with(new CollidableComponent(true))
                 .zIndex(999)
                 .buildAndAttach();
         avatar.setFacingRight(facing);
