@@ -297,9 +297,11 @@ public class PixelGameApp extends GameApplication {
 
                 case "game_over" -> {
                     System.out.println("Received game over message from server.");
+                    // 服务器会统一处理所有玩家的游戏结束流程。
+                    // 客户端只需等待，然后返回主菜单即可。
                     getGameScene().getViewport().fade(() -> getDialogService().showMessageBox("游戏结束!", () -> {
-                        networkService.sendLeaveMessage();
-                        getGameController().gotoMainMenu();
+                        // networkService.sendLeaveMessage(); // 不再需要发送 leave 消息
+                        getGameController().gotoMainMenu();  // 直接返回主菜单
                     }));
                 }
 

@@ -32,10 +32,10 @@ public final class NetClient {
                     @Override
                     public CompletionStage<?> onText(WebSocket webSocket, CharSequence data, boolean last) {
                         String s = data.toString();
-                        System.out.println("[WS] << " + (s.length() > 160 ? s.substring(0,160)+"..." : s));
+                        // System.out.println("[WS] << " + (s.length() > 160 ? s.substring(0,160)+"..." : s));
                         onMessage.accept(s);
-                        webSocket.request(1);                 // [FIX] 再次申请下一条
-                        return null; // returning null 也可；或 CompletableFuture.completedFuture(null)
+                        webSocket.request(1);
+                        return null;
                     }
 
                     @Override
