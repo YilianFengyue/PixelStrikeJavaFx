@@ -18,12 +18,12 @@ public final class CameraFollow {
     private double viewW, viewH;
 
     // --- 弹簧-阻尼系统参数 ---
-    private double stiffness = 12.0; // 弹簧劲度系数。值越高，跟随越紧密。推荐 5.0 ~ 20.0
-    private double damping = 8.0;   // 阻尼系数。防止相机抖动。推荐设为 2 * sqrt(stiffness) 附近
+    private final double stiffness = 12.0; // 弹簧劲度系数。值越高，跟随越紧密。推荐 5.0 ~ 20.0
+    private final double damping = 8.0;   // 阻尼系数。防止相机抖动。推荐设为 2 * sqrt(stiffness) 附近
     private Point2D cameraVelocity = Point2D.ZERO; // 追踪相机自身的速度
 
     // --- 视觉偏移与死区 (参数不变) ---
-    private double verticalOffset = 150.0;
+    private final double verticalOffset = 150.0;
     private final double deadZoneWidth = 450.0;
     private final double deadZoneHeight = 300.0;
 

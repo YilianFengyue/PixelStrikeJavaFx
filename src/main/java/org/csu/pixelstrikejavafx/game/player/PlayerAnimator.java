@@ -192,7 +192,7 @@ public class PlayerAnimator {
             animatedTexture.playAnimationChannel(channel);
         }
 
-        System.out.println("切换动画: " + animName);
+//        System.out.println("切换动画: " + animName);
     }
 
     private void updateFacing() {

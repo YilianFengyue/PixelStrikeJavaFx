@@ -6,9 +6,11 @@ import com.almasb.fxgl.physics.PhysicsComponent;
 import com.almasb.fxgl.physics.box2d.dynamics.BodyType;
 import com.almasb.fxgl.physics.box2d.dynamics.FixtureDef;
 import com.almasb.fxgl.texture.Texture;
+import javafx.geometry.Point2D;
 import javafx.scene.Node;
 import javafx.scene.paint.Color;
 import javafx.scene.shape.Rectangle;
+import javafx.util.Duration;
 import org.csu.pixelstrikejavafx.game.core.GameType;
 
 import static com.almasb.fxgl.dsl.FXGL.*;
@@ -43,13 +45,14 @@ public class Player implements OnFireCallback {
     public static final double HB_H =160;       // 碰撞体高度
 
     // —— 手感参数（可按需微调）——
-    private static final double WALK_SPEED = 200.0;
-    private static final double RUN_SPEED  = 400.0;
-    private static final double ACCEL      = 400.0;  // 水平加速度
-    private static final double JUMP_VY    = 650.0;
-    private static final double DJUMP_VY   = 500.0;
+    private static final double WALK_SPEED = 550.0;
+    private static final double RUN_SPEED  = 850.0;
+    private static final double GROUND_ACCEL = 12000.0;  // 水平加速度
+    private static final double AIR_ACCEL    = 2500.0; // 空中加速度
+    private static final double JUMP_VY    = 1400.0;
+    private static final double DJUMP_VY   = 1600.0;
 
-    private static final long   DOUBLE_TAP_MS = 300;  // A/D 双击触发跑步
+    private static final long   DOUBLE_TAP_MS = 200;  // A/D 双击触发跑步
 
     // 组件
     private Entity entity;
@@ -77,7 +80,7 @@ public class Player implements OnFireCallback {
     private boolean movingRight = false;
     private boolean running     = false;
     private boolean onGround    = false;
-
+    private long respawnProtectionEndTime = 0;
     private int jumpsUsed = 0;      // 0/1/2
     private boolean facingRight = true;  // 记录当前朝向
 
@@ -183,20 +186,30 @@ public class Player implements OnFireCallback {
         } else {
             vxTarget = 0;
         }
+        double accel = onGround ? GROUND_ACCEL : AIR_ACCEL;
+        if (Math.signum(vxTarget) != Math.signum(vxCurrent) && vxTarget != 0 && vxCurrent != 0) {
+            accel *= 2.5; // 制动时的加速度是普通加速度的2.5倍
+        }
 
         // 2) 平滑趋近
         double diff = vxTarget - vxCurrent;
-        double step = ACCEL * tpf;
+        double step = accel * tpf;
         if (Math.abs(diff) > step) {
             vxCurrent += Math.signum(diff) * step;
         } else {
             vxCurrent = vxTarget;
         }
+        if (onGround && vxTarget == 0) {
+            vxCurrent *= 0.75; // 每次更新速度衰减到75%，实现快速停止
+            if (Math.abs(vxCurrent) < 10) {
+                vxCurrent = 0; // 当速度很小时，直接归零
+            }
+        }
         double totalVX = vxCurrent + knockVX;
         physics.setVelocityX(totalVX);
 
         // ★ 按时间衰减击退（与帧率无关）
-        double decel = 900 * tpf; // 每秒把绝对值减少约 900 像素/秒，可按手感调
+        double decel = 600 * tpf; // 每秒把绝对值减少约 900 像素/秒，可按手感调
         if (Math.abs(knockVX) <= decel) {
             knockVX = 0;
         } else {
@@ -297,6 +310,9 @@ public class Player implements OnFireCallback {
 
     /** GameApp 的碰撞回调里调用 */
     public void setOnGround(boolean onGround) {
+        if (System.currentTimeMillis() < respawnProtectionEndTime && onGround) {
+            return;
+        }
         boolean was = this.onGround;
         this.onGround = onGround;
         if (onGround && !was) {
@@ -375,16 +391,17 @@ public class Player implements OnFireCallback {
     }
     /** 重置到某坐标 */
     public void reset(double x, double y) {
-        entity.setPosition(x, y);
-        physics.setVelocityX(0);
-        physics.setVelocityY(0);
+        if (physics != null) {
+            physics.overwritePosition(new Point2D(x, y));
+        }
         movingLeft = movingRight = running = false;
         onGround = false;
         jumpsUsed = 0;
         vxCurrent = vxTarget = 0;
-        state = State.IDLE;
-        facingRight = true;  // 新增这行
-        knockVX = 0;   // ★ 清掉残留击退
+        state = State.FALL;
+        facingRight = true;
+        knockVX = 0;
+        respawnProtectionEndTime = System.currentTimeMillis() + 100;
     }
 
 
@@ -440,7 +457,7 @@ public class Player implements OnFireCallback {
         knockVX += kx;
 
         if (physics != null) {
-            physics.setVelocityY(physics.getVelocityY() - ky);
+            physics.setVelocityY(-ky);
         }
     }
 
@@ -486,7 +503,6 @@ public class Player implements OnFireCallback {
             var coll = entity.getComponentOptional(CollidableComponent.class).orElse(null);
             if (coll != null) coll.setValue(true);
         }
-        // ★ 关键：把刚体重新激活
         if (physics != null) {
             var body = physics.getBody();
             if (body != null) {
@@ -494,8 +510,20 @@ public class Player implements OnFireCallback {
             }
             physics.setVelocityX(0);
             physics.setVelocityY(0);
+            // 1. 使用 body.setLinearVelocity() 来确保速度归零
+            //    (注意：Box2D的Vec2需要自己创建或使用已有实例，这里直接用0,0创建)
+            body.setLinearVelocity(new com.almasb.fxgl.core.math.Vec2(0, 0));
+
+            // 2. 关键：通过 body 来设置重力缩放，使其暂时不受重力影响
+            body.setGravityScale(0.0f);
+
+            // 3. 安排一个一次性任务，在短暂延迟后恢复正常重力
+            getGameTimer().runOnceAfter(() -> {
+                if (physics.getBody() != null) {
+                    physics.getBody().setGravityScale(1.0f); // 恢复正常的重力
+                }
+            }, Duration.millis(50)); // 延迟50毫秒
         }
-        // ★ 关键：清理战斗/移动/跳跃状态，避免卡在 SHOOTING 或无接触状态
         shooting = false;
         stopQueued = false;
         attackPhase = AttackPhase.BEGIN;
@@ -509,20 +537,7 @@ public class Player implements OnFireCallback {
 
         vxCurrent = 0;
         vxTarget  = 0;
-        knockVX = 0;   // ★ 清掉残留击退
-        if (physics != null) {
-            physics.setVelocityX(0);
-            physics.setVelocityY(0);
-        }
-
-        jumpsUsed = 0;
-        onGround  = true;          // ★ 直接给落地，避免需要“先产生一次碰撞”才能跳
-        state     = State.IDLE;
-
-        // 轻微下压 1px，确保下一帧有接触稳定（有些情况下更稳）
-        if (entity != null) {
-            entity.translateY(1);
-        }
+        knockVX = 0;
     }
     // —— Getter ——
     public Entity getEntity() { return entity; }

@@ -6,7 +6,6 @@ import com.almasb.fxgl.entity.components.CollidableComponent;
 import javafx.geometry.Point2D;
 import javafx.scene.effect.ColorAdjust;
 import org.csu.pixelstrikejavafx.PixelGameApp;
-import org.csu.pixelstrikejavafx.game.core.GameConfig;
 import org.csu.pixelstrikejavafx.game.core.GameType;
 import org.csu.pixelstrikejavafx.game.player.Player;
 import org.csu.pixelstrikejavafx.game.player.RemoteAvatar;
@@ -20,7 +19,11 @@ public class PlayerManager {
     private final Map<Integer, PixelGameApp.RemotePlayer> remotePlayers = new ConcurrentHashMap<>();
 
     public Player createLocalPlayer(NetworkService networkService) {
-        localPlayer = new Player(500, GameConfig.MAP_H - 211 - 128);
+        localPlayer = new Player(0, 0);
+        // 立即禁用物理，防止它在(0,0)位置受重力影响掉落
+        if (localPlayer.getPhysics() != null && localPlayer.getPhysics().getBody() != null) {
+            localPlayer.getPhysics().getBody().setActive(false);
+        }
         localPlayer.getShootingSys().setShotReporter(
                 (ox, oy, dx, dy, range, dmg, ts, weaponType) -> networkService.sendShot(ox, oy, dx, dy, range, dmg, ts, weaponType)
         );

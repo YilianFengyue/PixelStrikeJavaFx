@@ -93,7 +93,7 @@ public class PixelGameApp extends GameApplication {
         getGameScene().clearGameViews();
         getPhysicsWorld().clear();
 
-        getPhysicsWorld().setGravity(0, 1100);
+        getPhysicsWorld().setGravity(0, 4900);
         MapBuilder.buildLevel();
 
         Player localPlayer = playerManager.createLocalPlayer(networkService);
@@ -112,7 +112,7 @@ public class PixelGameApp extends GameApplication {
         // 将原始窗口尺寸 getAppWidth() 和 getAppHeight() 传递给 CameraFollow
         cameraFollow = new CameraFollow(vp, GameConfig.MAP_W, GameConfig.MAP_H, zoomedViewWidth, zoomedViewHeight, getAppWidth(), getAppHeight());
 
-        cameraFollow.setTarget(localPlayer.getEntity());
+//        cameraFollow.setTarget(localPlayer.getEntity());
         setupCollisionHandlers();
 
         // 连接到服务器
@@ -245,7 +245,6 @@ public class PixelGameApp extends GameApplication {
         try {
             String type = extractString(json, "\"type\":\"");
             if (type == null) return;
-
             switch (type) {
                 case "welcome" -> {
                     playerManager.clearAllRemotePlayers();
@@ -253,6 +252,23 @@ public class PixelGameApp extends GameApplication {
                     networkService.setWelcomeSrvTS(extractLong(json, "\"serverTime\":"));
                     networkService.setJoinedAck(true);
                     System.out.println("WELCOME myId=" + networkService.getMyPlayerId() + " srvTS=" + networkService.getWelcomeSrvTS());
+
+                    double spawnX = extractDouble(json, "\"x\":");
+                    double spawnY = extractDouble(json, "\"y\":");
+
+                    Player localPlayer = playerManager.getLocalPlayer();
+                    if (localPlayer != null && localPlayer.getEntity() != null) {
+                        System.out.println("Setting initial position from server: " + spawnX + ", " + spawnY);
+//                        localPlayer.getEntity().setPosition(spawnX, spawnY);
+                        if (localPlayer.getPhysics() != null) {
+                            // 这个方法会确保物理碰撞体和视觉实体被同时移动到新位置
+                            localPlayer.getPhysics().overwritePosition(new Point2D(spawnX, spawnY));
+                        }
+                        if (localPlayer.getPhysics() != null && localPlayer.getPhysics().getBody() != null) {
+                            localPlayer.getPhysics().getBody().setActive(true);
+                        }
+                        cameraFollow.setTarget(localPlayer.getEntity());
+                    }
                 }
                 case "join_broadcast" -> {
                     if (!networkService.isJoinedAck()) return;
@@ -339,6 +355,7 @@ public class PixelGameApp extends GameApplication {
                     }
                 }
                 case "respawn" -> {
+
                     int id = extractInt(json, "\"id\":");
                     double x = extractDouble(json, "\"x\":");
                     double y = extractDouble(json, "\"y\":");
@@ -347,14 +364,12 @@ public class PixelGameApp extends GameApplication {
                         playerManager.getLocalPlayer().reset(x, y);
                         playerManager.getLocalPlayer().revive();
                     } else {
-                        // ★ 核心修复：远程玩家复活时，不仅要更新位置，还要确保模型可见
                         RemotePlayer remotePlayer = playerManager.getRemotePlayers().get(id);
                         if (remotePlayer != null && remotePlayer.entity != null) {
                             remotePlayer.entity.setPosition(x, y);
-                            remotePlayer.entity.setVisible(true); // 确保模型恢复可见
+                            remotePlayer.entity.setVisible(true);
                             System.out.println("Showing remote player " + id + " because they respawned.");
                         } else {
-                            // 如果玩家不存在（可能是在死亡期间加入的），则直接创建
                             playerManager.updateRemotePlayer(id, x, y, true, "IDLE", "IDLE", 0, 0, true, 0);
                         }
                     }
