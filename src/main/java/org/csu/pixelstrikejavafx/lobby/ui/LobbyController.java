@@ -39,6 +39,9 @@ public class LobbyController implements Initializable {
     private Button startMatchButton;
 
     @FXML
+    private Button cancelMatchButton;
+
+    @FXML
     private Label matchStatusLabel;
 
     @FXML
@@ -63,7 +66,16 @@ public class LobbyController implements Initializable {
     public void initialize(URL location, ResourceBundle resources) {
         System.out.println("LobbyController initialized. Setting up event handlers.");
 
-
+        // 【新增】重置UI到初始状态
+        if (startMatchButton != null) {
+            startMatchButton.setDisable(false);
+        }
+        if (cancelMatchButton != null) {
+            cancelMatchButton.setDisable(true); // 初始时禁用
+        }
+        if (matchStatusLabel != null) {
+            matchStatusLabel.setText(""); // 清空状态文本
+        }
         // 1. 监听好友状态更新事件
         FXGL.getEventBus().addEventHandler(FriendStatusEvent.ANY, event -> {
             // 这个回调可能不在JavaFX应用线程，所以更新UI需要用 Platform.runLater
@@ -90,10 +102,16 @@ public class LobbyController implements Initializable {
                 GlobalState.currentGameServerUrl = event.getServerAddress();
                 System.out.println("Game Server URL saved to GlobalState: " + GlobalState.currentGameServerUrl);
                 GlobalState.currentGameId = event.getGameId();
-
+                // 【您的方案】在进入游戏前，立即恢复按钮状态，为返回做准备
+                if (startMatchButton != null) {
+                    startMatchButton.setDisable(false);
+                }
+                if (cancelMatchButton != null) {
+                    cancelMatchButton.setDisable(true);
+                }
                 // 2. 断开当前的全局(大厅) WebSocket
-                NetworkManager.getInstance().disconnect();
-                System.out.println("Lobby WebSocket disconnected.");
+                //NetworkManager.getInstance().disconnect();
+                //System.out.println("Lobby WebSocket disconnected.");
 
                 // 3. 【关键修复】启动游戏场景
                 System.out.println("Starting new game scene...");
@@ -121,7 +139,38 @@ public class LobbyController implements Initializable {
             nicknameLabel.setText("昵称: 未知");
         }
     }
+    /**
+     * 处理点击“取消匹配”按钮的事件
+     */
+    @FXML
+    private void handleCancelMatch() {
+        if (matchStatusLabel != null) {
+            matchStatusLabel.setText("正在取消匹配...");
+        }
+        cancelMatchButton.setDisable(true); // 防止重复点击
 
+        new Thread(() -> {
+            try {
+                apiClient.cancelMatchmaking();
+                Platform.runLater(() -> {
+                    if (matchStatusLabel != null) {
+                        matchStatusLabel.setText("已取消匹配");
+                    }
+                    startMatchButton.setDisable(false); // 恢复“开始匹配”按钮
+                });
+            } catch (Exception e) {
+                Platform.runLater(() -> {
+                    if (matchStatusLabel != null) {
+                        matchStatusLabel.setText("取消失败: " + e.getMessage());
+                    }
+                    // 即便取消失败，也最好让用户能重点，所以这里依然恢复按钮
+                    startMatchButton.setDisable(false);
+                    cancelMatchButton.setDisable(true);
+                });
+                e.printStackTrace();
+            }
+        }).start();
+    }
     /**
      * 处理点击“开始匹配”按钮的事件
      */
@@ -131,8 +180,8 @@ public class LobbyController implements Initializable {
         if (matchStatusLabel != null) {
             matchStatusLabel.setText("正在发送匹配请求...");
         }
-        startMatchButton.setDisable(true); // 禁用按钮，防止重复点击
-
+        startMatchButton.setDisable(true);
+        cancelMatchButton.setDisable(false);
         // 必须在后台线程中执行网络请求，否则UI会卡死
         new Thread(() -> {
             try {
@@ -154,6 +203,7 @@ public class LobbyController implements Initializable {
                         matchStatusLabel.setText("开始匹配失败: " + e.getMessage());
                     }
                     startMatchButton.setDisable(false); // 恢复按钮的可点击状态
+                    cancelMatchButton.setDisable(true);
                 });
                 e.printStackTrace(); // 在控制台打印详细错误，便于调试
             }
