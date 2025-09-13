@@ -213,6 +213,22 @@ public class RoomController implements Initializable {
 
     @FXML
     private void handleStartGame() {
-        // 开始游戏的逻辑(后续）
+        // 禁用按钮防止重复点击
+        startGameButton.setDisable(true);
+
+        new Thread(() -> {
+            try {
+                // 调用API，请求开始游戏
+                apiClient.startGame();
+                // 请求成功后，我们什么都不用做，只需等待 NetworkManager 接收 WebSocket 广播即可
+            } catch (Exception e) {
+                // 如果API调用失败（例如房间未满），在UI线程显示错误并恢复按钮
+                Platform.runLater(() -> {
+                    FXGL.getDialogService().showMessageBox("开始游戏失败: " + e.getMessage());
+                    startGameButton.setDisable(false);
+                });
+                e.printStackTrace();
+            }
+        }).start();
     }
 }

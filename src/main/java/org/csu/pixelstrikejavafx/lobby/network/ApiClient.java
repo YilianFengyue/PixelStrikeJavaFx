@@ -824,6 +824,40 @@ public class ApiClient {
             }
         }
     }
+
+    /**
+     * (房主) 开始自定义房间的游戏。
+     * 对应文档："四、房间模块 VIII.开始游戏"
+     * @throws IOException 当网络或业务逻辑失败时抛出。
+     */
+    public void startGame() throws IOException {
+        if (GlobalState.authToken == null) throw new IllegalStateException("Not logged in");
+
+        String url = BASE_URL + "/custom-room/start-game";
+        RequestBody body = RequestBody.create(new byte[0]); // 空的POST请求体
+
+        Request request = new Request.Builder()
+                .url(url)
+                .addHeader("Authorization", "Bearer " + GlobalState.authToken)
+                .post(body)
+                .build();
+
+        try (Response response = client.newCall(request).execute()) {
+            if (!response.isSuccessful()) {
+                throw new IOException("开始游戏请求失败: " + response.code());
+            }
+
+            String responseBody = Objects.requireNonNull(response.body()).string();
+            JsonObject jsonObject = gson.fromJson(responseBody, JsonObject.class);
+
+            if (jsonObject.get("status").getAsInt() != 0) {
+                // 如果后端返回业务错误（例如"房间未满员"），则抛出异常
+                throw new IOException(jsonObject.get("message").getAsString());
+            }
+            // 成功时，后端会通过WebSocket广播，所以这里无需做其他事
+            System.out.println("成功发送“开始游戏”请求，等待服务器广播...");
+        }
+    }
 }
 
 

@@ -123,6 +123,7 @@ public class NetworkManager {
                 case "status_update":
                     FXGL.getEventBus().fireEvent(new FriendStatusEvent(msgJson));
                     break;
+                case "game_start":
                 case "match_success":
                     String serverAddress = msgJson.get("serverAddress").getAsString();
                     long gameId = msgJson.get("gameId").getAsLong();

@@ -9,6 +9,7 @@ import com.almasb.fxgl.entity.Entity;
 import com.almasb.fxgl.entity.components.CollidableComponent;
 import com.almasb.fxgl.input.UserAction;
 import com.almasb.fxgl.physics.CollisionHandler;
+import javafx.application.Platform;
 import javafx.geometry.Point2D;
 import javafx.scene.input.KeyCode;
 import javafx.scene.layout.Region;
@@ -171,6 +172,7 @@ public class PixelGameApp extends GameApplication {
 
     @Override
     protected void initUI() {
+        Platform.runLater(() -> {
         getGameScene().clearUINodes();
 
         hud = new PlayerHUD( UIManager.loadAvatar(GlobalState.avatarUrl), null,
@@ -190,6 +192,7 @@ public class PixelGameApp extends GameApplication {
             getGameController().gotoMainMenu();
         });
         addUINode(backButton, 20, 20);
+        });
     }
 
     @Override

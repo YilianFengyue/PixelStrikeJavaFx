@@ -102,6 +102,8 @@ public class LobbyController implements Initializable {
                 GlobalState.currentGameServerUrl = event.getServerAddress();
                 System.out.println("Game Server URL saved to GlobalState: " + GlobalState.currentGameServerUrl);
                 GlobalState.currentGameId = event.getGameId();
+
+                UIManager.load("lobby-view.fxml");
                 // 【您的方案】在进入游戏前，立即恢复按钮状态，为返回做准备
                 if (startMatchButton != null) {
                     startMatchButton.setDisable(false);
@@ -529,6 +531,7 @@ public class LobbyController implements Initializable {
 
         FXGL.getEventBus().addEventHandler(RoomInvitationEvent.ANY, this::onRoomInvitation);
     }
+
 
     private void onFriendStatusUpdate(FriendStatusEvent event) {
         // 确保所有UI操作都在JavaFX应用线程中执行
