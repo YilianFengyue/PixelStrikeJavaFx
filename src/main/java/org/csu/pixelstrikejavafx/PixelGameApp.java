@@ -5,10 +5,15 @@ import com.almasb.fxgl.app.GameApplication;
 import com.almasb.fxgl.app.GameSettings;
 import com.almasb.fxgl.dsl.components.ProjectileComponent;
 import com.almasb.fxgl.entity.Entity;
+import com.almasb.fxgl.entity.components.CollidableComponent;
 import com.almasb.fxgl.input.UserAction;
 import com.almasb.fxgl.physics.CollisionHandler;
+import javafx.geometry.Point2D;
 import javafx.scene.input.KeyCode;
 import javafx.scene.layout.Region;
+import javafx.scene.paint.Color;
+import javafx.scene.shape.Rectangle;
+import org.csu.pixelstrikejavafx.game.player.component.GrenadeComponent;
 import org.csu.pixelstrikejavafx.game.services.NetworkService;
 import org.csu.pixelstrikejavafx.game.services.PlayerManager;
 import org.csu.pixelstrikejavafx.game.world.CameraFollow;
@@ -21,7 +26,7 @@ import org.csu.pixelstrikejavafx.core.GlobalState;
 import org.csu.pixelstrikejavafx.core.PixelStrikeSceneFactory;
 import org.csu.pixelstrikejavafx.game.ui.PlayerHUD;
 import org.csu.pixelstrikejavafx.lobby.ui.UIManager;
-import org.csu.pixelstrikejavafx.game.player.BulletComponent;
+import org.csu.pixelstrikejavafx.game.player.component.BulletComponent;
 
 import static com.almasb.fxgl.dsl.FXGL.*;
 
@@ -145,6 +150,16 @@ public class PixelGameApp extends GameApplication {
                 if (localPlayer != null) localPlayer.stopShooting();
             }
         }, KeyCode.J);
+
+        getInput().addAction(new UserAction("Next Weapon") {
+            @Override
+            protected void onActionBegin() {
+                Player localPlayer = playerManager.getLocalPlayer();
+                if (localPlayer != null) {
+                    localPlayer.getShootingSys().nextWeapon();
+                }
+            }
+        }, KeyCode.Q); // 按 Q 切换武器
     }
 
     @Override
@@ -244,6 +259,18 @@ public class PixelGameApp extends GameApplication {
                             json.contains("\"onGround\":true"),
                             extractLong(json, "\"seq\":")
                     );
+                }
+                case "shot" -> {
+                    if (!networkService.isJoinedAck()) return;
+                    int attackerId = extractInt(json, "\"attacker\":");
+                    if (networkService.getMyPlayerId() != null && attackerId != networkService.getMyPlayerId()) {
+                        double ox = extractDouble(json, "\"ox\":");
+                        double oy = extractDouble(json, "\"oy\":");
+                        double dx = extractDouble(json, "\"dx\":");
+                        double dy = extractDouble(json, "\"dy\":");
+                        // 【修复】调用修正后的方法
+                        spawnRemoteBullet(attackerId, ox, oy, new Point2D(dx, dy));
+                    }
                 }
                 case "damage" -> {
                     long srvTS = readSrvTS(json);
@@ -398,7 +425,55 @@ public class PixelGameApp extends GameApplication {
                 bullet.removeFromWorld();
             }
         });
+
+        // --- 新增：处理榴弹（PROJECTILE）的碰撞 ---
+        getPhysicsWorld().addCollisionHandler(new CollisionHandler(GameType.PROJECTILE, GameType.GROUND) {
+            @Override
+            protected void onCollisionBegin(Entity projectile, Entity ground) {
+                // 可以在这里添加爆炸效果
+                projectile.removeFromWorld();
+            }
+        });
+
+        getPhysicsWorld().addCollisionHandler(new CollisionHandler(GameType.PROJECTILE, GameType.PLATFORM) {
+            @Override
+            protected void onCollisionBegin(Entity projectile, Entity platform) {
+                projectile.removeFromWorld();
+            }
+        });
+
+        getPhysicsWorld().addCollisionHandler(new CollisionHandler(GameType.PROJECTILE, GameType.PLAYER) {
+            @Override
+            protected void onCollisionBegin(Entity projectile, Entity playerEntity) {
+                GrenadeComponent grenadeData = projectile.getComponent(GrenadeComponent.class);
+                if (grenadeData.getShooter().equals(playerEntity)) {
+                    return; // 不伤害自己
+                }
+                projectile.removeFromWorld();
+            }
+        });
     }
+
+    private void spawnRemoteBullet(int shooterId, double ox, double oy, Point2D direction) {
+        final double BULLET_SPEED = 1500.0;
+
+        // 【修复】通过 PlayerManager 和 shooterId 精确查找射击者实体
+        Entity shooterEntity = null;
+        RemotePlayer remoteShooter = playerManager.getRemotePlayers().get(shooterId);
+        if (remoteShooter != null) {
+            shooterEntity = remoteShooter.entity;
+        }
+
+        entityBuilder()
+                .type(GameType.BULLET)
+                .at(ox, oy) // 【修复】使用传入的 double 坐标
+                .viewWithBBox(new Rectangle(10, 4, Color.LIGHTGRAY))
+                .with(new CollidableComponent(true))
+                .with(new ProjectileComponent(direction, BULLET_SPEED))
+                .with(new BulletComponent(shooterEntity)) // shooterEntity 找不到时可能为 null，这没关系
+                .buildAndAttach();
+    }
+
 
     private String extractString(String json, String keyPrefix) {
         int i = json.indexOf(keyPrefix);
