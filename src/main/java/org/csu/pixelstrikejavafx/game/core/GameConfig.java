@@ -5,8 +5,8 @@ public final class GameConfig {
     private GameConfig() {}
 
     // --- 窗口（1080p） ---
-    public static final int WINDOW_W = 1920;
-    public static final int WINDOW_H = 1080;
+    public static final int WINDOW_W = 1400;
+    public static final int WINDOW_H = 880;
 
     // --- 世界/地图尺寸（按你的背景图） ---
     public static final double MAP_W = 4620;   // 背景宽

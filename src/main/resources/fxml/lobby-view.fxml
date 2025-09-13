@@ -54,6 +54,7 @@
             <children>
                 <Button onAction="#handleShowHistory" text="历史战绩" prefHeight="50.0" prefWidth="200.0"><font><Font size="20.0" /></font></Button>
                 <Button fx:id="createRoomButton" onAction="#handleCreateRoom" text="创建房间" prefHeight="50.0" prefWidth="200.0"><font><Font size="20.0" /></font></Button>
+                <Button fx:id="cancelMatchButton" onAction="#handleCancelMatch" text="取消匹配" prefHeight="50.0" prefWidth="200.0"><font><Font size="20.0" /></font></Button>
                 <Button fx:id="startMatchButton" onAction="#handleStartMatch" text="开始匹配" prefHeight="50.0" prefWidth="200.0"><font><Font size="20.0" /></font></Button>
             </children>
         </HBox>

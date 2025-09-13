@@ -75,7 +75,9 @@ public class PixelGameApp extends GameApplication {
         // --- 核心修改：初始化所有 Service ---
         playerManager = new PlayerManager();
         networkService = new NetworkService(this::handleServerMessage);
-        getGameWorld().getEntities().forEach(Entity::removeFromWorld);
+        //getGameWorld().getEntities().forEach(Entity::removeFromWorld);
+        // 核心修改：使用 .getEntitiesCopy() 来获取列表副本
+        getGameWorld().getEntitiesCopy().forEach(Entity::removeFromWorld);
         getGameScene().clearGameViews();
         getPhysicsWorld().clear();
 

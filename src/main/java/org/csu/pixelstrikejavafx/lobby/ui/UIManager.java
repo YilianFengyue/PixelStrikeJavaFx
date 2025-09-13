@@ -76,7 +76,7 @@ public final class UIManager {
         try {
             if (avatarUrl != null && !avatarUrl.isEmpty()) {
                 // true 表示在后台线程加载，不会阻塞UI
-                return new Image(avatarUrl, true);
+                return new Image(avatarUrl);
             }
         } catch (Exception e) {
             System.err.println("加载头像失败，URL: " + avatarUrl + ", Error: " + e.getMessage());
