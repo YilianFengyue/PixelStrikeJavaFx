@@ -152,7 +152,8 @@ public class PixelGameApp extends GameApplication {
         hud.getRoot().prefWidthProperty().bind(uiRoot.widthProperty());
         hud.getRoot().prefHeightProperty().bind(uiRoot.heightProperty());
         getGameScene().addUINode(hud.getRoot());
-
+        // 关键：把键盘焦点交还给游戏根节点，让空格走到 FXGL 的输入系统
+        getGameScene().getRoot().requestFocus();
 
     }
     @Override

@@ -1,7 +1,5 @@
 
 ```
-
-```
 PixelStrikeJavaFx
 ├─ .mvn
 │  └─ wrapper
@@ -46,13 +44,10 @@ PixelStrikeJavaFx
       └─ resources
          ├─ assets
          │  └─ textures
-         │     ├─ ash_attack.png
          │     ├─ ash_attack1.png
          │     ├─ ash_avatar.png
          │     ├─ ash_die.png
-         │     ├─ ash_idle.png
          │     ├─ ash_idle1.png
-         │     ├─ ash_walk.png
          │     ├─ ash_walk1.png
          │     ├─ background.png
          │     ├─ floating_platform.png
