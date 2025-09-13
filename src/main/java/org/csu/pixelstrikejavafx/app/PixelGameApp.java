@@ -60,7 +60,7 @@ public class PixelGameApp extends GameApplication {
 
     // [NEW] 远端玩家容器
     private final Map<Integer, RemotePlayer> remotePlayers = new ConcurrentHashMap<>();
-
+    private final java.util.Map<Integer, Long> leftBarrier = new java.util.concurrent.ConcurrentHashMap<>();
     // 【NEW】记录本次欢迎的服务器时刻，作为“代际栅栏”
     private long welcomeSrvTS = 0L;
 
@@ -266,8 +266,8 @@ public class PixelGameApp extends GameApplication {
             RemotePlayer rp = entry.getValue();
             if (rp == null || rp.entity == null) { toRemove.add(rid); continue; }
 
-            // ★ 短超时：3s 无更新直接回收
-            if (now - rp.lastUpdate > 3000) {
+            // ★ 短超时：1.2s 无更新直接回收
+            if (now - rp.lastUpdate > 1200) {
                 rp.entity.removeFromWorld();
                 toRemove.add(rid);
                 continue;
@@ -330,6 +330,110 @@ public class PixelGameApp extends GameApplication {
         }
     }
     // [NEW]
+//    private void handleServerMessage(String json) {
+//        try {
+//            String type = extractString(json, "\"type\":\"");
+//            if (type == null) return;
+//
+//            switch (type) {
+//                case "welcome" -> {
+//                    // ★ 清表，防止旧影子
+//                    remotePlayers.values().forEach(rp -> { if (rp.entity != null) rp.entity.removeFromWorld(); });
+//                    remotePlayers.clear();
+//
+//                    myPlayerId   = extractInt(json, "\"id\":");
+//                    welcomeSrvTS = extractLong(json, "\"serverTime\":");   // 【NEW】代际时间栅栏
+//                    joinedAck    = true;
+//                    System.out.println("WELCOME myId=" + myPlayerId + " srvTS=" + welcomeSrvTS);
+//                }
+//
+//                case "state" -> {
+//                    if (!joinedAck) return;
+//
+//                    // 【NEW】丢弃“早于 welcome 的旧时代包”
+//                    long srvTS = readSrvTS(json);
+//                    if (welcomeSrvTS > 0 && srvTS > 0 && srvTS < welcomeSrvTS) {
+//                        // System.out.println("DROP old state srvTS=" + srvTS);
+//                        return;
+//                    }
+//
+//                    int id = extractInt(json, "\"id\":");
+//                    if (id == 0 || (myPlayerId != null && id == myPlayerId)) return;
+//
+//                    // ...（原有解析与 upsertRemotePlayer 保持不变）...
+//                    double x = extractDouble(json, "\"x\":");
+//                    double y = extractDouble(json, "\"y\":");
+//                    double vx = extractDouble(json, "\"vx\":");
+//                    double vy = extractDouble(json, "\"vy\":");
+//                    boolean facing   = json.contains("\"facing\":true");
+//                    boolean onGround = json.contains("\"onGround\":true");
+//                    String  anim  = extractString(json, "\"anim\":\"");
+//                    String  phase = extractString(json, "\"phase\":\"");
+//                    long    seq   = extractLong(json, "\"seq\":");
+//
+//                    upsertRemotePlayer(id, x, y, facing);
+//                    RemotePlayer rp = remotePlayers.get(id);
+//                    if (rp == null) return;
+//
+//                    // 单调过滤
+//                    if (seq > 0 && seq <= rp.lastSeq) return;
+//                    rp.lastSeq = seq;
+//
+//                    rp.onGround     = onGround;
+//                    rp.lastVX       = vx;
+//                    rp.lastVY       = vy;
+//                    rp.anim         = anim;
+//                    rp.phase        = phase;
+//                    rp.targetX      = x;
+//                    rp.targetY      = y;
+//                    rp.targetFacing = facing;
+//                    rp.lastUpdate   = System.currentTimeMillis();
+//                }
+//
+//                case "shot" -> {
+//                    // 【NEW】代际栅栏
+//                    long srvTS = readSrvTS(json);
+//                    if (welcomeSrvTS > 0 && srvTS > 0 && srvTS < welcomeSrvTS) return;
+//
+//                    double ox = extractDouble(json, "\"ox\":");
+//                    double oy = extractDouble(json, "\"oy\":");
+//                    double dx = extractDouble(json, "\"dx\":");
+//                    double dy = extractDouble(json, "\"dy\":");
+//                    double range = extractDouble(json, "\"range\":");
+//                    playShotEffect(ox, oy, dx, dy, range);
+//                }
+//
+//                case "damage" -> {
+//                    // 【NEW】代际栅栏
+//                    long srvTS = readSrvTS(json);
+//                    if (welcomeSrvTS > 0 && srvTS > 0 && srvTS < welcomeSrvTS) return;
+//
+//                    int victim = extractInt(json, "\"victim\":");
+//                    int dmg    = extractInt(json, "\"damage\":");
+//                    boolean hasKx = json.contains("\"kx\":");
+//                    boolean hasKy = json.contains("\"ky\":");
+//                    double kx  = hasKx ? extractDouble(json, "\"kx\":")
+//                            : (player != null && player.getFacingRight() ? -220.0 : 220.0);
+//                    double ky  = hasKy ? extractDouble(json, "\"ky\":") : 0.0;
+//
+//                    if (myPlayerId != null && victim == myPlayerId && player != null) {
+//                        player.applyHit(Math.max(1, dmg), kx, ky);
+//                    }
+//                }
+//
+//                case "leave" -> {
+//                    int id = extractInt(json, "\"id\":");
+//                    RemotePlayer rp = remotePlayers.remove(id);
+//                    if (rp != null && rp.entity != null) rp.entity.removeFromWorld();
+//                }
+//
+//                default -> { /* ignore */ }
+//            }
+//        } catch (Exception e) {
+//            System.err.println("handleServerMessage error: " + e.getMessage());
+//        }
+//    }
+    // PixelGameApp.java —— 完整替换 handleServerMessage
     private void handleServerMessage(String json) {
         try {
             String type = extractString(json, "\"type\":\"");
@@ -337,12 +441,14 @@ public class PixelGameApp extends GameApplication {
 
             switch (type) {
                 case "welcome" -> {
-                    // ★ 清表，防止旧影子
+                    // 清旧影子
                     remotePlayers.values().forEach(rp -> { if (rp.entity != null) rp.entity.removeFromWorld(); });
                     remotePlayers.clear();
 
+                    leftBarrier.clear();   // ☆ 新增：清除旧会话的离线栅栏
+
                     myPlayerId   = extractInt(json, "\"id\":");
-                    welcomeSrvTS = extractLong(json, "\"serverTime\":");   // 【NEW】代际时间栅栏
+                    welcomeSrvTS = extractLong(json, "\"serverTime\":");
                     joinedAck    = true;
                     System.out.println("WELCOME myId=" + myPlayerId + " srvTS=" + welcomeSrvTS);
                 }
@@ -350,17 +456,20 @@ public class PixelGameApp extends GameApplication {
                 case "state" -> {
                     if (!joinedAck) return;
 
-                    // 【NEW】丢弃“早于 welcome 的旧时代包”
                     long srvTS = readSrvTS(json);
-                    if (welcomeSrvTS > 0 && srvTS > 0 && srvTS < welcomeSrvTS) {
-                        // System.out.println("DROP old state srvTS=" + srvTS);
-                        return;
-                    }
+                    // 代际栅栏：丢弃“早于 welcome 的旧时代包”
+                    if (welcomeSrvTS > 0 && srvTS > 0 && srvTS < welcomeSrvTS) return;
 
                     int id = extractInt(json, "\"id\":");
                     if (id == 0 || (myPlayerId != null && id == myPlayerId)) return;
 
-                    // ...（原有解析与 upsertRemotePlayer 保持不变）...
+                    // ❗离线时间栅栏：丢弃 <= leave.srvTS 的迟到 state（防止幽灵复活）
+                    Long barrier = leftBarrier.get(id);
+                    if (barrier != null && srvTS <= barrier) {
+                        // System.out.println("[BARRIER_DROP] id="+id+" srvTS="+srvTS+" <= "+barrier);
+                        return;
+                    }
+
                     double x = extractDouble(json, "\"x\":");
                     double y = extractDouble(json, "\"y\":");
                     double vx = extractDouble(json, "\"vx\":");
@@ -375,7 +484,7 @@ public class PixelGameApp extends GameApplication {
                     RemotePlayer rp = remotePlayers.get(id);
                     if (rp == null) return;
 
-                    // 单调过滤
+                    // 单调过滤（乱序包不影响画面）
                     if (seq > 0 && seq <= rp.lastSeq) return;
                     rp.lastSeq = seq;
 
@@ -391,7 +500,6 @@ public class PixelGameApp extends GameApplication {
                 }
 
                 case "shot" -> {
-                    // 【NEW】代际栅栏
                     long srvTS = readSrvTS(json);
                     if (welcomeSrvTS > 0 && srvTS > 0 && srvTS < welcomeSrvTS) return;
 
@@ -404,7 +512,6 @@ public class PixelGameApp extends GameApplication {
                 }
 
                 case "damage" -> {
-                    // 【NEW】代际栅栏
                     long srvTS = readSrvTS(json);
                     if (welcomeSrvTS > 0 && srvTS > 0 && srvTS < welcomeSrvTS) return;
 
@@ -423,6 +530,8 @@ public class PixelGameApp extends GameApplication {
 
                 case "leave" -> {
                     int id = extractInt(json, "\"id\":");
+                    long srvTS = readSrvTS(json);
+                    if (id != 0) leftBarrier.put(id, srvTS);     // ☆ 立“离线时间栅栏”
                     RemotePlayer rp = remotePlayers.remove(id);
                     if (rp != null && rp.entity != null) rp.entity.removeFromWorld();
                 }
