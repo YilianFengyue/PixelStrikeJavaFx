@@ -6,6 +6,7 @@ import javafx.geometry.Point2D;
 import javafx.scene.paint.Color;
 import javafx.scene.shape.Rectangle;
 import org.csu.pixelstrikejavafx.game.core.GameType;
+import org.csu.pixelstrikejavafx.game.player.OnFireCallback;
 import org.csu.pixelstrikejavafx.game.player.component.BulletComponent;
 import org.csu.pixelstrikejavafx.game.player.Player;
 
@@ -33,7 +34,7 @@ public class Pistol implements Weapon {
     private boolean isFiring = false;
 
     @Override
-    public boolean shoot(Player shooter) {
+    public boolean shoot(Player shooter, OnFireCallback callback) {
         if (timeSinceLastShot >= TIME_BETWEEN_BULLETS) {
             timeSinceLastShot = 0.0;
 
@@ -51,9 +52,11 @@ public class Pistol implements Weapon {
                 shooter.getShootingSys().getReporter().onShot(
                         origin.getX(), origin.getY(),
                         direction.getX(), direction.getY(),
-                        SHOOT_RANGE, (int)DAMAGE, System.currentTimeMillis()
+                        SHOOT_RANGE, (int)DAMAGE, System.currentTimeMillis(),
+                        "Pistol"
                 );
             }
+            if (callback != null) callback.onSuccessfulShot();
             return true;
         }
         return false;

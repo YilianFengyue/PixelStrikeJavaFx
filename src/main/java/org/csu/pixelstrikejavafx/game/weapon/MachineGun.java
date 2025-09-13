@@ -6,6 +6,7 @@ import javafx.geometry.Point2D;
 import javafx.scene.paint.Color;
 import javafx.scene.shape.Rectangle;
 import org.csu.pixelstrikejavafx.game.core.GameType;
+import org.csu.pixelstrikejavafx.game.player.OnFireCallback;
 import org.csu.pixelstrikejavafx.game.player.Player;
 import org.csu.pixelstrikejavafx.game.player.component.BulletComponent;
 
@@ -35,7 +36,7 @@ public class MachineGun implements Weapon {
     }
 
     @Override
-    public boolean shoot(Player shooter) {
+    public boolean shoot(Player shooter, OnFireCallback callback) {
         if (timeSinceLastShot >= TIME_BETWEEN_BULLETS) {
             timeSinceLastShot = 0.0;
             Point2D origin = getShootOrigin(shooter);
@@ -47,9 +48,11 @@ public class MachineGun implements Weapon {
                 shooter.getShootingSys().getReporter().onShot(
                         origin.getX(), origin.getY(),
                         direction.getX(), direction.getY(),
-                        SHOOT_RANGE, (int)DAMAGE, System.currentTimeMillis()
+                        SHOOT_RANGE, (int)DAMAGE, System.currentTimeMillis(),
+                        "MachineGun"
                 );
             }
+            if (callback != null) callback.onSuccessfulShot();
             return true;
         }
         return false;
@@ -61,10 +64,8 @@ public class MachineGun implements Weapon {
         if (recoilAngleDeg > 0) {
             recoilAngleDeg = Math.max(0, recoilAngleDeg - RECOIL_RECOVER_DEG_PER_SEC * tpf);
         }
-
-        // 【修复】确保 shooter 对象不为 null 时才进行持续射击
         if (isFiring && this.shooter != null) {
-            shoot(this.shooter);
+            shoot(this.shooter, this.shooter);
         }
     }
 

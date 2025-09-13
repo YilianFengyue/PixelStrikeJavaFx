@@ -3,6 +3,7 @@ package org.csu.pixelstrikejavafx;
 import com.almasb.fxgl.app.ApplicationMode;
 import com.almasb.fxgl.app.GameApplication;
 import com.almasb.fxgl.app.GameSettings;
+import com.almasb.fxgl.dsl.FXGL;
 import com.almasb.fxgl.dsl.components.ProjectileComponent;
 import com.almasb.fxgl.entity.Entity;
 import com.almasb.fxgl.entity.components.CollidableComponent;
@@ -12,7 +13,9 @@ import javafx.geometry.Point2D;
 import javafx.scene.input.KeyCode;
 import javafx.scene.layout.Region;
 import javafx.scene.paint.Color;
+import javafx.scene.shape.Line;
 import javafx.scene.shape.Rectangle;
+import javafx.util.Duration;
 import org.csu.pixelstrikejavafx.game.player.component.GrenadeComponent;
 import org.csu.pixelstrikejavafx.game.services.NetworkService;
 import org.csu.pixelstrikejavafx.game.services.PlayerManager;
@@ -27,6 +30,8 @@ import org.csu.pixelstrikejavafx.core.PixelStrikeSceneFactory;
 import org.csu.pixelstrikejavafx.game.ui.PlayerHUD;
 import org.csu.pixelstrikejavafx.lobby.ui.UIManager;
 import org.csu.pixelstrikejavafx.game.player.component.BulletComponent;
+
+import java.util.concurrent.ThreadLocalRandom;
 
 import static com.almasb.fxgl.dsl.FXGL.*;
 
@@ -268,8 +273,28 @@ public class PixelGameApp extends GameApplication {
                         double oy = extractDouble(json, "\"oy\":");
                         double dx = extractDouble(json, "\"dx\":");
                         double dy = extractDouble(json, "\"dy\":");
-                        // 【修复】调用修正后的方法
-                        spawnRemoteBullet(attackerId, ox, oy, new Point2D(dx, dy));
+                        String weaponType = extractString(json, "\"weaponType\":\"");
+                        switch (weaponType) {
+                            case "Pistol":
+                                spawnRemotePistolBullet(attackerId, ox, oy, new Point2D(dx, dy));
+                                break;
+                            case "MachineGun":
+                                spawnRemoteMachineGunBullet(attackerId, ox, oy, new Point2D(dx, dy));
+                                break;
+                            case "Shotgun":
+                                spawnRemoteShotgunBlast(attackerId, ox, oy);
+                                break;
+                            case "Railgun":
+                                spawnRemoteRailgunBeam(attackerId, ox, oy, new Point2D(dx, dy));
+                                break;
+                            case "GrenadeLauncher":
+                                spawnRemoteGrenade(attackerId, ox, oy, new Point2D(dx, dy));
+                                break;
+                            default:
+                                // 保留一个默认行为以防万一，或者留空
+                                System.err.println("Received unknown weaponType for remote shot: " + weaponType);
+                                break;
+                        }
                     }
                 }
                 case "damage" -> {
@@ -372,7 +397,6 @@ public class PixelGameApp extends GameApplication {
     }
 
     private void setupCollisionHandlers() {
-        // --- 核心修改：使用 .exists() 来安全地检查属性 ---
         java.util.function.BiConsumer<Entity, Boolean> setGround = (playerEntity, on) -> {
             // 首先，使用正确的方法 .exists() 检查 'playerRef' 属性是否存在
             if (playerEntity.getProperties().exists("playerRef")) {
@@ -426,7 +450,7 @@ public class PixelGameApp extends GameApplication {
             }
         });
 
-        // --- 新增：处理榴弹（PROJECTILE）的碰撞 ---
+        // 处理榴弹（PROJECTILE）的碰撞
         getPhysicsWorld().addCollisionHandler(new CollisionHandler(GameType.PROJECTILE, GameType.GROUND) {
             @Override
             protected void onCollisionBegin(Entity projectile, Entity ground) {
@@ -454,10 +478,30 @@ public class PixelGameApp extends GameApplication {
         });
     }
 
-    private void spawnRemoteBullet(int shooterId, double ox, double oy, Point2D direction) {
-        final double BULLET_SPEED = 1500.0;
+    private void spawnRemoteShotgunBlast(int shooterId, double ox, double oy) {
+        final int PELLETS_COUNT = 8;
+        final double SPREAD_ARC_DEG = 15.0;
 
-        // 【修复】通过 PlayerManager 和 shooterId 精确查找射击者实体
+        boolean facingRight = true;
+        RemotePlayer remoteShooter = playerManager.getRemotePlayers().get(shooterId);
+        if (remoteShooter != null) {
+            facingRight = remoteShooter.targetFacing;
+        }
+
+        for (int i = 0; i < PELLETS_COUNT; i++) {
+            double baseDeg = facingRight ? 0.0 : 180.0;
+            double spread = ThreadLocalRandom.current().nextDouble(-SPREAD_ARC_DEG / 2, SPREAD_ARC_DEG / 2);
+            double finalDeg = baseDeg + spread;
+            double rad = Math.toRadians(finalDeg);
+            Point2D direction = new Point2D(Math.cos(rad), Math.sin(rad)).normalize();
+            // 调用新的、特定的方法
+            spawnRemoteShotgunPellet(shooterId, ox, oy, direction);
+        }
+    }
+
+    // 远程霰弹枪效果
+    private void spawnRemoteShotgunPellet(int shooterId, double ox, double oy, Point2D direction) {
+        final double BULLET_SPEED = 2000.0; // 与 Shotgun.java 一致
         Entity shooterEntity = null;
         RemotePlayer remoteShooter = playerManager.getRemotePlayers().get(shooterId);
         if (remoteShooter != null) {
@@ -466,11 +510,99 @@ public class PixelGameApp extends GameApplication {
 
         entityBuilder()
                 .type(GameType.BULLET)
-                .at(ox, oy) // 【修复】使用传入的 double 坐标
-                .viewWithBBox(new Rectangle(10, 4, Color.LIGHTGRAY))
+                .at(ox, oy)
+                // 使用霰弹枪的颜色和大小
+                .viewWithBBox(new Rectangle(6, 6, Color.DARKSLATEGRAY))
                 .with(new CollidableComponent(true))
                 .with(new ProjectileComponent(direction, BULLET_SPEED))
-                .with(new BulletComponent(shooterEntity)) // shooterEntity 找不到时可能为 null，这没关系
+                .with(new BulletComponent(shooterEntity))
+                .buildAndAttach();
+    }
+
+
+    // 远程炮弹效果
+    private void spawnRemoteGrenade(int shooterId, double ox, double oy, Point2D direction) {
+        // 获取射手实体，虽然可能不是必须的，但保持组件完整性是好习惯
+        Entity shooterEntity = null;
+        RemotePlayer remoteShooter = playerManager.getRemotePlayers().get(shooterId);
+        if (remoteShooter != null) {
+            shooterEntity = remoteShooter.entity;
+        }
+
+        // 与 GrenadeLauncher.java 中的 spawnGrenade 逻辑几乎一样
+        com.almasb.fxgl.physics.PhysicsComponent physics = new com.almasb.fxgl.physics.PhysicsComponent();
+        physics.setBodyType(com.almasb.fxgl.physics.box2d.dynamics.BodyType.DYNAMIC);
+        physics.setFixtureDef(new com.almasb.fxgl.physics.box2d.dynamics.FixtureDef().density(0.5f).restitution(0.4f));
+
+        final double LAUNCH_VELOCITY = 800.0; // 与 GrenadeLauncher.java 保持一致
+
+        entityBuilder()
+                .type(GameType.PROJECTILE) // 类型正确
+                .at(ox, oy)
+                .viewWithBBox(new javafx.scene.shape.Circle(8, Color.DARKOLIVEGREEN)) // 视觉效果一致
+                .with(new CollidableComponent(true))
+                .with(physics)
+                .with(new GrenadeComponent(shooterEntity)) // 记录发射者
+                .buildAndAttach();
+
+        // 施加初速度
+        physics.setLinearVelocity(direction.multiply(LAUNCH_VELOCITY));
+    }
+
+    // 生成远程射线枪效果
+    private void spawnRemoteRailgunBeam(int shooterId, double ox, double oy, Point2D direction) {
+        final double SHOOT_RANGE = 4000.0;
+        Point2D end = new Point2D(ox, oy).add(direction.multiply(SHOOT_RANGE));
+
+        Line laserBeam = new Line(ox, oy, end.getX(), end.getY());
+        laserBeam.setStroke(Color.ORANGERED); // 远程射线用不同颜色
+        laserBeam.setStrokeWidth(4);
+
+        Entity laserEffect = FXGL.entityBuilder()
+                .at(0, 0)
+                .view(laserBeam)
+                .buildAndAttach();
+
+        FXGL.getGameTimer().runOnceAfter(laserEffect::removeFromWorld, Duration.seconds(0.1));
+    }
+
+
+    private void spawnRemotePistolBullet(int shooterId, double ox, double oy, Point2D direction) {
+        final double BULLET_SPEED = 1500.0; // 与 Pistol.java 一致
+        Entity shooterEntity = null;
+        RemotePlayer remoteShooter = playerManager.getRemotePlayers().get(shooterId);
+        if (remoteShooter != null) {
+            shooterEntity = remoteShooter.entity;
+        }
+
+        entityBuilder()
+                .type(GameType.BULLET)
+                .at(ox, oy)
+                // 使用手枪的颜色和大小
+                .viewWithBBox(new Rectangle(10, 4, Color.ORANGERED))
+                .with(new CollidableComponent(true))
+                .with(new ProjectileComponent(direction, BULLET_SPEED))
+                .with(new BulletComponent(shooterEntity))
+                .buildAndAttach();
+    }
+
+    // 远程机枪效果
+    private void spawnRemoteMachineGunBullet(int shooterId, double ox, double oy, Point2D direction) {
+        final double BULLET_SPEED = 1800.0; // 与 MachineGun.java 一致
+        Entity shooterEntity = null;
+        RemotePlayer remoteShooter = playerManager.getRemotePlayers().get(shooterId);
+        if (remoteShooter != null) {
+            shooterEntity = remoteShooter.entity;
+        }
+
+        entityBuilder()
+                .type(GameType.BULLET)
+                .at(ox, oy)
+                // 使用机枪的颜色和大小
+                .viewWithBBox(new Rectangle(12, 3, Color.YELLOW))
+                .with(new CollidableComponent(true))
+                .with(new ProjectileComponent(direction, BULLET_SPEED))
+                .with(new BulletComponent(shooterEntity))
                 .buildAndAttach();
     }
 

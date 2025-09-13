@@ -1,9 +1,10 @@
 package org.csu.pixelstrikejavafx.game.weapon;
 
+import org.csu.pixelstrikejavafx.game.player.OnFireCallback;
 import org.csu.pixelstrikejavafx.game.player.Player;
 
 public interface Weapon {
-    boolean shoot(Player shooter);
+    boolean shoot(Player shooter, OnFireCallback callback);
     void update(double tpf);
     void onFireStart();
     void onFireStop();

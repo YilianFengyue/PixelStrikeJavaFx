@@ -6,11 +6,12 @@ import javafx.geometry.Point2D;
 import javafx.scene.paint.Color;
 import javafx.scene.shape.Line;
 import javafx.util.Duration;
+import org.csu.pixelstrikejavafx.game.player.OnFireCallback;
 import org.csu.pixelstrikejavafx.game.player.Player;
 
 public class Railgun implements Weapon {
 
-    private static final double TIME_BETWEEN_BULLETS = 2.0; // 充能时间长
+    private static final double TIME_BETWEEN_BULLETS = 1.0; // 充能时间长
     private static final double DAMAGE = 75.0;
     private static final double SHOOT_RANGE = 4000.0; // 射程极远
     private static final double MUZZLE_RIGHT_X = 150, MUZZLE_Y = 0;
@@ -18,7 +19,7 @@ public class Railgun implements Weapon {
     private double timeSinceLastShot = 0.0;
 
     @Override
-    public boolean shoot(Player shooter) {
+    public boolean shoot(Player shooter, OnFireCallback callback) {
         if (timeSinceLastShot >= TIME_BETWEEN_BULLETS) {
             timeSinceLastShot = 0.0;
 
@@ -44,9 +45,11 @@ public class Railgun implements Weapon {
                 shooter.getShootingSys().getReporter().onShot(
                     origin.getX(), origin.getY(),
                     direction.getX(), direction.getY(),
-                    SHOOT_RANGE, (int)DAMAGE, System.currentTimeMillis()
+                    SHOOT_RANGE, (int)DAMAGE, System.currentTimeMillis(),
+                    "Railgun"
                 );
             }
+            if (callback != null) callback.onSuccessfulShot();
             return true;
         }
         return false;

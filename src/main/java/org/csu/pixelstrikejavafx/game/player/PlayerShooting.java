@@ -13,7 +13,7 @@ public class PlayerShooting {
     private ShotReporter reporter;
 
     public interface ShotReporter {
-        void onShot(double ox, double oy, double dx, double dy, double range, int damage, long ts);
+        void onShot(double ox, double oy, double dx, double dy, double range, int damage, long ts, String weaponType);
     }
 
     public PlayerShooting(Player player) {
@@ -54,9 +54,7 @@ public class PlayerShooting {
     public void startShooting() {
         if (currentWeapon != null) {
             currentWeapon.onFireStart();
-            if (!(currentWeapon instanceof MachineGun)) {
-                currentWeapon.shoot(player);
-            }
+            currentWeapon.shoot(player, player);
         }
     }
 

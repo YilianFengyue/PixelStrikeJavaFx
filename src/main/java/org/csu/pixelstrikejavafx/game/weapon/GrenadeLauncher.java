@@ -9,6 +9,7 @@ import javafx.geometry.Point2D;
 import javafx.scene.paint.Color;
 import javafx.scene.shape.Circle;
 import org.csu.pixelstrikejavafx.game.core.GameType;
+import org.csu.pixelstrikejavafx.game.player.OnFireCallback;
 import org.csu.pixelstrikejavafx.game.player.Player;
 import org.csu.pixelstrikejavafx.game.player.component.GrenadeComponent;
 
@@ -24,7 +25,7 @@ public class GrenadeLauncher implements Weapon {
     private double timeSinceLastShot = 0.0;
 
     @Override
-    public boolean shoot(Player shooter) {
+    public boolean shoot(Player shooter, OnFireCallback callback) {
         if (timeSinceLastShot >= TIME_BETWEEN_BULLETS) {
             timeSinceLastShot = 0.0;
 
@@ -39,9 +40,11 @@ public class GrenadeLauncher implements Weapon {
                 shooter.getShootingSys().getReporter().onShot(
                         origin.getX(), origin.getY(),
                         direction.getX(), direction.getY(),
-                        SHOOT_RANGE, (int)DAMAGE, System.currentTimeMillis()
+                        SHOOT_RANGE, (int)DAMAGE, System.currentTimeMillis(),
+                        "GrenadeLauncher"
                 );
             }
+            if (callback != null) callback.onSuccessfulShot();
             return true;
         }
         return false;

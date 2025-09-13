@@ -17,7 +17,7 @@ import static com.almasb.fxgl.dsl.FXGL.*;
  * 角色控制（行走/跑步/跳跃/二段跳），不含动画。
  * 输入仍由外部（GameApp 的 UserAction）调用 start/stop/jump。
  */
-public class Player {
+public class Player implements OnFireCallback {
 
     //动画对象
     private PlayerAnimator animator;
@@ -315,21 +315,36 @@ public class Player {
     }
     public void startShooting() {
         if (dead) return;
+        if (shootingSys != null) {
+            shootingSys.startShooting();
+        }
+    }
 
+
+    /** 停止射击 */
+    public void stopShooting() {
+        // stopShooting 的逻辑保持不变，因为它只是标记一个状态
+        stopQueued = true;
+        lastShootUpTime = System.currentTimeMillis();
+        if (shootingSys != null) {
+            shootingSys.stopShooting();
+        }
+    }
+
+    @Override
+    public void onSuccessfulShot() {
         long now = System.currentTimeMillis();
         shooting = true;
         stopQueued = false;
 
         boolean skipBegin = (now - lastShootEndTime) <= RAISE_SKIP_THRESHOLD_MS;
 
+        // 【移动】原来在 startShooting() 中的动画逻辑，现在移动到这里
         switch (attackPhase) {
             case BEGIN:
             case IDLE:
-                // 已在拿枪或开枪，不重置，防止卡在 begin 看不到 idle
                 break;
-
             case END:
-                // 收枪过程/刚收完：可直接开枪覆盖 end
                 if (skipBegin || (now - attackPhaseStartTime) < ATTACK_END_MS) {
                     attackPhase = AttackPhase.IDLE;
                 } else {
@@ -337,28 +352,13 @@ public class Player {
                 }
                 attackPhaseStartTime = now;
                 break;
-
             default:
-                // 初始：根据阈值决定是否跳过 begin
                 attackPhase = skipBegin ? AttackPhase.IDLE : AttackPhase.BEGIN;
                 attackPhaseStartTime = now;
                 break;
         }
 
         lastShotTime = now;
-        if (shootingSys != null) shootingSys.startShooting();
-    }
-
-
-    /** 停止射击 */
-    public void stopShooting() {
-        stopQueued = true;                         // 仅标记“松手”
-        lastShootUpTime = System.currentTimeMillis();   // ★ 记录松手时间
-
-        // 不在这里切 END；是否收枪由 updateAttackPhase() + 窗口统一决定
-        if (shootingSys != null) {
-            shootingSys.stopShooting();
-        }
     }
 
     /** 角色死亡 */

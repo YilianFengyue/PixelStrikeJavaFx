@@ -6,6 +6,7 @@ import javafx.geometry.Point2D;
 import javafx.scene.paint.Color;
 import javafx.scene.shape.Rectangle;
 import org.csu.pixelstrikejavafx.game.core.GameType;
+import org.csu.pixelstrikejavafx.game.player.OnFireCallback;
 import org.csu.pixelstrikejavafx.game.player.Player;
 import org.csu.pixelstrikejavafx.game.player.component.BulletComponent;
 
@@ -26,7 +27,7 @@ public class Shotgun implements Weapon {
     private double timeSinceLastShot = 0.0;
 
     @Override
-    public boolean shoot(Player shooter) {
+    public boolean shoot(Player shooter, OnFireCallback callback) {
         if (timeSinceLastShot >= TIME_BETWEEN_BULLETS) {
             timeSinceLastShot = 0.0;
 
@@ -40,13 +41,15 @@ public class Shotgun implements Weapon {
                 // 只向服务器报告一次射击事件（或多次，取决于服务器验证逻辑）
                 // 为简化，我们报告一次中心射击
                 if (i == 0 && shooter.getShootingSys().getReporter() != null) {
-                     shooter.getShootingSys().getReporter().onShot(
+                    shooter.getShootingSys().getReporter().onShot(
                         origin.getX(), origin.getY(),
                         direction.getX(), direction.getY(),
-                        SHOOT_RANGE, (int)DAMAGE_PER_PELLET, System.currentTimeMillis()
+                        SHOOT_RANGE, (int)DAMAGE_PER_PELLET, System.currentTimeMillis(),
+                        "Shotgun"
                     );
                 }
             }
+            if (callback != null) callback.onSuccessfulShot();
             return true;
         }
         return false;
