@@ -762,39 +762,70 @@ public class ApiClient {
      * 调用后端 /matchmaking/start 接口开始匹配
      * @throws IOException 当网络或业务逻辑失败时
      */
-    public void startMatchmaking() throws IOException {
+    public void startMatchmaking(String mapId, String characterId) throws IOException {
         if (GlobalState.authToken == null) {
             throw new IllegalStateException("用户未登录，无法开始匹配");
         }
 
         String url = BASE_URL + "/matchmaking/start";
-        // 后端接口是一个POST请求，但不需要请求体，所以创建一个空的body
-        RequestBody body = RequestBody.create(new byte[0]);
 
-        // 构建请求，最关键的是要添加 Authorization 请求头
+        // 1. 创建包含地图和角色ID的JSON体
+        JsonObject matchmakingData = new JsonObject();
+        matchmakingData.addProperty("mapId", mapId);
+        matchmakingData.addProperty("characterId", characterId);
+        String jsonBody = gson.toJson(matchmakingData);
+
+        RequestBody body = RequestBody.create(jsonBody, MediaType.get("application/json; charset=utf-8"));
+
         Request request = new Request.Builder()
                 .url(url)
                 .addHeader("Authorization", "Bearer " + GlobalState.authToken)
                 .post(body)
                 .build();
 
-        // 执行请求并处理响应
         try (Response response = client.newCall(request).execute()) {
             if (!response.isSuccessful()) {
                 throw new IOException("开始匹配请求失败: " + response.code());
             }
-
             String responseBody = Objects.requireNonNull(response.body()).string();
             JsonObject jsonObject = gson.fromJson(responseBody, JsonObject.class);
-
-            // 如果后端的业务逻辑返回错误（例如已在游戏中），则抛出异常
             if (jsonObject.get("status").getAsInt() != 0) {
                 throw new IOException(jsonObject.get("message").getAsString());
             }
-            // 成功时，方法正常返回
         }
     }
 
+    /**
+     * 【兼容版】调用后端 /matchmaking/start 接口开始匹配 (不带参数，使用服务器默认设置)
+     * @throws IOException 当网络或业务逻辑失败时
+     */
+    public void startMatchmaking() throws IOException {
+        if (GlobalState.authToken == null) {
+            throw new IllegalStateException("用户未登录，无法开始匹配");
+        }
+
+        String url = BASE_URL + "/matchmaking/start";
+
+        // 1. 创建一个空的请求体，以触发后端的向后兼容逻辑
+        RequestBody body = RequestBody.create(new byte[0]);
+
+        Request request = new Request.Builder()
+                .url(url)
+                .addHeader("Authorization", "Bearer " + GlobalState.authToken)
+                .post(body)
+                .build();
+
+        try (Response response = client.newCall(request).execute()) {
+            if (!response.isSuccessful()) {
+                throw new IOException("开始匹配请求失败: " + response.code());
+            }
+            String responseBody = Objects.requireNonNull(response.body()).string();
+            JsonObject jsonObject = gson.fromJson(responseBody, JsonObject.class);
+            if (jsonObject.get("status").getAsInt() != 0) {
+                throw new IOException(jsonObject.get("message").getAsString());
+            }
+        }
+    }
     /**
      * 调用后端 /matchmaking/cancel 接口取消匹配
      * @throws IOException 当网络或业务逻辑失败时

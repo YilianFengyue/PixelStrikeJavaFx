@@ -3,8 +3,11 @@ package org.csu.pixelstrikejavafx.lobby.ui;
 import com.almasb.fxgl.dsl.FXGL;
 import com.google.gson.JsonElement;
 import com.google.gson.JsonObject;
+import de.jensd.fx.glyphs.fontawesome.FontAwesomeIcon;
+import de.jensd.fx.glyphs.fontawesome.FontAwesomeIconView;
 import javafx.application.Platform;
 import javafx.fxml.FXML;
+import javafx.fxml.FXMLLoader;
 import javafx.fxml.Initializable;
 import javafx.geometry.Insets;
 import javafx.scene.control.*;
@@ -14,6 +17,7 @@ import javafx.scene.layout.*;
 import javafx.geometry.Pos;
 
 
+import javafx.scene.shape.Circle;
 import javafx.stage.FileChooser;
 import org.csu.pixelstrikejavafx.core.MatchSuccessEvent;
 import org.csu.pixelstrikejavafx.lobby.events.*;
@@ -22,6 +26,7 @@ import org.csu.pixelstrikejavafx.lobby.network.NetworkManager;
 import org.csu.pixelstrikejavafx.core.GlobalState;
 
 import java.io.File;
+import java.io.IOException;
 import java.net.URL;
 import java.util.*;
 
@@ -54,6 +59,10 @@ public class LobbyController implements Initializable {
     @FXML private ListView<Map<String, Object>> searchResultListView;
     @FXML private ListView<Map<String, Object>> requestsListView;
     @FXML private ImageView avatarImageView;
+    @FXML private ImageView backgroundImageView;
+    @FXML private VBox friendsPanel;
+    @FXML private StackPane toggleFriendsButton;
+    @FXML private Button changeNicknameButton;
     private final Set<Long> friendIds = new HashSet<>();
 
     private final ApiClient apiClient = new ApiClient();
@@ -64,6 +73,13 @@ public class LobbyController implements Initializable {
      */
     @Override
     public void initialize(URL location, ResourceBundle resources) {
+        try {
+            Image bg = new Image(Objects.requireNonNull(getClass().getResourceAsStream("/assets/textures/background.png")));
+            backgroundImageView.setImage(bg);
+        } catch (Exception e) {
+            System.err.println("大厅背景图加载失败: " + e.getMessage());
+        }
+
         System.out.println("LobbyController initialized. Setting up event handlers.");
 
         // 【新增】重置UI到初始状态
@@ -138,6 +154,45 @@ public class LobbyController implements Initializable {
         } else {
             nicknameLabel.setText("昵称: 未知");
         }
+
+        try {
+            FontAwesomeIconView icon = new FontAwesomeIconView(FontAwesomeIcon.USER);
+            icon.setSize("22px");
+            icon.getStyleClass().add("icon-style");
+
+            // 修改后的代码:
+            toggleFriendsButton.getChildren().add(icon); // 将图标作为子元素添加到 StackPane 中
+
+        } catch (Exception e) {
+            System.err.println("FontAwesomeFX icon could not be loaded. Check dependencies.");
+        }
+
+        try {
+            FontAwesomeIconView icon = new FontAwesomeIconView(FontAwesomeIcon.PENCIL); // 创建一个铅笔图标
+            icon.setSize("16px"); // 设置一个合适的大小
+            icon.getStyleClass().add("icon-style"); // 复用之前定义好的白色图标样式
+
+            changeNicknameButton.setGraphic(icon); // 将图标设置为按钮的图形内容
+            changeNicknameButton.setText(""); // 确保按钮没有文字
+
+        } catch (Exception e) {
+            System.err.println("Pencil icon could not be loaded. Check dependencies.");
+            // 如果图标加载失败，按钮会显示文字作为后备
+            changeNicknameButton.setText("修改");
+        }
+    }
+
+    // 在 LobbyController.java 的任何地方添加这个新方法
+    @FXML
+    private void logButtonPositionOnPressed() {
+        if (toggleFriendsButton == null) return;
+
+        // 使用 Platform.runLater 确保我们在获取当前帧的最终位置
+        Platform.runLater(() -> {
+            // 获取按钮左上角在整个屏幕上的坐标
+            javafx.geometry.Point2D screenCoords = toggleFriendsButton.localToScreen(0, 0);
+            System.out.println(String.format("--- 点击时 --- 按钮在屏幕上的坐标: X=%.2f, Y=%.2f", screenCoords.getX(), screenCoords.getY()));
+        });
     }
     /**
      * 处理点击“取消匹配”按钮的事件
@@ -293,23 +348,20 @@ public class LobbyController implements Initializable {
         }
 
         searchResultListView.getItems().clear();
-        searchResultListView.getItems().add(Map.of("loading", true)); // 显示加载提示
 
         new Thread(() -> {
             try {
                 List<Map<String, Object>> users = apiClient.searchUsers(nickname);
                 Platform.runLater(() -> {
-                    searchResultListView.getItems().clear();
-                    if (users.isEmpty()) {
-                        // 如果需要，可以显示“未找到用户”
-                    } else {
+                    // 这里不再需要清空，因为在发起请求前已经清空了
+                    if (!users.isEmpty()) {
                         searchResultListView.getItems().addAll(users);
                     }
                 });
             } catch (Exception e) {
                 Platform.runLater(() -> {
+                    // 确保即使出错也清空列表
                     searchResultListView.getItems().clear();
-                    // 显示错误
                 });
                 e.printStackTrace();
             }
@@ -332,6 +384,7 @@ public class LobbyController implements Initializable {
                 avatarView.setFitWidth(40);
                 HBox.setHgrow(spacer, Priority.ALWAYS);
                 hbox.setAlignment(Pos.CENTER_LEFT);
+                actionButton.getStyleClass().add("add-friend-button");
                 hbox.getChildren().addAll(avatarView, userInfoLabel, spacer, actionButton);
             }
 
@@ -396,25 +449,21 @@ public class LobbyController implements Initializable {
      */
     private void loadFriendRequests() {
         requestsListView.getItems().clear();
-        requestsListView.getItems().add(Map.of("loading", true)); // 显示加载提示
+
 
         new Thread(() -> {
             try {
                 List<Map<String, Object>> requests = apiClient.getFriendRequests();
-                System.out.println("DEBUG (LobbyController): 从ApiClient收到了 " + requests.size() + " 条申请。");
                 Platform.runLater(() -> {
-                    System.out.println("DEBUG (LobbyController): 即将更新UI界面，显示 " + requests.size() + " 条申请。");
-                    requestsListView.getItems().clear();
-                    if (requests.isEmpty()) {
-                        // 可以显示“没有待处理的申请”
-                    } else {
+                    // 这里不再需要清空
+                    if (!requests.isEmpty()) {
                         requestsListView.getItems().addAll(requests);
                     }
                 });
             } catch (Exception e) {
                 Platform.runLater(() -> {
+                    // 确保即使出错也清空列表
                     requestsListView.getItems().clear();
-                    // 显示错误
                 });
                 e.printStackTrace();
             }
@@ -451,6 +500,8 @@ public class LobbyController implements Initializable {
 
                 // 6. 将所有控件按顺序放入 HBox
                 hbox.setAlignment(Pos.CENTER_LEFT);
+                acceptButton.getStyleClass().add("accept-request-button");
+                rejectButton.getStyleClass().add("reject-request-button");
                 hbox.getChildren().addAll(avatarView, requestInfoLabel, spacer, acceptButton, rejectButton);
             }
 
@@ -712,15 +763,24 @@ public class LobbyController implements Initializable {
     @FXML
     private void handleChangeNickname() {
         // 使用 FXGL 的输入对话框，让用户输入新昵称
-        FXGL.getDialogService().showInputBox("请输入新的昵称:", newNickname -> {
-            if (newNickname.isEmpty()) {
-                return; // 用户没输入，则不做任何事
+        FXGL.getDialogService().showInputBox("请输入新的昵称 (2-7位):", newNickname -> {
+            // 如果用户点击了取消或输入为空，则不做任何事
+            if (newNickname == null || newNickname.trim().isEmpty()) {
+                return;
             }
+            String trimmedNickname = newNickname.trim(); // 去除首尾空格
 
-            // 在后台线程执行网络请求
+            if (trimmedNickname.length() < 2 || trimmedNickname.length() > 7) {
+                // 如果长度不符合要求，则弹窗提示并终止操作
+                Platform.runLater(() ->
+                        FXGL.getDialogService().showMessageBox("昵称长度必须在 2-7 位之间！")
+                );
+                return; // 终止后续的网络请求
+            }
             new Thread(() -> {
                 try {
-                    JsonObject updatedProfile = apiClient.updateNickname(newNickname);
+                    // 使用经过验证的 trimmedNickname
+                    JsonObject updatedProfile = apiClient.updateNickname(trimmedNickname);
                     String confirmedNickname = updatedProfile.get("nickname").getAsString();
 
                     // 成功后，在UI线程更新全局状态和界面显示
@@ -763,6 +823,12 @@ public class LobbyController implements Initializable {
         avatarImageView.setImage(avatarImage);
     }
 
+    @FXML
+    private void handleToggleFriendsList() {
+        boolean isVisible = friendsPanel.isVisible();
+        friendsPanel.setVisible(!isVisible);
+        friendsPanel.setManaged(!isVisible); // setManaged(false)会使布局忽略该节点
+    }
     /**
      * 处理点击头像上传的事件
      */
@@ -802,24 +868,67 @@ public class LobbyController implements Initializable {
         }
     }
 
+    private void showCustomConfirm(String message, Runnable onConfirm) {
+        try {
+            // 1. 加载 FXML 模板
+            FXMLLoader loader = new FXMLLoader(getClass().getResource("/fxml/custom-confirm-pane.fxml"));
+            VBox confirmPane = loader.load();
+
+            // 2. 将面板添加到大厅的根布局中
+            Pane rootPane = (Pane) nicknameLabel.getScene().getRoot();
+            rootPane.getChildren().add(confirmPane);
+            StackPane.setAlignment(confirmPane, Pos.CENTER); // 居中显示
+
+            // 3. 获取面板中的控件并设置内容
+            Label messageLabel = (Label) loader.getNamespace().get("messageLabel");
+            Button confirmButton = (Button) loader.getNamespace().get("confirmButton");
+            Button cancelButton = (Button) loader.getNamespace().get("cancelButton");
+
+            messageLabel.setText(message);
+
+            // 4. 为按钮绑定事件
+            confirmButton.setOnAction(e -> {
+                // 先关闭面板
+                rootPane.getChildren().remove(confirmPane);
+                // 然后执行传入的操作
+                if (onConfirm != null) {
+                    onConfirm.run();
+                }
+            });
+
+            cancelButton.setOnAction(e -> {
+                // 直接关闭面板
+                rootPane.getChildren().remove(confirmPane);
+            });
+
+        } catch (IOException e) {
+            e.printStackTrace();
+        }
+    }
+
     private void setupFriendsCellFactory() {
         friendsListView.setCellFactory(lv -> new ListCell<Map<String, Object>>() {
-            // HBox 作为根容器
-            private final HBox hbox = new HBox(10);
-            // 用于显示头像
+            private final HBox hbox = new HBox(15);
+            private final Circle statusIndicator = new Circle(6);
             private final ImageView avatarView = new ImageView();
-            // 用于显示昵称和状态
-            private final Label infoLabel = new Label();
+            private final VBox userInfoVBox = new VBox(2);
+            private final Label nicknameLabel = new Label();
+            private final Label statusLabel = new Label();
             private final Region spacer = new Region();
-            private final Button deleteButton = new Button("刪除");
+            private final Button deleteButton = new Button("删除");
 
             {
-                // 初始化单元格布局
                 avatarView.setFitHeight(40);
                 avatarView.setFitWidth(40);
                 HBox.setHgrow(spacer, Priority.ALWAYS);
+                userInfoVBox.getChildren().addAll(nicknameLabel, statusLabel);
                 hbox.setAlignment(Pos.CENTER_LEFT);
-                hbox.getChildren().addAll(avatarView, infoLabel, spacer, deleteButton);
+                hbox.getChildren().addAll(statusIndicator, avatarView, userInfoVBox, spacer, deleteButton);
+                hbox.getStyleClass().add("friend-cell-container");
+                statusIndicator.getStyleClass().add("status-indicator");
+                nicknameLabel.getStyleClass().add("friend-nickname-label");
+                statusLabel.getStyleClass().add("friend-status-label");
+                deleteButton.getStyleClass().add("delete-friend-button");
             }
 
             @Override
@@ -827,30 +936,59 @@ public class LobbyController implements Initializable {
                 super.updateItem(friend, empty);
                 if (empty || friend == null || friend.get("nickname") == null) {
                     setGraphic(null);
-                    setText(null);
                 } else {
-                    setText(null);
-                    infoLabel.setText(String.format("%s [%s]", friend.get("nickname"), friend.get("onlineStatus") == null ? "离线" : friend.get("onlineStatus")));
+                    nicknameLabel.setText((String) friend.get("nickname"));
+
+                    // 根据新API文档更新状态逻辑
+                    String statusFromServer = (String) friend.get("onlineStatus");
+                    String displayStatus;
+
+                    // 先移除所有可能的状态样式，确保每次都是干净的
+                    statusIndicator.getStyleClass().removeAll("status-online", "status-offline", "status-ingame", "status-matching", "status-in-room");
+
+                    // API文档指出，通过HTTP接口获取时，离线状态为 null
+                    if (statusFromServer == null) {
+                        statusFromServer = "OFFLINE";
+                    }
+
+                    switch (statusFromServer.toUpperCase()) { // 使用 toUpperCase() 来统一处理大小写
+                        case "ONLINE":
+                            statusIndicator.getStyleClass().add("status-online");
+                            displayStatus = "在线";
+                            break;
+                        case "IN_GAME":
+                            statusIndicator.getStyleClass().add("status-ingame");
+                            displayStatus = "游戏中";
+                            break;
+                        case "MATCHING": // 新增状态
+                            statusIndicator.getStyleClass().add("status-matching");
+                            displayStatus = "匹配中";
+                            break;
+                        case "IN_ROOM": // 新增状态
+                            statusIndicator.getStyleClass().add("status-in-room");
+                            displayStatus = "房间中";
+                            break;
+                        default: // OFFLINE 或其他未知状态
+                            statusIndicator.getStyleClass().add("status-offline");
+                            displayStatus = "离线";
+                            break;
+                    }
+
+                    statusLabel.setText(displayStatus);
                     avatarView.setImage(UIManager.loadAvatar((String) friend.get("avatarUrl")));
 
-                    // 為刪除按鈕設定點擊事件
                     deleteButton.setOnAction(event -> {
                         long friendId = ((Number) friend.get("userId")).longValue();
                         String nickname = (String) friend.get("nickname");
-
-                        // 彈出確認對話方塊，防止誤刪
-                        FXGL.getDialogService().showConfirmationBox("確定要刪除好友 " + nickname + " 吗？", (yes) -> {
-                            if (yes) {
-                                new Thread(() -> {
-                                    try {
-                                        apiClient.deleteFriend(friendId);
-                                        // 成功後，在UI執行緒重新載入好友列表
-                                        Platform.runLater(() -> loadFriendsList());
-                                    } catch (Exception e) {
-                                        Platform.runLater(() -> FXGL.getDialogService().showMessageBox("刪除失敗: " + e.getMessage()));
-                                    }
-                                }).start();
-                            }
+                        showCustomConfirm("确定要删除好友 " + nickname + " 吗？", () -> {
+                            new Thread(() -> {
+                                try {
+                                    apiClient.deleteFriend(friendId);
+                                    Platform.runLater(() -> loadFriendsList());
+                                } catch (Exception e) {
+                                    Platform.runLater(() -> FXGL.getDialogService().showMessageBox("删除失败: " + e.getMessage()));
+                                }
+                            }).start();
                         });
                     });
 

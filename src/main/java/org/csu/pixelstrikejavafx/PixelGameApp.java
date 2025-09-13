@@ -83,6 +83,7 @@ public class PixelGameApp extends GameApplication {
         s.setScaleAffectedOnResize(false);
         s.setApplicationMode(ApplicationMode.DEVELOPER);
         s.setDeveloperMenuEnabled(true);
+        s.setManualResizeEnabled(true);
     }
 
     @Override
