@@ -1,4 +1,4 @@
-package org.csu.pixelstrikejavafx.game.player;
+package org.csu.pixelstrikejavafx.game.player.component;
 
 import com.almasb.fxgl.dsl.FXGL;
 import com.almasb.fxgl.entity.Entity;

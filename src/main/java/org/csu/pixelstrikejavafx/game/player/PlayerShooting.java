@@ -1,27 +1,48 @@
-// main/java/org/csu/pixelstrikejavafx/game/player/PlayerShooting.java
 package org.csu.pixelstrikejavafx.game.player;
 
-import org.csu.pixelstrikejavafx.game.weapon.Pistol;
-import org.csu.pixelstrikejavafx.game.weapon.Weapon;
+import org.csu.pixelstrikejavafx.game.weapon.*;
+import java.util.ArrayList;
+import java.util.List;
 
 public class PlayerShooting {
 
     private final Player player;
-    private Weapon currentWeapon; // 持有当前武器的引用
+    private final List<Weapon> availableWeapons = new ArrayList<>();
+    private int currentWeaponIndex = 0;
+    private Weapon currentWeapon;
     private ShotReporter reporter;
 
     public interface ShotReporter {
-        void onShot(double ox, double oy, double dx, double dy, double range, int damage, long ts);
+        void onShot(double ox, double oy, double dx, double dy, double range, int damage, long ts, String weaponType);
     }
 
     public PlayerShooting(Player player) {
         this.player = player;
-        // 默认装备手枪
-        equipWeapon(new Pistol());
+
+        // 初始化所有可用武器
+        availableWeapons.add(new Pistol());
+        availableWeapons.add(new MachineGun());
+        availableWeapons.add(new Shotgun());
+        availableWeapons.add(new GrenadeLauncher());
+        availableWeapons.add(new Railgun()); // 添加射线枪
+
+        // 默认装备第一把武器
+        equipWeapon(0);
     }
 
-    public void equipWeapon(Weapon weapon) {
-        this.currentWeapon = weapon;
+    public void equipWeapon(int weaponIndex) {
+        if (weaponIndex < 0 || weaponIndex >= availableWeapons.size()) {
+            return;
+        }
+        this.currentWeaponIndex = weaponIndex;
+        this.currentWeapon = availableWeapons.get(weaponIndex);
+        this.currentWeapon.onEquip(player); // **调用 onEquip**
+        System.out.println("Equipped: " + this.currentWeapon.getClass().getSimpleName());
+    }
+
+    public void nextWeapon() {
+        int nextIndex = (currentWeaponIndex + 1) % availableWeapons.size();
+        equipWeapon(nextIndex);
     }
 
     public void update(double tpf) {
@@ -33,8 +54,7 @@ public class PlayerShooting {
     public void startShooting() {
         if (currentWeapon != null) {
             currentWeapon.onFireStart();
-            // 对于半自动武器，在按下时就尝试开火
-            currentWeapon.shoot(player);
+            currentWeapon.shoot(player, player);
         }
     }
 

@@ -51,9 +51,13 @@ public class NetworkService {
         }
     }
 
-    public void sendShot(double ox, double oy, double dx, double dy, double range, int dmg, long ts) {
+    public void sendShot(double ox, double oy, double dx, double dy, double range, int dmg, long ts, String weaponType) {
         if (netClient != null && joinedAck) {
-            netClient.sendShot(ox, oy, dx, dy, range, dmg, ts, seq++);
+            String json = String.format(java.util.Locale.US,
+                    "{\"type\":\"shot\",\"ox\":%.2f,\"oy\":%.2f,\"dx\":%.4f,\"dy\":%.4f," +
+                            "\"range\":%.2f,\"damage\":%d,\"ts\":%d,\"seq\":%d,\"weaponType\":\"%s\"}",
+                    ox, oy, dx, dy, range, dmg, ts, seq++, weaponType);
+            netClient.send(json);
         }
     }
 

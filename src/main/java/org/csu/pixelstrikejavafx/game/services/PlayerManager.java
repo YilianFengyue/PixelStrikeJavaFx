@@ -22,7 +22,7 @@ public class PlayerManager {
     public Player createLocalPlayer(NetworkService networkService) {
         localPlayer = new Player(500, GameConfig.MAP_H - 211 - 128);
         localPlayer.getShootingSys().setShotReporter(
-                (ox, oy, dx, dy, range, dmg, ts) -> networkService.sendShot(ox, oy, dx, dy, range, dmg, ts)
+                (ox, oy, dx, dy, range, dmg, ts, weaponType) -> networkService.sendShot(ox, oy, dx, dy, range, dmg, ts, weaponType)
         );
         return localPlayer;
     }
