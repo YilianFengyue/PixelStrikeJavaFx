@@ -33,9 +33,6 @@ public class PlayerShooting {
             case "Railgun":
                 currentWeapon = new Railgun(GameConfig.Weapons.RAILGUN);
                 break;
-            case "GrenadeLauncher":
-                currentWeapon = new GrenadeLauncher(GameConfig.Weapons.GRENADE_LAUNCHER);
-                break;
             default: // 包括 "Pistol" 或者任何未知类型，都切换回手枪
                 currentWeapon = new Pistol(GameConfig.Weapons.PISTOL);
                 break;

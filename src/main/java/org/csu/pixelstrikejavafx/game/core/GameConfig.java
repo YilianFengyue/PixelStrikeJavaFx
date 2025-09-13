@@ -56,16 +56,6 @@ public final class GameConfig {
                 0.0, 0.0, 0.0,
                 0.0, 0.0
         );
-
-        public static final WeaponStats GRENADE_LAUNCHER = new WeaponStats(
-                "GrenadeLauncher", 40.0, 1.5, 2000.0, 0.0, 800.0,
-                150.0, 0.0, 0.0,
-                1, 0.0,
-                0.0, 0.0, 0.0,
-                0.0, 0.0, 0.0,
-                0.0, 0.0
-        );
-
         public static final WeaponStats RAILGUN = new WeaponStats(
                 "Railgun", 75.0, 1.0, 4000.0, 0.0, 0.0,
                 150.0, 150.0, 0.0, // Muzzle Left X set to 150 for symmetry with -offsetX

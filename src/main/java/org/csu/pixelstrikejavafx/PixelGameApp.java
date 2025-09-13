@@ -1,5 +1,6 @@
 package org.csu.pixelstrikejavafx;
 
+import com.almasb.fxgl.animation.AnimationBuilder;
 import com.almasb.fxgl.app.ApplicationMode;
 import com.almasb.fxgl.app.GameApplication;
 import com.almasb.fxgl.app.GameSettings;
@@ -10,18 +11,16 @@ import com.almasb.fxgl.entity.components.CollidableComponent;
 import com.almasb.fxgl.input.UserAction;
 import com.almasb.fxgl.physics.CollisionHandler;
 import javafx.geometry.Point2D;
-import javafx.scene.Node;
 import javafx.scene.input.KeyCode;
 import javafx.scene.layout.Region;
 import javafx.scene.layout.StackPane;
 import javafx.scene.paint.Color;
-import javafx.scene.shape.Circle;
 import javafx.scene.shape.Line;
 import javafx.scene.shape.Rectangle;
 import javafx.scene.text.Font;
 import javafx.scene.text.Text;
 import javafx.util.Duration;
-import org.csu.pixelstrikejavafx.game.player.component.GrenadeComponent;
+import org.csu.pixelstrikejavafx.game.player.component.PoisonedComponent;
 import org.csu.pixelstrikejavafx.game.player.component.SupplyDropComponent;
 import org.csu.pixelstrikejavafx.game.services.NetworkService;
 import org.csu.pixelstrikejavafx.game.services.PlayerManager;
@@ -297,9 +296,6 @@ public class PixelGameApp extends GameApplication {
                             case "Railgun":
                                 spawnRemoteRailgunBeam(attackerId, ox, oy, new Point2D(dx, dy));
                                 break;
-                            case "GrenadeLauncher":
-                                spawnRemoteGrenade(attackerId, ox, oy, new Point2D(dx, dy));
-                                break;
                             default:
                                 // 保留一个默认行为以防万一，或者留空
                                 System.err.println("Received unknown weaponType for remote shot: " + weaponType);
@@ -411,6 +407,15 @@ public class PixelGameApp extends GameApplication {
 
                     // 为所有玩家显示通知
                     FXGL.getNotificationService().pushNotification(pickerNickname + " 拾取了 " + itemType + "!");
+                }
+                case "player_poisoned" -> {
+                    int userId = extractInt(json, "\"userId\":");
+                    double duration = extractLong(json, "\"duration\":") / 1000.0; // 毫秒转秒
+
+                    if (networkService.getMyPlayerId() != null && userId == networkService.getMyPlayerId()) {
+                        // 为本地玩家添加中毒组件
+                        playerManager.getLocalPlayer().getEntity().addComponent(new PoisonedComponent(duration));
+                    }
                 }
             }
         } catch (Exception e) {
@@ -524,33 +529,6 @@ public class PixelGameApp extends GameApplication {
                 bullet.removeFromWorld();
             }
         });
-
-        // 处理榴弹（PROJECTILE）的碰撞
-        getPhysicsWorld().addCollisionHandler(new CollisionHandler(GameType.PROJECTILE, GameType.GROUND) {
-            @Override
-            protected void onCollisionBegin(Entity projectile, Entity ground) {
-                // 可以在这里添加爆炸效果
-                projectile.removeFromWorld();
-            }
-        });
-
-        getPhysicsWorld().addCollisionHandler(new CollisionHandler(GameType.PROJECTILE, GameType.PLATFORM) {
-            @Override
-            protected void onCollisionBegin(Entity projectile, Entity platform) {
-                projectile.removeFromWorld();
-            }
-        });
-
-        getPhysicsWorld().addCollisionHandler(new CollisionHandler(GameType.PROJECTILE, GameType.PLAYER) {
-            @Override
-            protected void onCollisionBegin(Entity projectile, Entity playerEntity) {
-                GrenadeComponent grenadeData = projectile.getComponent(GrenadeComponent.class);
-                if (grenadeData.getShooter().equals(playerEntity)) {
-                    return; // 不伤害自己
-                }
-                projectile.removeFromWorld();
-            }
-        });
         getPhysicsWorld().addCollisionHandler(new CollisionHandler(GameType.PLAYER, GameType.SUPPLY_DROP) {
             @Override
             protected void onCollisionBegin(Entity playerEntity, Entity dropEntity) {
@@ -605,36 +583,6 @@ public class PixelGameApp extends GameApplication {
                 .with(new ProjectileComponent(direction, BULLET_SPEED))
                 .with(new BulletComponent(shooterEntity))
                 .buildAndAttach();
-    }
-
-
-    // 远程炮弹效果
-    private void spawnRemoteGrenade(int shooterId, double ox, double oy, Point2D direction) {
-        // 获取射手实体，虽然可能不是必须的，但保持组件完整性是好习惯
-        Entity shooterEntity = null;
-        RemotePlayer remoteShooter = playerManager.getRemotePlayers().get(shooterId);
-        if (remoteShooter != null) {
-            shooterEntity = remoteShooter.entity;
-        }
-
-        // 与 GrenadeLauncher.java 中的 spawnGrenade 逻辑几乎一样
-        com.almasb.fxgl.physics.PhysicsComponent physics = new com.almasb.fxgl.physics.PhysicsComponent();
-        physics.setBodyType(com.almasb.fxgl.physics.box2d.dynamics.BodyType.DYNAMIC);
-        physics.setFixtureDef(new com.almasb.fxgl.physics.box2d.dynamics.FixtureDef().density(0.5f).restitution(0.4f));
-
-        final double LAUNCH_VELOCITY = 800.0; // 与 GrenadeLauncher.java 保持一致
-
-        entityBuilder()
-                .type(GameType.PROJECTILE) // 类型正确
-                .at(ox, oy)
-                .viewWithBBox(new javafx.scene.shape.Circle(8, Color.DARKOLIVEGREEN)) // 视觉效果一致
-                .with(new CollidableComponent(true))
-                .with(physics)
-                .with(new GrenadeComponent(shooterEntity)) // 记录发射者
-                .buildAndAttach();
-
-        // 施加初速度
-        physics.setLinearVelocity(direction.multiply(LAUNCH_VELOCITY));
     }
 
     // 生成远程射线枪效果
