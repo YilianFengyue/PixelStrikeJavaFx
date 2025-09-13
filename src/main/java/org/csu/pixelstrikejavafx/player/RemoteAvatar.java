@@ -22,18 +22,32 @@ public final class RemoteAvatar {
     private final Scale flip = new Scale(1, 1, 120, 100);
 
     public RemoteAvatar() {
-        idle = new AnimationChannel(image("ash_idle.png"), 15, 200, 200, Duration.seconds(2.0), 0, 14);
-        walk = new AnimationChannel(image("ash_walk.png"), 14, 200, 200, Duration.seconds(1.2), 0, 13);
-        run  = new AnimationChannel(image("ash_walk.png"), 14, 200, 200, Duration.seconds(0.5), 0, 13);
+        // ★ 根据 PlayerAnimator 的参数统一修改
+
+        // idle: ash_idle1.png, 81帧, Duration.seconds(2.7), 0-80
+        idle = new AnimationChannel(image("ash_idle1.png"), 81, 200, 200, Duration.seconds(2.7), 0, 80);
+
+        // walk: ash_walk1.png, 81帧, Duration.seconds(2.7), 0-80
+        walk = new AnimationChannel(image("ash_walk1.png"), 40, 200, 200, Duration.seconds(1.333), 0, 39);
+
+        // run: ash_walk1.png, 81帧, Duration.seconds(1.3), 0-80 (复用walk但播放更快)
+        run = new AnimationChannel(image("ash_walk1.png"), 40, 200, 200, Duration.seconds(0.683), 0, 39);
 
         AnimationChannel _atkB = null, _atkI = null, _atkE = null, _die = null;
+
+        // 攻击动画：ash_attack1.png, 41帧
         try {
-            _atkB = new AnimationChannel(image("ash_attack.png"), 21, 200, 200, Duration.seconds(0.20), 0, 3);
-            _atkI = new AnimationChannel(image("ash_attack.png"), 21, 200, 200, Duration.seconds(0.45), 4, 12);
-            _atkE = new AnimationChannel(image("ash_attack.png"), 21, 200, 200, Duration.seconds(0.40), 13, 20);
+            // attackBegin: Duration.seconds(0.3), 0-8
+            _atkB = new AnimationChannel(image("ash_attack1.png"), 41, 200, 200, Duration.seconds(0.3), 0, 8);
+            // attackIdle: Duration.seconds(0.1666), 10-14
+            _atkI = new AnimationChannel(image("ash_attack1.png"), 41, 200, 200, Duration.seconds(0.1666), 10, 14);
+            // attackEnd: Duration.seconds(0.8333), 15-39
+            _atkE = new AnimationChannel(image("ash_attack1.png"), 41, 200, 200, Duration.seconds(0.8333), 15, 39);
         } catch (Exception ignored) {}
+
+        // die: ash_die.png, 30帧, Duration.seconds(1.0), 0-29
         try {
-            _die = new AnimationChannel(image("ash_die.png"), 8, 200, 200, Duration.seconds(1.5), 0, 7);
+            _die = new AnimationChannel(image("ash_die.png"), 30, 200, 200, Duration.seconds(1.0), 0, 29);
         } catch (Exception ignored) {}
 
         atkBegin = _atkB != null ? _atkB : idle;

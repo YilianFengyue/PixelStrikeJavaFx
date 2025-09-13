@@ -40,35 +40,35 @@ public class PlayerAnimator {
         try {
             // idle动画：3000x200，15帧，每帧200x200
             idleAnimation = new AnimationChannel(
-                    image("ash_idle.png"), 15, 200, 200,
-                    Duration.seconds(2.0), 0, 14
+                    image("ash_idle1.png"), 81, 200, 200,
+                    Duration.seconds(2.7), 0, 80
             );
 
             // walk动画：2800x200，14帧，每帧200x200
             walkAnimation = new AnimationChannel(
-                    image("ash_walk.png"), 14, 200, 200,
-                    Duration.seconds(1.2), 0, 13
+                    image("ash_walk1.png"), 40, 200, 200,
+                    Duration.seconds(1.333), 0, 39
             );
 
             // run动画：复用walk但播放更快
             runAnimation = new AnimationChannel(
-                    image("ash_walk.png"), 14, 200, 200,
-                    Duration.seconds(0.5), 0, 13
+                    image("ash_walk1.png"), 81, 200, 200,
+                    Duration.seconds(0.683), 0, 39
             );
 
 
             try {
                 attackBeginAnimation = new AnimationChannel(
-                        image("ash_attack.png"), 21, 200, 200,
-                        Duration.seconds(0.2), 0, 3    // begin: 帧0-3
+                        image("ash_attack1.png"), 41, 200, 200,
+                        Duration.seconds(0.3), 0, 8    // begin: 帧0-9
                 );
                 attackIdleAnimation = new AnimationChannel(
-                        image("ash_attack.png"), 21, 200, 200,
-                        Duration.seconds(0.45), 4, 12  // idle: 帧4-12 (循环)
+                        image("ash_attack1.png"), 41, 200, 200,
+                        Duration.seconds(0.1666),10 , 14  // idle: 帧4-12 (循环)
                 );
                 attackEndAnimation = new AnimationChannel(
-                        image("ash_attack.png"), 21, 200, 200,
-                        Duration.seconds(0.4), 13, 20  // end: 帧13-20
+                        image("ash_attack1.png"), 41, 200, 200,
+                        Duration.seconds(0.8333), 15, 39  // end: 帧13-20
                 );
             } catch (Exception e) {
                 attackBeginAnimation = attackIdleAnimation = attackEndAnimation = idleAnimation;
@@ -76,13 +76,13 @@ public class PlayerAnimator {
             // die动画：假设有die精灵图（如果没有先用idle的最后一帧）
             try {
                 dieAnimation = new AnimationChannel(
-                        image("ash_die.png"), 8, 200, 200,
-                        Duration.seconds(1.5), 0, 7
+                        image("ash_die.png"), 30, 200, 200,
+                        Duration.seconds(1.0), 0, 29
                 );
             } catch (Exception e) {
                 // 没有die图就用idle的第一帧当作"倒地"
                 dieAnimation = new AnimationChannel(
-                        image("ash_idle.png"), 15, 200, 200,
+                        image("ash_idle1.png"), 81, 200, 200,
                         Duration.seconds(1.0), 0, 0  // 只播放第一帧
                 );
             }
