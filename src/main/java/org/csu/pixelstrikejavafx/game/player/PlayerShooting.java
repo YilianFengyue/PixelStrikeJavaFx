@@ -1,5 +1,6 @@
 package org.csu.pixelstrikejavafx.game.player;
 
+import org.csu.pixelstrikejavafx.game.core.GameConfig; // ★ 1. 确保导入 GameConfig
 import org.csu.pixelstrikejavafx.game.weapon.*;
 import java.util.ArrayList;
 import java.util.List;
@@ -19,12 +20,12 @@ public class PlayerShooting {
     public PlayerShooting(Player player) {
         this.player = player;
 
-        // 初始化所有可用武器
-        availableWeapons.add(new Pistol());
-        availableWeapons.add(new MachineGun());
-        availableWeapons.add(new Shotgun());
-        availableWeapons.add(new GrenadeLauncher());
-        availableWeapons.add(new Railgun()); // 添加射线枪
+        // ★ 2. 核心修改：初始化武器时，传入对应的配置对象 ★
+        availableWeapons.add(new Pistol(GameConfig.Weapons.PISTOL));
+        availableWeapons.add(new MachineGun(GameConfig.Weapons.MACHINE_GUN));
+        availableWeapons.add(new Shotgun(GameConfig.Weapons.SHOTGUN));
+        availableWeapons.add(new GrenadeLauncher(GameConfig.Weapons.GRENADE_LAUNCHER));
+        availableWeapons.add(new Railgun(GameConfig.Weapons.RAILGUN));
 
         // 默认装备第一把武器
         equipWeapon(0);
@@ -36,7 +37,7 @@ public class PlayerShooting {
         }
         this.currentWeaponIndex = weaponIndex;
         this.currentWeapon = availableWeapons.get(weaponIndex);
-        this.currentWeapon.onEquip(player); // **调用 onEquip**
+        this.currentWeapon.onEquip(player);
         System.out.println("Equipped: " + this.currentWeapon.getClass().getSimpleName());
     }
 
@@ -44,6 +45,8 @@ public class PlayerShooting {
         int nextIndex = (currentWeaponIndex + 1) % availableWeapons.size();
         equipWeapon(nextIndex);
     }
+
+
 
     public void update(double tpf) {
         if (currentWeapon != null) {
