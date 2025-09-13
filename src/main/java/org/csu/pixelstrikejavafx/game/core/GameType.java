@@ -13,5 +13,6 @@ public enum GameType {
     ENEMY,       // 敌人 (预留)
     PROJECTILE,  // 投射物 (预留)
     DECORATION,  // 装饰物 (预留)
-    BULLET       // 子弹
+    BULLET,      // 子弹
+    SUPPLY_DROP  // 地图刷新的物资
 }

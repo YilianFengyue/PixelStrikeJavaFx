@@ -13,10 +13,12 @@ import javafx.geometry.Point2D;
 import javafx.scene.input.KeyCode;
 import javafx.scene.layout.Region;
 import javafx.scene.paint.Color;
+import javafx.scene.shape.Circle;
 import javafx.scene.shape.Line;
 import javafx.scene.shape.Rectangle;
 import javafx.util.Duration;
 import org.csu.pixelstrikejavafx.game.player.component.GrenadeComponent;
+import org.csu.pixelstrikejavafx.game.player.component.SupplyDropComponent;
 import org.csu.pixelstrikejavafx.game.services.NetworkService;
 import org.csu.pixelstrikejavafx.game.services.PlayerManager;
 import org.csu.pixelstrikejavafx.game.world.CameraFollow;
@@ -360,11 +362,50 @@ public class PixelGameApp extends GameApplication {
                 }
 
                 case "leave" -> playerManager.removeRemotePlayer(extractInt(json, "\"id\":"));
+                case "health_update" -> {
+                    int userId = extractInt(json, "\"userId\":");
+                    int hp = extractInt(json, "\"hp\":");
+                    // 检查是不是本地玩家的血量更新
+                    if (networkService.getMyPlayerId() != null && userId == networkService.getMyPlayerId()) {
+                        playerManager.getLocalPlayer().setHealth(hp);
+                        System.out.println("Local player health updated to: " + hp);
+                    }
+                    // 你也可以在这里为远程玩家更新血条UI（如果需要的话）
+                }
+                case "supply_spawn" -> {
+                    long dropId = extractLong(json, "\"dropId\":");
+                    String dropType = extractString(json, "\"dropType\":\"");
+                    double x = extractDouble(json, "\"x\":");
+                    double y = extractDouble(json, "\"y\":");
+                    spawnSupplyDrop(dropId, dropType, x, y);
+                }
+                case "supply_removed" -> {
+                    long dropId = extractLong(json, "\"dropId\":");
+                    // 查找并移除对应的实体
+                    getGameWorld().getEntitiesByType(GameType.SUPPLY_DROP).stream()
+                            .filter(e -> e.getComponent(SupplyDropComponent.class).getDropId() == dropId)
+                            .findFirst()
+                            .ifPresent(Entity::removeFromWorld);
+                }
             }
         } catch (Exception e) {
             System.err.println("handleServerMessage error: " + e.getMessage());
             e.printStackTrace();
         }
+    }
+
+    private void spawnSupplyDrop(long dropId, String dropType, double x, double y) {
+        // 简单地用一个发光的绿色圆圈代表血包
+        Circle view = new Circle(15, Color.LIMEGREEN);
+        view.setEffect(new javafx.scene.effect.DropShadow(15, Color.WHITE));
+
+        entityBuilder()
+                .type(GameType.SUPPLY_DROP)
+                .at(x, y)
+                .viewWithBBox(view)
+                .with(new CollidableComponent(true))
+                .with(new SupplyDropComponent(dropId, dropType)) // 附加组件
+                .buildAndAttach();
     }
 
     private void updateRemotePlayers(double tpf) {
@@ -476,6 +517,19 @@ public class PixelGameApp extends GameApplication {
                     return; // 不伤害自己
                 }
                 projectile.removeFromWorld();
+            }
+        });
+        getPhysicsWorld().addCollisionHandler(new CollisionHandler(GameType.PLAYER, GameType.SUPPLY_DROP) {
+            @Override
+            protected void onCollisionBegin(Entity playerEntity, Entity dropEntity) {
+                // 确保只有本地玩家的碰撞才会触发拾取
+                if (playerEntity == playerManager.getLocalPlayer().getEntity()) {
+                    SupplyDropComponent dropData = dropEntity.getComponent(SupplyDropComponent.class);
+                    // 向服务器发送拾取请求
+                    networkService.sendSupplyPickup(dropData.getDropId());
+                    // 客户端立即将物品从世界上移除，以提供即时反馈 (客户端预测)
+                    dropEntity.removeFromWorld();
+                }
             }
         });
     }

@@ -38,6 +38,10 @@ public class PlayerHealth {
         hp = MAX_HP;
         owner.onRevived();
     }
+    public void setHp(int newHp) {
+        if (dead) return; // 死亡状态下不能修改HP
+        this.hp = Math.max(0, Math.min(MAX_HP, newHp));
+    }
 
     // getters
     public int getHp()          { return hp; }
