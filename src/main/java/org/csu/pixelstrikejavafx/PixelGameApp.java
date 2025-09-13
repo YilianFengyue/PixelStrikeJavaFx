@@ -87,11 +87,8 @@ public class PixelGameApp extends GameApplication {
 
     @Override
     protected void initGame() {
-        // --- 核心修改：初始化所有 Service ---
         playerManager = new PlayerManager();
         networkService = new NetworkService(this::handleServerMessage);
-        //getGameWorld().getEntities().forEach(Entity::removeFromWorld);
-        // 核心修改：使用 .getEntitiesCopy() 来获取列表副本
         getGameWorld().getEntitiesCopy().forEach(Entity::removeFromWorld);
         getGameScene().clearGameViews();
         getPhysicsWorld().clear();
@@ -102,10 +99,20 @@ public class PixelGameApp extends GameApplication {
         Player localPlayer = playerManager.createLocalPlayer(networkService);
 
         var vp = getGameScene().getViewport();
-        vp.setBounds(0, 0, (int)(GameConfig.MAP_W - getAppWidth()), (int)(GameConfig.MAP_H - getAppHeight()));
-        cameraFollow = new CameraFollow(vp, GameConfig.MAP_W, GameConfig.MAP_H, getAppWidth(), getAppHeight());
-        cameraFollow.setTarget(localPlayer.getEntity());
+        double zoom = 0.85;
+        vp.setZoom(zoom);
 
+        // 计算缩放后的实际视口宽高
+        double zoomedViewWidth = getAppWidth() / zoom;
+        double zoomedViewHeight = getAppHeight() / zoom;
+
+        // 使用缩放后的尺寸来设置边界 (这行依然重要，用于物理世界的边界)
+        vp.setBounds(0, 0, (int)(GameConfig.MAP_W - zoomedViewWidth), (int)(GameConfig.MAP_H - zoomedViewHeight));
+
+        // 将原始窗口尺寸 getAppWidth() 和 getAppHeight() 传递给 CameraFollow
+        cameraFollow = new CameraFollow(vp, GameConfig.MAP_W, GameConfig.MAP_H, zoomedViewWidth, zoomedViewHeight, getAppWidth(), getAppHeight());
+
+        cameraFollow.setTarget(localPlayer.getEntity());
         setupCollisionHandlers();
 
         // 连接到服务器
