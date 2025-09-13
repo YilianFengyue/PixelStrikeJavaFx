@@ -40,7 +40,7 @@ public final class RemoteAvatar {
             // attackBegin: Duration.seconds(0.3), 0-8
             _atkB = new AnimationChannel(image("ash_attack1.png"), 41, 200, 200, Duration.seconds(0.3), 0, 8);
             // attackIdle: Duration.seconds(0.1666), 10-14
-            _atkI = new AnimationChannel(image("ash_attack1.png"), 41, 200, 200, Duration.seconds(0.1666), 10, 14);
+            _atkI = new AnimationChannel(image("ash_attack1.png"), 41, 200, 200, Duration.seconds(0.25), 10, 14);
             // attackEnd: Duration.seconds(0.8333), 15-39
             _atkE = new AnimationChannel(image("ash_attack1.png"), 41, 200, 200, Duration.seconds(0.8333), 15, 39);
         } catch (Exception ignored) {}

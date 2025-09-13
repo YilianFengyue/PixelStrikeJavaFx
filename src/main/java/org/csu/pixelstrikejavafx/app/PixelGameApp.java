@@ -96,12 +96,15 @@ public class PixelGameApp extends GameApplication {
         s.setPixelsPerMeter(GameConfig.PPM);
         s.setMainMenuEnabled(false);
         s.setGameMenuEnabled(false);
-        s.setScaleAffectedOnResize(false);
-
-        s.setApplicationMode(ApplicationMode.DEVELOPER); // 关键
-        s.setDeveloperMenuEnabled(true);                 // 关键
         s.setScaleAffectedOnResize(true);
+
+        s.setApplicationMode(ApplicationMode.DEVELOPER);
+        s.setDeveloperMenuEnabled(true);
+
+        // ★ FXGL 21.1 支持：固定逻辑时步 60Hz（物理/组件按该步进）
+        s.setTicksPerSecond(60);
     }
+
 
     @Override
     protected void initGame() {
@@ -186,39 +189,32 @@ public class PixelGameApp extends GameApplication {
 
     @Override
     protected void onUpdate(double tpf) {
-        // 冷启动阶段逐步吃掉大 tpf：既不跳帧，也不让角色猛冲
+        // ★ 统一小步长，首帧再大也只按 1/60 走本地逻辑
+        final double dt = Math.min(tpf, 1.0 / 60.0);
+
         if (bootWarmup > 0) {
-            bootWarmup -= tpf;
-            // 预热期内，把给到你逻辑的 dt 钳得更小，且不响应突变
-            double dt = Math.min(tpf, 1.0 / 60.0);
+            bootWarmup -= dt;
+
             if (player != null) player.update(dt);
-            //Player2测试
-            //Player2测试
-            //Player2测试
-//            if (player2 != null) player2.update(dt);   // ★ 每帧也要驱动 P2
             if (cameraFollow != null) cameraFollow.update();
-            // ★ 刷 HUD
             if (hud != null && player != null) {
                 hud.updateHP(player.getHealth().getHp(), player.getHealth().getMaxHp());
             }
+
+            // ★ 预热期同样用 dt，避免网络/远端在首帧“加速”
+            pumpNetwork(dt);          // ★ from tpf -> dt
+            updateRemotePlayers(dt);  // ★ from tpf -> dt
             return;
         }
 
-        double dt = Math.min(tpf, 1.0 / 30.0);
         if (player != null) player.update(dt);
-        //Player2测试
-        //Player2测试
-        //Player2测试
-//        if (player2 != null) player2.update(dt);       // ★ 关键：别忘了 P2
         if (cameraFollow != null) cameraFollow.update();
-        // ★ 刷 HUD
         if (hud != null && player != null) {
             hud.updateHP(player.getHealth().getHp(), player.getHealth().getMaxHp());
         }
 
-        // [NEW] 发快照 + 远端插值
-        pumpNetwork(tpf);
-        updateRemotePlayers(tpf);
+        pumpNetwork(dt);          // ★ from tpf -> dt
+        updateRemotePlayers(dt);  // ★ from tpf -> dt
     }
 
     private void setupPlayer() {

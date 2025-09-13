@@ -64,7 +64,7 @@ public class PlayerAnimator {
                 );
                 attackIdleAnimation = new AnimationChannel(
                         image("ash_attack1.png"), 41, 200, 200,
-                        Duration.seconds(0.1666),10 , 14  // idle: 帧4-12 (循环)
+                        Duration.seconds(0.25),10 , 14  // idle: 帧4-12 (循环)
                 );
                 attackEndAnimation = new AnimationChannel(
                         image("ash_attack1.png"), 41, 200, 200,
