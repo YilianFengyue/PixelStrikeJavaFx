@@ -10,12 +10,16 @@ import com.almasb.fxgl.entity.components.CollidableComponent;
 import com.almasb.fxgl.input.UserAction;
 import com.almasb.fxgl.physics.CollisionHandler;
 import javafx.geometry.Point2D;
+import javafx.scene.Node;
 import javafx.scene.input.KeyCode;
 import javafx.scene.layout.Region;
+import javafx.scene.layout.StackPane;
 import javafx.scene.paint.Color;
 import javafx.scene.shape.Circle;
 import javafx.scene.shape.Line;
 import javafx.scene.shape.Rectangle;
+import javafx.scene.text.Font;
+import javafx.scene.text.Text;
 import javafx.util.Duration;
 import org.csu.pixelstrikejavafx.game.player.component.GrenadeComponent;
 import org.csu.pixelstrikejavafx.game.player.component.SupplyDropComponent;
@@ -160,6 +164,7 @@ public class PixelGameApp extends GameApplication {
             }
         }, KeyCode.J);
 
+        /*
         getInput().addAction(new UserAction("Next Weapon") {
             @Override
             protected void onActionBegin() {
@@ -169,6 +174,7 @@ public class PixelGameApp extends GameApplication {
                 }
             }
         }, KeyCode.Q); // 按 Q 切换武器
+        */        // 现在武器只能从场上获取
     }
 
     @Override
@@ -387,6 +393,25 @@ public class PixelGameApp extends GameApplication {
                             .findFirst()
                             .ifPresent(Entity::removeFromWorld);
                 }
+                case "weapon_equip" -> {
+                    int userId = extractInt(json, "\"userId\":");
+                    String weaponType = extractString(json, "\"weaponType\":\"");
+
+                    if (networkService.getMyPlayerId() != null && userId == networkService.getMyPlayerId()) {
+                        // 如果是本地玩家，调用切换武器的方法
+                        playerManager.getLocalPlayer().getShootingSys().equipWeapon(weaponType);
+                        FXGL.getNotificationService().pushNotification("装备了 " + weaponType);
+                    }
+                    // 对于远程玩家，目前我们不需要做任何视觉上的改变，
+                    // 但未来可以在这里更新他们手中的武器模型。
+                }
+                case "pickup_notification" -> {
+                    String pickerNickname = extractString(json, "\"pickerNickname\":\"");
+                    String itemType = extractString(json, "\"itemType\":\"");
+
+                    // 为所有玩家显示通知
+                    FXGL.getNotificationService().pushNotification(pickerNickname + " 拾取了 " + itemType + "!");
+                }
             }
         } catch (Exception e) {
             System.err.println("handleServerMessage error: " + e.getMessage());
@@ -395,16 +420,23 @@ public class PixelGameApp extends GameApplication {
     }
 
     private void spawnSupplyDrop(long dropId, String dropType, double x, double y) {
-        // 简单地用一个发光的绿色圆圈代表血包
-        Circle view = new Circle(15, Color.LIMEGREEN);
-        view.setEffect(new javafx.scene.effect.DropShadow(15, Color.WHITE));
+        Rectangle box = new Rectangle(40, 40, Color.SADDLEBROWN);
+        box.setStroke(Color.BLACK);
+        box.setStrokeWidth(2);
+
+        Text questionMark = new Text("?");
+        questionMark.setFont(Font.font("Verdana", 30));
+        questionMark.setFill(Color.WHITE);
+
+        StackPane view = new StackPane(box, questionMark);
+        view.setEffect(new javafx.scene.effect.DropShadow(15, Color.YELLOW));
 
         entityBuilder()
                 .type(GameType.SUPPLY_DROP)
                 .at(x, y)
                 .viewWithBBox(view)
                 .with(new CollidableComponent(true))
-                .with(new SupplyDropComponent(dropId, dropType)) // 附加组件
+                .with(new SupplyDropComponent(dropId, dropType))
                 .buildAndAttach();
     }
 

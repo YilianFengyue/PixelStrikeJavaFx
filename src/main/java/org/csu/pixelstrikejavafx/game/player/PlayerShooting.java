@@ -1,14 +1,11 @@
 package org.csu.pixelstrikejavafx.game.player;
 
-import org.csu.pixelstrikejavafx.game.core.GameConfig; // ★ 1. 确保导入 GameConfig
+import org.csu.pixelstrikejavafx.game.core.GameConfig;
 import org.csu.pixelstrikejavafx.game.weapon.*;
-import java.util.ArrayList;
-import java.util.List;
 
 public class PlayerShooting {
 
     private final Player player;
-    private final List<Weapon> availableWeapons = new ArrayList<>();
     private int currentWeaponIndex = 0;
     private Weapon currentWeapon;
     private ShotReporter reporter;
@@ -19,34 +16,32 @@ public class PlayerShooting {
 
     public PlayerShooting(Player player) {
         this.player = player;
-
-        // ★ 2. 核心修改：初始化武器时，传入对应的配置对象 ★
-        availableWeapons.add(new Pistol(GameConfig.Weapons.PISTOL));
-        availableWeapons.add(new MachineGun(GameConfig.Weapons.MACHINE_GUN));
-        availableWeapons.add(new Shotgun(GameConfig.Weapons.SHOTGUN));
-        availableWeapons.add(new GrenadeLauncher(GameConfig.Weapons.GRENADE_LAUNCHER));
-        availableWeapons.add(new Railgun(GameConfig.Weapons.RAILGUN));
-
-        // 默认装备第一把武器
-        equipWeapon(0);
-    }
-
-    public void equipWeapon(int weaponIndex) {
-        if (weaponIndex < 0 || weaponIndex >= availableWeapons.size()) {
-            return;
-        }
-        this.currentWeaponIndex = weaponIndex;
-        this.currentWeapon = availableWeapons.get(weaponIndex);
+        // ★ 默认只装备手枪
+        this.currentWeapon = new Pistol(GameConfig.Weapons.PISTOL);
         this.currentWeapon.onEquip(player);
-        System.out.println("Equipped: " + this.currentWeapon.getClass().getSimpleName());
     }
 
-    public void nextWeapon() {
-        int nextIndex = (currentWeaponIndex + 1) % availableWeapons.size();
-        equipWeapon(nextIndex);
+    public void equipWeapon(String weaponName) {
+        System.out.println("Player equipping weapon: " + weaponName);
+        switch (weaponName) {
+            case "MachineGun":
+                currentWeapon = new MachineGun(GameConfig.Weapons.MACHINE_GUN);
+                break;
+            case "Shotgun":
+                currentWeapon = new Shotgun(GameConfig.Weapons.SHOTGUN);
+                break;
+            case "Railgun":
+                currentWeapon = new Railgun(GameConfig.Weapons.RAILGUN);
+                break;
+            case "GrenadeLauncher":
+                currentWeapon = new GrenadeLauncher(GameConfig.Weapons.GRENADE_LAUNCHER);
+                break;
+            default: // 包括 "Pistol" 或者任何未知类型，都切换回手枪
+                currentWeapon = new Pistol(GameConfig.Weapons.PISTOL);
+                break;
+        }
+        currentWeapon.onEquip(player);
     }
-
-
 
     public void update(double tpf) {
         if (currentWeapon != null) {
