@@ -156,7 +156,8 @@ public class ResultsController implements Initializable {
     private void addGridHeader(GridPane grid, int row, String... headers) {
         for (int col = 0; col < headers.length; col++) {
             Label label = new Label(headers[col]);
-            label.setStyle("-fx-font-weight: bold; -fx-font-size: 14px;");
+            // 【UI修正】在这里为表头文字添加亮色
+            label.setStyle("-fx-font-weight: bold; -fx-font-size: 14px; -fx-text-fill: #bdc3c7;"); // 使用了浅灰色
             grid.add(label, col, row);
         }
     }
@@ -164,9 +165,13 @@ public class ResultsController implements Initializable {
     private void addGridDataRow(GridPane grid, int row, boolean isHighlight, String... values) {
         for (int col = 0; col < values.length; col++) {
             Label label = new Label(values[col]);
-            String style = "-fx-font-size: 13px;";
+            String style;
             if (isHighlight) {
-                style += "-fx-background-color: #e0f2fe; -fx-font-weight: bold; -fx-padding: 2 5; -fx-text-fill: #1e293b;";
+                // 高亮行样式保持不变，因为浅蓝色背景配深色文字是清晰的
+                style = "-fx-background-color: #e0f2fe; -fx-font-weight: bold; -fx-padding: 2 5; -fx-font-size: 13px; -fx-text-fill: #1e293b;";
+            } else {
+                // 【UI修正】为普通行的文字添加亮色
+                style = "-fx-font-size: 13px; -fx-text-fill: white;"; // 直接使用白色
             }
             label.setStyle(style);
             grid.add(label, col, row);

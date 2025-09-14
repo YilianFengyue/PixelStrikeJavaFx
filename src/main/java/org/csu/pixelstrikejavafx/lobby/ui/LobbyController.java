@@ -133,7 +133,7 @@ public class LobbyController implements Initializable {
                 UIManager.load("results-view.fxml");
                 System.out.println("Switched to results view in loading state.");
 
-                UIManager.load("lobby-view.fxml");
+                //UIManager.load("lobby-view.fxml");
                 // 【您的方案】在进入游戏前，立即恢复按钮状态，为返回做准备
                 if (startMatchButton != null) {
                     startMatchButton.setDisable(false);
