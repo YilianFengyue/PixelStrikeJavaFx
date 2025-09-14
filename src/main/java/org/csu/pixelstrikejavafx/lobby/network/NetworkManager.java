@@ -135,6 +135,9 @@ public class NetworkManager {
                 case "friend_request_accepted":
                     FXGL.getEventBus().fireEvent(new FriendRequestAcceptedEvent(msgJson));
                     break;
+                case "profile_update":
+                    FXGL.getEventBus().fireEvent(new FriendProfileUpdateEvent(msgJson));
+                    break;
                 case "room_update":
                     this.cachedRoomUpdate = msgJson;
                     FXGL.getEventBus().fireEvent(new RoomUpdateEvent(msgJson));

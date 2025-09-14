@@ -525,11 +525,41 @@ public class LobbyController implements Initializable {
 
         // 监听“收到新好友申请”事件
         FXGL.getEventBus().addEventHandler(NewFriendRequestEvent.ANY, this::onNewFriendRequest);
-
+        // 【新增】监听好友个人资料更新事件
+        FXGL.getEventBus().addEventHandler(FriendProfileUpdateEvent.ANY, this::onFriendProfileUpdate);
         // 监听“好友申请被接受”事件
         FXGL.getEventBus().addEventHandler(FriendRequestAcceptedEvent.ANY, this::onFriendRequestAccepted);
 
         FXGL.getEventBus().addEventHandler(RoomInvitationEvent.ANY, this::onRoomInvitation);
+    }
+
+    /**
+     * 当收到好友昵称或头像更新时，此方法被调用
+     */
+    private void onFriendProfileUpdate(FriendProfileUpdateEvent event) {
+        Platform.runLater(() -> {
+            JsonObject data = event.getData();
+            long userId = data.get("userId").getAsLong();
+            String newNickname = data.get("newNickname").getAsString();
+
+            // 安全地获取 newAvatarUrl，可能为 null
+            JsonElement avatarElement = data.get("newAvatarUrl");
+            String newAvatarUrl = (avatarElement != null && !avatarElement.isJsonNull()) ? avatarElement.getAsString() : null;
+
+            // 遍历当前好友列表
+            for (Map<String, Object> friend : friendsListView.getItems()) {
+                long currentFriendId = ((Number) friend.get("userId")).longValue();
+                if (currentFriendId == userId) {
+                    // 找到对应的朋友，更新他的信息
+                    friend.put("nickname", newNickname);
+                    friend.put("avatarUrl", newAvatarUrl);
+                    break; // 找到后即可退出循环
+                }
+            }
+
+            // 强制刷新ListView，让CellFactory重新渲染更新后的数据
+            friendsListView.refresh();
+        });
     }
 
 
