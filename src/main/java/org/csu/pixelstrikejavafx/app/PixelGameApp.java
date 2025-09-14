@@ -54,6 +54,8 @@ public class PixelGameApp extends GameApplication {
     private boolean joinedAck = false;       // ← 新增：拿到 welcome 才算就绪
     private long seq = 1;                    // ← 新增：本地递增序号
 
+    private static String CURRENT_CHAR_ID = "bluep_marthe"; // 先用默认，后面接大厅/热切再改
+
     private String myName = "Player_" + System.currentTimeMillis();
 
     // [NEW] 发送频率控制（60Hz → 0.0167s；可改 30Hz=0.033）
@@ -222,7 +224,7 @@ public class PixelGameApp extends GameApplication {
     }
 
     private void setupPlayer() {
-        var ch = org.csu.pixelstrikejavafx.content.CharacterRegistry.get("ash"); // 先写死
+        var ch = org.csu.pixelstrikejavafx.content.CharacterRegistry.get(CURRENT_CHAR_ID); // 先写死
         player = new Player(500, GameConfig.MAP_H - 211 - 128, ch);
 
         player.getShootingSys().setShotReporter((ox,oy,dx,dy,range,dmg,ts)->{
@@ -307,7 +309,7 @@ public class PixelGameApp extends GameApplication {
         netClient = new NetClient();
         netClient.connect(WS_URL,
                 () -> {
-                    netClient.sendJoin(myName);
+                    netClient.sendJoin(myName, CURRENT_CHAR_ID);   // ★ 改这里：带上当前选角
                 },
                 msg -> Platform.runLater(() -> handleServerMessage(msg))
         );

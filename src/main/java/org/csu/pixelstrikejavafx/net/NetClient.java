@@ -62,7 +62,13 @@ public final class NetClient {
         // ★★★ 真的发出去
         send(json); // <-- 新增：别再注释
     }
-
+    //支持带 charId 的 join
+    public void sendJoin(String name, String charId) {
+        String safeChar = (charId == null || charId.isEmpty()) ? "ash" : charId;
+        String json = "{\"type\":\"join\",\"name\":\"" + name + "\",\"charId\":\"" + safeChar + "\"}";
+        System.out.println("[WS] >> " + json);
+        send(json);
+    }
     public void sendState(double x, double y, double vx, double vy, boolean facing, boolean onGround,
                           long ts, long seq) {
         String j = String.format(
