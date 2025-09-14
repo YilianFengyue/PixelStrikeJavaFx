@@ -958,67 +958,38 @@ public class LobbyController implements Initializable {
      */
     private void onRoomInvitation(RoomInvitationEvent event) {
         Platform.runLater(() -> {
-            try {
-                // 1. 创建UI控件 (这部分不变)
-                HBox notificationPane = new HBox(20);
-                notificationPane.setAlignment(Pos.CENTER);
-                notificationPane.setPadding(new Insets(10));
-                notificationPane.setStyle("-fx-background-color: rgba(0, 0, 0, 0.7); -fx-background-radius: 10;");
+            // 定义“同意”按钮的逻辑
+            Runnable acceptAction = () -> {
+                new Thread(() -> {
+                    try {
+                        apiClient.acceptInvite(event.getRoomId());
+                        Platform.runLater(() -> {
+                            UIManager.showMessageOnNextScreen("成功加入房间！");
+                            UIManager.load("room-view.fxml");
+                        });
+                    } catch (Exception ex) {
+                        Platform.runLater(() -> DialogManager.showMessage("加入失败", ex.getMessage()));
+                    }
+                }).start();
+            };
 
-                Label infoLabel = new Label(event.getInviterNickname() + " 邀请你加入房间");
-                infoLabel.setStyle("-fx-text-fill: white; -fx-font-size: 18px;");
+            // 定义“拒绝”按钮的逻辑
+            Runnable rejectAction = () -> {
+                new Thread(() -> {
+                    try {
+                        apiClient.rejectInvite(event.getInviterId());
+                    } catch (Exception ex) {
+                        ex.printStackTrace();
+                    }
+                }).start();
+            };
 
-                Button acceptButton = new Button("同意");
-                Button rejectButton = new Button("拒绝");
-
-                notificationPane.getChildren().addAll(infoLabel, acceptButton, rejectButton);
-
-                // 2. 为按钮添加逻辑 (移除通知栏的逻辑也需要修改)
-                acceptButton.setOnAction(e -> {
-                    acceptButton.setDisable(true);
-                    rejectButton.setDisable(true);
-                    new Thread(() -> {
-                        try {
-                            apiClient.acceptInvite(event.getRoomId());
-                            Platform.runLater(() -> UIManager.load("room-view.fxml"));
-                        } catch (Exception ex) {
-                            Platform.runLater(() -> FXGL.getDialogService().showMessageBox("加入失败: " + ex.getMessage()));
-                        } finally {
-                            // 从我们自己的 UI 容器中移除
-                            Platform.runLater(() -> UIManager.getRoot().getChildren().remove(notificationPane));
-                        }
-                    }).start();
-                });
-
-                rejectButton.setOnAction(e -> {
-                    acceptButton.setDisable(true);
-                    rejectButton.setDisable(true);
-                    new Thread(() -> {
-                        try {
-                            apiClient.rejectInvite(event.getInviterId());
-                        } catch (Exception ex) {
-                            ex.printStackTrace();
-                        } finally {
-                            // 从我们自己的 UI 容器中移除
-                            Platform.runLater(() -> UIManager.getRoot().getChildren().remove(notificationPane));
-                        }
-                    }).start();
-                });
-
-                // 3. 将通知栏添加到我们自己管理的、当前可见的 UI 根容器中
-                Pane root = UIManager.getRoot();
-                if (root != null) {
-                    root.getChildren().add(notificationPane);
-
-                    // 4. 因为我们的根容器是 StackPane，所以用 StackPane 的方式来定位
-                    StackPane.setAlignment(notificationPane, Pos.BOTTOM_CENTER);
-                    StackPane.setMargin(notificationPane, new Insets(0, 0, 50, 0)); // 距离底部50像素
-                }
-
-            } catch (Exception e) {
-                System.err.println("创建或显示通知栏时发生严重错误！");
-                e.printStackTrace();
-            }
+            // 用一行代码调用我们强大的新通知栏
+            DialogManager.showActionableNotification(
+                    event.getInviterNickname() + " 邀请你加入房间",
+                    "同意", acceptAction,
+                    "拒绝", rejectAction
+            );
         });
     }
 
