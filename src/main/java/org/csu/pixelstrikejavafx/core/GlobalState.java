@@ -9,6 +9,7 @@ public class GlobalState {
     public static String avatarUrl = null;
     public static String currentGameServerUrl = null;
     public static Long currentGameId = null;
-    public static JsonObject lastMatchResults = null; // <- 新增此行
-    public static boolean shouldShowLastMatchResults = false; // <- 新增此行
+    public static JsonObject lastMatchResults = null;
+    public static boolean shouldShowLastMatchResults = false;
+    public static String charId = null;
 }

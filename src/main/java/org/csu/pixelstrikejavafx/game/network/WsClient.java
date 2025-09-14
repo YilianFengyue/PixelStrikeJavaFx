@@ -3,8 +3,7 @@ package org.csu.pixelstrikejavafx.game.network;
 import java.net.URI;
 import java.net.http.HttpClient;
 import java.net.http.WebSocket;
-import java.util.concurrent.CompletableFuture;
-import java.util.concurrent.CompletionStage;
+import java.util.concurrent.*;
 import java.util.function.Consumer;
 
 public final class WsClient implements WebSocket.Listener {

@@ -6,6 +6,7 @@ import com.almasb.fxgl.entity.components.CollidableComponent;
 import javafx.geometry.Point2D;
 import javafx.scene.effect.ColorAdjust;
 import org.csu.pixelstrikejavafx.PixelGameApp;
+import org.csu.pixelstrikejavafx.content.CharacterRegistry;
 import org.csu.pixelstrikejavafx.game.core.GameConfig;
 import org.csu.pixelstrikejavafx.game.core.GameType;
 import org.csu.pixelstrikejavafx.game.player.Player;
@@ -19,22 +20,34 @@ public class PlayerManager {
     private Player localPlayer;
     private final Map<Integer, PixelGameApp.RemotePlayer> remotePlayers = new ConcurrentHashMap<>();
 
-    public Player createLocalPlayer(NetworkService networkService) {
-        localPlayer = new Player(500, GameConfig.MAP_H - 211 - 128);
+    // ★ 修正 #1: 添加 charId 参数
+    public Player createLocalPlayer(NetworkService networkService, String charId) {
+        // 使用 CharacterRegistry 来获取角色定义
+        localPlayer = new Player(500, GameConfig.MAP_H - 211 - 128, CharacterRegistry.get(charId));
         localPlayer.getShootingSys().setShotReporter(
+                // ShotReporter 的签名保持不变，因为 weaponType 是从武器自身获取的
                 (ox, oy, dx, dy, range, dmg, ts, weaponType) -> networkService.sendShot(ox, oy, dx, dy, range, dmg, ts, weaponType)
         );
         return localPlayer;
     }
 
-    public void updateRemotePlayer(int id, double x, double y, boolean facing, String anim, String phase, double vx, double vy, boolean onGround, long seq) {
+    // ★ 修正 #2: 添加 charId 参数
+    public void updateRemotePlayer(int id, double x, double y, boolean facing, String anim, String phase, double vx, double vy, boolean onGround, long seq, String charId) {
         PixelGameApp.RemotePlayer rp = remotePlayers.computeIfAbsent(id, key -> {
-            System.out.println("Spawning new remote player with id: " + id);
-            return createRemotePlayer(key, x, y, facing);
+            System.out.println("Spawning new remote player with id: " + id + ", charId: " + charId);
+            // 创建远程玩家时也传入 charId
+            return createRemotePlayer(key, x, y, facing, charId);
         });
 
-        if (seq > 0 && seq <= rp.lastSeq) return; // 序列过滤
+        // 序列过滤
+        if (seq > 0 && seq <= rp.lastSeq) return;
         rp.lastSeq = seq;
+
+        // 如果charId有变化，重建avatar
+        if (charId != null && !charId.equals(rp.charId)) {
+            rp.charId = charId;
+            rp.avatar.rebuild(CharacterRegistry.get(charId));
+        }
 
         rp.targetX = x;
         rp.targetY = y;
@@ -42,14 +55,16 @@ public class PlayerManager {
         rp.anim = anim;
         rp.phase = phase;
         rp.lastVX = vx;
-        rp.lastVY = vy; // 修正：之前遗漏了vy的赋值
+        rp.lastVY = vy;
         rp.onGround = onGround;
         rp.lastUpdate = System.currentTimeMillis();
     }
 
 
-    private PixelGameApp.RemotePlayer createRemotePlayer(int id, double x, double y, boolean facing) {
-        RemoteAvatar avatar = new RemoteAvatar();
+    // ★ 修正 #2.1: createRemotePlayer 也接收 charId
+    private PixelGameApp.RemotePlayer createRemotePlayer(int id, double x, double y, boolean facing, String charId) {
+        // 使用 charId 来创建对应的 RemoteAvatar
+        RemoteAvatar avatar = new RemoteAvatar(CharacterRegistry.get(charId));
         Entity entity = FXGL.entityBuilder()
                 .type(GameType.PLAYER)
                 .at(x, y)
@@ -67,7 +82,10 @@ public class PlayerManager {
         var adj = new ColorAdjust(hue * 2 - 1, 0.2, 0, 0);
         avatar.view().setEffect(adj);
 
-        return new PixelGameApp.RemotePlayer(entity, avatar);
+        var remotePlayer = new PixelGameApp.RemotePlayer(entity, avatar);
+        remotePlayer.charId = charId; // 记录 charId
+
+        return remotePlayer;
     }
 
     public void removeRemotePlayer(int id) {

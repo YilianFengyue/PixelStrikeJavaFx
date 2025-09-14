@@ -1,12 +1,8 @@
 package org.csu.pixelstrikejavafx.game.network;
 
-import com.google.gson.JsonObject;
-import com.google.gson.JsonParser;
-
+import com.google.gson.*;
 import java.net.URI;
-import java.net.http.HttpClient;
-import java.net.http.HttpRequest;
-import java.net.http.HttpResponse;
+import java.net.http.*;
 import java.util.concurrent.CompletableFuture;
 
 public final class ApiClient {

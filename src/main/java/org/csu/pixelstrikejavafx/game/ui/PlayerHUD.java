@@ -1,11 +1,14 @@
 package org.csu.pixelstrikejavafx.game.ui;
 
 import io.github.palexdev.materialfx.controls.MFXButton;
+import io.github.palexdev.materialfx.controls.MFXProgressBar;
 import javafx.scene.control.ProgressBar;
 import javafx.geometry.Insets;
 import javafx.geometry.Pos;
 import javafx.scene.control.Label;
 import javafx.scene.image.Image;
+import javafx.scene.input.KeyCode;
+import javafx.scene.input.KeyEvent;
 import javafx.scene.layout.*;
 import javafx.scene.paint.Color;
 import javafx.scene.paint.ImagePattern;
@@ -114,10 +117,13 @@ public class PlayerHUD {
         root.setStyle("-fx-font-family: 'Segoe UI','Microsoft YaHei','Roboto';");
 
         // 绑定动作
-        btnSpawnP2.setOnAction(e -> { if (onSpawnP2 != null) onSpawnP2.run(); });
-        btnKill.setOnAction(e -> { if (onKillSelf != null) onKillSelf.run(); });
-        btnRevive.setOnAction(e -> { if (onRevive != null) onRevive.run(); });
-        btnP2Shoot.setOnAction(e -> { if (onP2Shoot != null) onP2Shoot.run(); });
+        wireButton(btnSpawnP2, onSpawnP2);
+        wireButton(btnKill,    onKillSelf);
+        wireButton(btnRevive,  onRevive);
+        wireButton(btnP2Shoot, onP2Shoot);
+
+        root.setFocusTraversable(false);
+
     }
 
     private void stylePrimary(MFXButton b) {
@@ -170,5 +176,24 @@ public class PlayerHUD {
         if (bar != null) {
             bar.setStyle("-fx-background-color: #22c55e; -fx-background-radius: 999; -fx-background-insets: 0;");
         }
+    }
+
+    private void wireButton(MFXButton b, Runnable action) {
+        // 不能获得键盘焦点（Tab/点击都不保留焦点）
+        b.setFocusTraversable(false);
+
+        // 若仍被聚焦，屏蔽空格触发按钮
+        b.addEventFilter(KeyEvent.KEY_PRESSED, e -> {
+            if (e.getCode() == KeyCode.SPACE) e.consume();
+        });
+
+        // 点击后执行回调，并把焦点归还到 Scene 根（让后续空格给游戏用）
+        b.setOnAction(e -> {
+            if (action != null) action.run();
+            if (root.getScene() != null && root.getScene().getRoot() != null) {
+                root.getScene().getRoot().requestFocus();
+            }
+        });
+
     }
 }

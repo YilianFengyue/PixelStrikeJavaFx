@@ -6,178 +6,124 @@ import com.almasb.fxgl.physics.PhysicsComponent;
 import com.almasb.fxgl.physics.box2d.dynamics.BodyType;
 import com.almasb.fxgl.physics.box2d.dynamics.FixtureDef;
 import com.almasb.fxgl.texture.Texture;
+import javafx.geometry.Point2D;
+import javafx.scene.Group;
 import javafx.scene.Node;
 import javafx.scene.paint.Color;
 import javafx.scene.shape.Rectangle;
+import org.csu.pixelstrikejavafx.content.CharacterDef;
+import org.csu.pixelstrikejavafx.content.CharacterRegistry;
+import org.csu.pixelstrikejavafx.content.WeaponDef;
+import org.csu.pixelstrikejavafx.content.WeaponRegistry;
 import org.csu.pixelstrikejavafx.game.core.GameType;
 
 import static com.almasb.fxgl.dsl.FXGL.*;
 
-/**
- * 角色控制（行走/跑步/跳跃/二段跳），不含动画。
- * 输入仍由外部（GameApp 的 UserAction）调用 start/stop/jump。
- */
 public class Player implements OnFireCallback {
 
-    //动画对象
-    private PlayerAnimator animator;
-    //状态枚举
     public enum State {
-        IDLE, WALK, RUN, JUMP, FALL, DOUBLE_JUMP,
-        SHOOTING, DIE  // 新增：射击和死亡状态
+        IDLE, WALK, RUN, JUMP, FALL, DOUBLE_JUMP, SHOOTING, DIE
     }
 
     public enum AttackPhase {
-        BEGIN,    // 拿枪阶段 (帧0-3)
-        IDLE,     // 开枪循环 (帧4-12)
-        END       // 收枪阶段 (帧13-20)
+        BEGIN, IDLE, END
     }
 
-    // 角色贴图
-    public static final double PLAYER_W = 200;  // 匹配精灵图尺寸
+    public static final double PLAYER_W = 200;
     public static final double PLAYER_H = 200;
-    // 碰撞体调整常量
-    public static final double HB_OFF_X =  80;   // 水平居中偏移
-    public static final double HB_OFF_Y = 20; // 垂直下移到脚部
-    public static final double HB_W = 86;   // 碰撞体宽度
-    public static final double HB_H =160;       // 碰撞体高度
+    public static final double HB_OFF_X = 80;
+    public static final double HB_OFF_Y = 20;
+    public static final double HB_W = 86;
+    public static final double HB_H = 160;
 
-    // —— 手感参数（可按需微调）——
     private static final double WALK_SPEED = 550.0;
-    private static final double RUN_SPEED  = 850.0;
-    private static final double GROUND_ACCEL = 12000.0;  // 水平加速度
-    private static final double AIR_ACCEL    = 2500.0; // 空中加速度
-    private static final double JUMP_VY    = 1200.0;
-    private static final double DJUMP_VY   = 1000.0;
+    private static final double RUN_SPEED = 850.0;
+    private static final double GROUND_ACCEL = 12000.0;
+    private static final double AIR_ACCEL = 2500.0;
+    private static final double JUMP_VY = 1200.0;
+    private static final double DJUMP_VY = 1000.0;
+    private static final long DOUBLE_TAP_MS = 200;
+    private static final int ATTACK_BEGIN_MS = 200;
+    private static final int ATTACK_END_MS = 400;
+    private static final int HOLSTER_DELAY_MS = 120;
+    private static final int RAISE_SKIP_THRESHOLD_MS = 220;
 
-    private static final long   DOUBLE_TAP_MS = 200;  // A/D 双击触发跑步
-
-    // 组件
     private Entity entity;
     private PhysicsComponent physics;
-
-    // 生命组件（极简）
+    private PlayerAnimator animator;
     private final PlayerHealth health = new PlayerHealth(this);
-    //角色射击组件
-    private  PlayerShooting shootingSys;
+    private final PlayerShooting shootingSys;
+    private final CharacterDef ch;
+    private WeaponDef currentWeapon;
 
+    private Group weaponGroup = null;
+    private Texture weaponTex = null;
+    private double skinPivotX = 0, skinPivotY = 0;
+    private double skinOffRX = 0, skinOffRY = 0;
+    private double skinOffLX = 0, skinOffLY = 0;
+    private double skinScale = 1.0;
 
-    private double knockVX = 0.0;   // ★ 水平击退临时速度（逐帧衰减）
-    // 运行时状态
-    private State  state = State.IDLE;
+    private State state = State.IDLE;
     private double vxTarget = 0.0;
     private double vxCurrent = 0.0;
-
-    // 新增：动画和战斗状态
+    private double knockVX = 0.0;
+    private boolean movingLeft = false;
+    private boolean movingRight = false;
+    private boolean running = false;
+    private boolean onGround = false;
+    private int jumpsUsed = 0;
+    private boolean facingRight = true;
     private boolean shooting = false;
     private boolean dead = false;
-    private long lastShotTime = 0;
-    private static final long SHOT_COOLDOWN = 150; // 射击间隔ms
-
-    private boolean movingLeft  = false;
-    private boolean movingRight = false;
-    private boolean running     = false;
-    private boolean onGround    = false;
-
-    private long respawnProtectionEndTime = 0;
-    private int jumpsUsed = 0;      // 0/1/2
-    private boolean facingRight = true;  // 记录当前朝向
-
-    // 攻击状态
     private AttackPhase attackPhase = AttackPhase.BEGIN;
     private long attackPhaseStartTime = 0;
-
-    private long lastLeftTap  = 0;
+    private boolean stopQueued = false;
+    private long lastShootUpTime = 0;
+    private long lastShootEndTime = 0;
+    private long lastLeftTap = 0;
     private long lastRightTap = 0;
 
-
-    // 攻击分段时长（毫秒）——方便以后微调
-    private static final int ATTACK_BEGIN_MS = 200;
-    private static final int ATTACK_END_MS   = 400;
-
-    // 松手排队：在 BEGIN 阶段松手不马上切 END，等 BEGIN 播完再根据此标志决定
-    private boolean stopQueued = false;
-
-    // 松手后等待下一次按下的窗口（超过它才收枪 END）
-    private static final int HOLSTER_DELAY_MS = 120;   // 90~180ms 自行微调手感
-    private long lastShootUpTime = 0;                  // 最近一次松手时刻
-
-    private static final int RAISE_SKIP_THRESHOLD_MS = 220; // 刚收枪后很快再按，直接从 idle 开枪
-    private long lastShootEndTime = 0;                      // 最近一次 END 播完时间
-
     public Player(double spawnX, double spawnY) {
+        this(spawnX, spawnY, CharacterRegistry.get("ash"));
+    }
+
+    public Player(double spawnX, double spawnY, CharacterDef def) {
+        this.ch = (def != null ? def : CharacterRegistry.get("ash"));
         createEntity(spawnX, spawnY);
-        initAnimator(); // 动画状态
-        shootingSys = new PlayerShooting(this);   // 角色射击
+        initAnimator(this.ch);
+        shootingSys = new PlayerShooting(this);
+        setWeapon(WeaponRegistry.get("pistol"));
     }
 
     private void createEntity(double x, double y) {
-        // 1) 视图（优先使用贴图，失败则用矩形）
-        Node viewNode;
-
-        Texture tex = null;
-        try {
-            // 优先读取你的现有资源名；没有则改为 "player.png"
-            tex = getAssetLoader().loadTexture("lapu.png");
-            tex.setSmooth(false);
-            tex.setFitWidth(PLAYER_W);
-            tex.setFitHeight(PLAYER_H);
-            viewNode = tex;
-        } catch (Exception e) {
-            Rectangle rect = new Rectangle(PLAYER_W, PLAYER_H);
-            rect.setFill(Color.CRIMSON);
-            rect.setStroke(Color.BLACK);
-            viewNode = rect;
-        }
-
-        // 2) 物理
         physics = new PhysicsComponent();
-//        physics.setBodyType(BodyType.DYNAMIC);
-
-
-        FixtureDef fd = new FixtureDef()
-                .friction(0.1f)
-                .restitution(0f)
-                .density(1.0f);
-        physics.setFixtureDef(fd);
-        // 添加这两行防止旋转和稳定物理
-        // 关键：用 BodyDef 锁定旋转 + 设为 DYNAMIC
-        com.almasb.fxgl.physics.box2d.dynamics.BodyDef bd =
-                new com.almasb.fxgl.physics.box2d.dynamics.BodyDef();
+        com.almasb.fxgl.physics.box2d.dynamics.BodyDef bd = new com.almasb.fxgl.physics.box2d.dynamics.BodyDef();
         bd.setType(BodyType.DYNAMIC);
         bd.setFixedRotation(true);
         physics.setBodyDef(bd);
-        // 3) 实体
+        physics.setFixtureDef(new FixtureDef().friction(0.1f).restitution(0f).density(1.0f));
+
         entity = entityBuilder()
                 .type(GameType.PLAYER)
                 .at(x, y)
-                .view(viewNode)  // 只设置视图
-                .bbox(new com.almasb.fxgl.physics.HitBox(
-                        new javafx.geometry.Point2D(HB_OFF_X, HB_OFF_Y),
-                        com.almasb.fxgl.physics.BoundingShape.box(HB_W, HB_H)
-                ))  // 自定义碰撞体到脚部
+                .view(new Rectangle(PLAYER_W, PLAYER_H, Color.CRIMSON)) // Placeholder view
+                .bbox(new com.almasb.fxgl.physics.HitBox(new Point2D(HB_OFF_X, HB_OFF_Y), com.almasb.fxgl.physics.BoundingShape.box(HB_W, HB_H)))
                 .with(new CollidableComponent(true))
                 .with(physics)
                 .zIndex(1000)
                 .buildAndAttach();
-
-        // 让命中时可以从实体回取 Player
         entity.setProperty("playerRef", this);
-
     }
 
-    private void initAnimator() {
-        animator = new PlayerAnimator(this);
+    private void initAnimator(CharacterDef def) {
+        animator = new PlayerAnimator(this, def);
         if (animator.isAnimationLoaded()) {
-            // 如果动画加载成功，替换entity的view
             entity.getViewComponent().clearChildren();
             entity.getViewComponent().addChild(animator.getAnimatedTexture());
         }
     }
-    /** 每帧更新：处理水平速度与状态机 */
-    public void update(double tpf) {
 
-        // 1) 计算目标速度
+    public void update(double tpf) {
         if (movingLeft && !movingRight) {
             vxTarget = running ? -RUN_SPEED : -WALK_SPEED;
         } else if (movingRight && !movingLeft) {
@@ -186,11 +132,6 @@ public class Player implements OnFireCallback {
             vxTarget = 0;
         }
         double accel = onGround ? GROUND_ACCEL : AIR_ACCEL;
-        if (Math.signum(vxTarget) != Math.signum(vxCurrent) && vxTarget != 0 && vxCurrent != 0) {
-            accel *= 2.5; // 制动时的加速度是普通加速度的2.5倍
-        }
-
-        // 2) 平滑趋近
         double diff = vxTarget - vxCurrent;
         double step = accel * tpf;
         if (Math.abs(diff) > step) {
@@ -198,148 +139,66 @@ public class Player implements OnFireCallback {
         } else {
             vxCurrent = vxTarget;
         }
-        if (onGround && vxTarget == 0) {
-            vxCurrent *= 0.75; // 每次更新速度衰减到75%，实现快速停止
-            if (Math.abs(vxCurrent) < 10) {
-                vxCurrent = 0; // 当速度很小时，直接归零
-            }
+        if (onGround && vxTarget == 0 && Math.abs(vxCurrent) > 0) {
+            vxCurrent *= 0.75;
+            if (Math.abs(vxCurrent) < 10) vxCurrent = 0;
         }
-        double totalVX = vxCurrent + knockVX;
-        physics.setVelocityX(totalVX);
 
-        // ★ 按时间衰减击退（与帧率无关）
-        double decel = 600 * tpf; // 每秒把绝对值减少约 900 像素/秒，可按手感调
+        double decel = 600 * tpf;
         if (Math.abs(knockVX) <= decel) {
             knockVX = 0;
         } else {
             knockVX -= Math.signum(knockVX) * decel;
         }
+        physics.setVelocityX(vxCurrent + knockVX);
 
-
-        //死亡和射击
-        double vy = physics.getVelocityY();
         if (dead) {
             state = State.DIE;
         } else if (shooting) {
             state = State.SHOOTING;
         } else {
-            // 原有的状态机逻辑保持不变
             if (!onGround) {
-                if (vy < -50) {
-                    state = (jumpsUsed >= 2) ? State.DOUBLE_JUMP : State.JUMP;
-                } else {
-                    state = State.FALL;
-                }
+                state = (physics.getVelocityY() < -50) ? (jumpsUsed >= 2 ? State.DOUBLE_JUMP : State.JUMP) : State.FALL;
             } else {
-                if (Math.abs(vxCurrent) < 1) {
-                    state = State.IDLE;
-                } else {
-                    state = running ? State.RUN : State.WALK;
-                }
+                state = (Math.abs(vxCurrent) < 1) ? State.IDLE : (running ? State.RUN : State.WALK);
             }
         }
 
-        //5)摩擦力
-        if (Math.abs(vxTarget) < 10 && Math.abs(vxCurrent) > 10) {
-            vxCurrent *= 0.85;  // 松手时快速减速
-            physics.setVelocityX(vxCurrent);
-        }
-        // 6)统一翻转处理 - 放在最后确保每帧都执行
-        if (movingRight && !movingLeft) {
-            facingRight = true;
-        } else if (movingLeft && !movingRight) {
-            facingRight = false;
-        }
+        if (movingRight && !movingLeft) facingRight = true;
+        else if (movingLeft && !movingRight) facingRight = false;
 
-        // 7) 先推进攻段机（这里可能把 BEGIN→IDLE / IDLE→END 或把 shooting=false）
         updateAttackPhase();
-
-        // 8) 再更新动画：此时 determineAnimation() 能立刻拿到 *最新* 的 attackPhase
-        if (animator != null) {
-            animator.update();
-        }
-
-        // 9) 射线/冷却照旧
-        if (shootingSys != null) {
-            shootingSys.update(tpf);
-        }
+        if (animator != null) animator.update();
+        if (shootingSys != null) shootingSys.update(tpf);
+        updateWeaponSkinTransform();
     }
 
-    // —— 供外部（输入系统）调用的接口 ——
-
-    /** 按下 A */
-    public void startMoveLeft() {
+    private void updateAttackPhase() {
+        if (!shooting) return;
         long now = System.currentTimeMillis();
-        if (now - lastLeftTap < DOUBLE_TAP_MS) running = true;
-        lastLeftTap = now;
-        movingLeft = true;
-    }
+        long elapsed = now - attackPhaseStartTime;
 
-    /** 松开 A */
-    public void stopMoveLeft() {
-        movingLeft = false;
-        if (!movingRight) running = false;
-    }
-
-    /** 按下 D */
-    public void startMoveRight() {
-        long now = System.currentTimeMillis();
-        if (now - lastRightTap < DOUBLE_TAP_MS) running = true;
-        lastRightTap = now;
-        movingRight = true;
-    }
-
-    /** 松开 D */
-    public void stopMoveRight() {
-        movingRight = false;
-        if (!movingLeft) running = false;
-    }
-
-    /** 跳跃/二段跳 */
-    public void jump() {
-        if (jumpsUsed == 0 && onGround) {
-            physics.setVelocityY(-JUMP_VY);
-            jumpsUsed = 1;
-            onGround = false;
-        } else if (jumpsUsed == 1) {
-            physics.setVelocityY(-DJUMP_VY);
-            jumpsUsed = 2;
-        }
-    }
-
-    /** GameApp 的碰撞回调里调用 */
-    public void setOnGround(boolean onGround) {
-        boolean was = this.onGround;
-        this.onGround = onGround;
-        if (onGround && !was) {
-            jumpsUsed = 0;
-        }
-    }
-
-    /** 调试输出 */
-    public void printDebugInfo() {
-        System.out.printf(
-                "[Player] pos=(%.1f,%.1f) vel=(%.1f,%.1f) state=%s onGround=%s run=%s%n",
-                entity.getX(), entity.getY(),
-                physics.getVelocityX(), physics.getVelocityY(),
-                state, onGround, running
-        );
-    }
-    public void startShooting() {
-        if (dead) return;
-        if (shootingSys != null) {
-            shootingSys.startShooting();
-        }
-    }
-
-
-    /** 停止射击 */
-    public void stopShooting() {
-        // stopShooting 的逻辑保持不变，因为它只是标记一个状态
-        stopQueued = true;
-        lastShootUpTime = System.currentTimeMillis();
-        if (shootingSys != null) {
-            shootingSys.stopShooting();
+        switch (attackPhase) {
+            case BEGIN:
+                if (elapsed >= ATTACK_BEGIN_MS) {
+                    attackPhase = AttackPhase.IDLE;
+                    attackPhaseStartTime = now;
+                }
+                break;
+            case IDLE:
+                if (stopQueued && (now - lastShootUpTime) >= HOLSTER_DELAY_MS) {
+                    attackPhase = AttackPhase.END;
+                    attackPhaseStartTime = now;
+                }
+                break;
+            case END:
+                if (elapsed >= ATTACK_END_MS) {
+                    shooting = false;
+                    stopQueued = false;
+                    lastShootEndTime = now;
+                    attackPhase = AttackPhase.BEGIN;
+                }
+                break;
         }
     }
 
@@ -351,11 +210,7 @@ public class Player implements OnFireCallback {
 
         boolean skipBegin = (now - lastShootEndTime) <= RAISE_SKIP_THRESHOLD_MS;
 
-        // 【移动】原来在 startShooting() 中的动画逻辑，现在移动到这里
         switch (attackPhase) {
-            case BEGIN:
-            case IDLE:
-                break;
             case END:
                 if (skipBegin || (now - attackPhaseStartTime) < ATTACK_END_MS) {
                     attackPhase = AttackPhase.IDLE;
@@ -364,220 +219,157 @@ public class Player implements OnFireCallback {
                 }
                 attackPhaseStartTime = now;
                 break;
+            case BEGIN:
+            case IDLE:
+                break;
             default:
                 attackPhase = skipBegin ? AttackPhase.IDLE : AttackPhase.BEGIN;
                 attackPhaseStartTime = now;
                 break;
         }
-
-        lastShotTime = now;
     }
 
-    /** 角色死亡 */
-    public void die() {
-//        dead = true;
-//        physics.setVelocityX(0);
-//        physics.setVelocityY(0);
-        onDeath();
+    public void startShooting() {
+        if (dead) return;
+        if (shootingSys != null) shootingSys.startShooting();
     }
 
-    /** 复活 */
-    public void revive() {
-        health.reviveFull();
-    }
-    /** 重置到某坐标 */
-    public void reset(double x, double y) {
-        entity.setPosition(x, y);
-        physics.setVelocityX(0);
-        physics.setVelocityY(0);
-        movingLeft = movingRight = running = false;
-        onGround = false;
-        jumpsUsed = 0;
-        vxCurrent = vxTarget = 0;
-        state = State.IDLE;
-        facingRight = true;  // 新增这行
-        knockVX = 0;   // ★ 清掉残留击退
+    public void stopShooting() {
+        stopQueued = true;
+        lastShootUpTime = System.currentTimeMillis();
+        if (shootingSys != null) shootingSys.stopShooting();
     }
 
+    public Point2D getMuzzleWorld() {
+        double rx = 150, lx = 0, my = 0;
+        if (ch != null && ch.sockets != null) {
+            rx = ch.sockets.muzzleRightX;
+            lx = ch.sockets.muzzleLeftX;
+            my = ch.sockets.muzzleY;
+        }
+        if (currentWeapon != null && currentWeapon.muzzleOffsetDelta != null) {
+            rx += currentWeapon.muzzleOffsetDelta.rightX;
+            lx += currentWeapon.muzzleOffsetDelta.leftX;
+            my += currentWeapon.muzzleOffsetDelta.y;
+        }
+        double offX = getFacingRight() ? rx : -lx;
+        return new Point2D(entity.getCenter().getX() + offX, entity.getCenter().getY() + my);
+    }
 
-    private void updateAttackPhase() {
-        if (!shooting) return;
+    private void refreshWeaponSkin() {
+        if (weaponGroup != null) {
+            entity.getViewComponent().removeChild(weaponGroup);
+            weaponGroup = null; weaponTex = null;
+        }
+        WeaponDef w = getWeapon();
+        if (w == null || w.skin == null || w.skin.image == null) return;
 
-        long now = System.currentTimeMillis();
-        long elapsed = now - attackPhaseStartTime;
+        try {
+            weaponTex = getAssetLoader().loadTexture("weapons/" + w.skin.image);
+            weaponTex.setSmooth(false);
 
-        switch (attackPhase) {
-            case BEGIN:
-                if (elapsed >= ATTACK_BEGIN_MS) {
-                    // ★ 一定先到开枪（idle）
-                    attackPhase = AttackPhase.IDLE;
-                    attackPhaseStartTime = now;
-                }
-                break;
+            double scale = 1.0;
+            if (w.skin.h != null && w.skin.h > 0) scale = w.skin.h / weaponTex.getImage().getHeight();
+            else if (w.skin.w != null && w.skin.w > 0) scale = w.skin.w / weaponTex.getImage().getWidth();
+            else if (w.skin.scale != null) scale = w.skin.scale;
+            weaponTex.setScaleX(scale); weaponTex.setScaleY(scale);
 
+            skinScale = scale;
+            skinPivotX = w.skin.pivotX; skinPivotY = w.skin.pivotY;
+            skinOffRX = w.skin.offsetRight.x; skinOffRY = w.skin.offsetRight.y;
+            skinOffLX = w.skin.offsetLeft.x; skinOffLY = w.skin.offsetLeft.y;
 
-            case IDLE:
-                // 只有当“松手” 且 “超过窗口” 才收枪
-                if (stopQueued && (now - lastShootUpTime) >= HOLSTER_DELAY_MS) {
-                    attackPhase = AttackPhase.END;
-                    attackPhaseStartTime = now;
-                }
-                break;
+            weaponTex.setTranslateX(-skinPivotX * scale);
+            weaponTex.setTranslateY(-skinPivotY * scale);
 
-            case END:
-                if (elapsed >= ATTACK_END_MS) {
-                    shooting = false;
-                    stopQueued = false;
-                    lastShootEndTime = now;      // ★ 记录收枪完成
-                    attackPhase = AttackPhase.BEGIN;
-                }
-                break;
-
-            default:
-                break;
+            weaponGroup = new Group(weaponTex);
+            entity.getViewComponent().addChild(weaponGroup);
+        } catch (Exception e) {
+            weaponGroup = null; weaponTex = null;
         }
     }
 
-    public PlayerHealth getHealth() { return health; }
-
-    /** 合并入口：网络/本地命中都调它；先击退再扣血 */
-    public void applyHit(int damage, double knockX, double knockY) {
-        applyKnockback(knockX, knockY);
-        health.takeDamage(damage);
-    }
-
-    /** 受击击退：+X 向右 / -X 向左；Y 为向上（正值会抬起） */
-    public void applyKnockback(double kx, double ky) {
-        // ★ 关键：X 不直接 setVelocity，避免被 update() 覆盖
-        knockVX += kx;
-
-        if (physics != null) {
-            physics.setVelocityY(physics.getVelocityY() - ky);
+    private void updateWeaponSkinTransform() {
+        if (weaponGroup == null) return;
+        Point2D muzzle = getMuzzleWorld();
+        double lx = muzzle.getX() - entity.getX();
+        double ly = muzzle.getY() - entity.getY();
+        double ox, oy;
+        if (getFacingRight()) {
+            ox = skinOffRX; oy = skinOffRY;
+            weaponGroup.setScaleX(1);
+        } else {
+            ox = skinOffLX; oy = skinOffLY;
+            weaponGroup.setScaleX(-1);
         }
+        weaponGroup.setScaleY(1);
+        weaponGroup.setTranslateX(lx + ox);
+        weaponGroup.setTranslateY(ly + oy);
     }
 
-    /** 受伤回调 —— 预留动画/闪烁/受击硬直（此处不做具体表现） */
-    public void onDamaged(int amount) {
-        // TODO: 播放受击动画 / 屏幕闪红 / 无敌帧等
-    }
+    public void startMoveLeft() { long now = System.currentTimeMillis(); if (now - lastLeftTap < DOUBLE_TAP_MS) running = true; lastLeftTap = now; movingLeft = true; }
+    public void stopMoveLeft() { movingLeft = false; if (!movingRight) running = false; }
+    public void startMoveRight() { long now = System.currentTimeMillis(); if (now - lastRightTap < DOUBLE_TAP_MS) running = true; lastRightTap = now; movingRight = true; }
+    public void stopMoveRight() { movingRight = false; if (!movingLeft) running = false; }
+    public void jump() { if (jumpsUsed == 0 && onGround) { physics.setVelocityY(-JUMP_VY); jumpsUsed = 1; onGround = false; } else if (jumpsUsed == 1) { physics.setVelocityY(-DJUMP_VY); jumpsUsed = 2; } }
+    public void setOnGround(boolean onGround) { if(this.onGround != onGround) { this.onGround = onGround; if (onGround) jumpsUsed = 0; } }
+    public void die() { onDeath(); }
+    public void revive() { health.reviveFull(); }
+    public void reset(double x, double y) { entity.setPosition(x, y); physics.setVelocityX(0); physics.setVelocityY(0); movingLeft = movingRight = running = false; onGround = false; jumpsUsed = 0; vxCurrent = vxTarget = knockVX = 0; state = State.IDLE; facingRight = true; }
+    public void applyHit(int damage, double knockX, double knockY) { applyKnockback(knockX, knockY); health.takeDamage(damage); }
+    public void applyKnockback(double kx, double ky) { knockVX += kx; if (physics != null) physics.setVelocityY(physics.getVelocityY() - ky); }
+    public void onDamaged(int amount) { /* TODO: visual effects */ }
 
-    /** 死亡回调 —— 先隐藏与禁用碰撞；动画以后接 */
     public void onDeath() {
         dead = true;
-
-        // 停止运动
         if (physics != null) {
             physics.setVelocityX(0);
             physics.setVelocityY(0);
+            physics.getBody().setActive(false);
         }
-        // ★ 关键：把 Box2D 刚体从物理世界“停用”，不再参与碰撞/射线
-        var body = physics.getBody();
-        if (body != null) {
-            body.setActive(false);
-        }
-        // ★ 清战斗状态，避免卡在 SHOOTING / 攻段
         shooting = false;
         stopQueued = false;
         attackPhase = AttackPhase.BEGIN;
-        // 先简单“消失”：隐藏 + 关闭碰撞（比 removeFromWorld 更安全，不影响相机引用）
         if (entity != null) {
             entity.setVisible(false);
-            var coll = entity.getComponentOptional(CollidableComponent.class).orElse(null);
-            if (coll != null) coll.setValue(false);
+            entity.getComponentOptional(CollidableComponent.class).ifPresent(c -> c.setValue(false));
         }
-
-        // TODO: 将来这里切换到“死亡动画”，动画播完再隐藏/移除
     }
 
-    /** 复活回调 —— 恢复可见与碰撞，位置/血量由外部控制 */
     public void onRevived() {
         dead = false;
-
         if (entity != null) {
             entity.setVisible(true);
-            var coll = entity.getComponentOptional(CollidableComponent.class).orElse(null);
-            if (coll != null) coll.setValue(true);
+            entity.getComponentOptional(CollidableComponent.class).ifPresent(c -> c.setValue(true));
         }
-        // ★ 关键：把刚体重新激活
         if (physics != null) {
-            var body = physics.getBody();
-            if (body != null) {
-                body.setActive(true);
-            }
+            physics.getBody().setActive(true);
             physics.setVelocityX(0);
             physics.setVelocityY(0);
         }
-        // ★ 关键：清理战斗/移动/跳跃状态，避免卡在 SHOOTING 或无接触状态
-        shooting = false;
-        stopQueued = false;
-        attackPhase = AttackPhase.BEGIN;
-        lastShootEndTime = 0;
-        lastShootUpTime = 0;
-        attackPhaseStartTime = System.currentTimeMillis();
-
-        movingLeft = false;
-        movingRight = false;
-        running = false;
-
-        vxCurrent = 0;
-        vxTarget  = 0;
-        knockVX = 0;   // ★ 清掉残留击退
-        if (physics != null) {
-            physics.setVelocityX(0);
-            physics.setVelocityY(0);
-        }
-
-        jumpsUsed = 0;
-        onGround  = true;          // ★ 直接给落地，避免需要“先产生一次碰撞”才能跳
-        state     = State.IDLE;
-
-        // 轻微下压 1px，确保下一帧有接触稳定（有些情况下更稳）
-        if (entity != null) {
-            entity.translateY(1);
-        }
+        shooting = false; stopQueued = false; attackPhase = AttackPhase.BEGIN; movingLeft = movingRight = running = false; vxCurrent = vxTarget = knockVX = 0; jumpsUsed = 0; onGround = true; state = State.IDLE; if (entity != null) entity.translateY(1); setWeapon(WeaponRegistry.get("pistol"));
     }
-    // —— Getter ——
+
+    // Getters
     public Entity getEntity() { return entity; }
     public PhysicsComponent getPhysics() { return physics; }
+    public PlayerHealth getHealth() { return health; }
     public State getState() { return state; }
+    public boolean getFacingRight() { return facingRight; }
     public boolean isOnGround() { return onGround; }
-    public boolean isRunning() { return running; }
     public AttackPhase getAttackPhase() { return attackPhase; }
+    public WeaponDef getWeapon() { return (currentWeapon != null) ? currentWeapon : WeaponRegistry.get("pistol"); }
 
-
-    public boolean isShooting() { return shooting; }
-    public boolean isDead() { return dead; }
-
-    public PlayerShooting getShootingSys() { return shootingSys; }
-
-
-    public boolean getFacingRight() {
-        return facingRight;
+    public boolean isDead() {
+        return dead;
     }
 
-    //动画同步
-    public String getNetAnim() {
-        if (dead) return "DIE";
-        if (shooting) return "SHOOT";
-        switch (state) {
-            case RUN:  return "RUN";
-            case WALK: return "WALK";
-            case JUMP: return "JUMP";
-            case FALL: return "FALL";
-            default:   return "IDLE";
-        }
-    }
-    public String getNetPhase() {
-        switch (attackPhase) {
-            case BEGIN: return "BEGIN";
-            case END:   return "END";
-            default:    return "IDLE";
-        }
+    public PlayerShooting getShootingSys() {
+        return shootingSys;
     }
 
-    public void setHealth(int newHp) {
-        if (health != null) {
-            health.setHp(newHp);
-        }
-    }
+    public void setWeapon(WeaponDef def) { this.currentWeapon = def != null ? def : WeaponRegistry.get("pistol"); if(shootingSys != null) shootingSys.setWeapon(this.currentWeapon); refreshWeaponSkin(); }
+    public String getNetAnim() { if (dead) return "DIE"; if (shooting) return "SHOOT"; switch (state) { case RUN: return "RUN"; case WALK: return "WALK"; case JUMP: return "JUMP"; case FALL: return "FALL"; default: return "IDLE"; } }
+    public String getNetPhase() { switch (attackPhase) { case BEGIN: return "BEGIN"; case END: return "END"; default: return "IDLE"; } }
+    public void setHealth(int hp) { if (health != null) health.setHp(hp); }
 }

@@ -1,0 +1,28 @@
+{
+  "id": "pistol",
+  "name": "9mm Pistol",
+  "shootInterval": 0.12,
+  "damage": 8,
+  "recoilKickDeg": 0.35,
+  "muzzleOffsetDelta": { "rightX": 6, "leftX": 4, "y": -2 },
+
+  "skin": {
+    "image": "pistol.png",
+    "h": 30,
+    "pivotX": 52,
+    "pivotY": 28,
+    "offsetRight": { "x": 0, "y": 0 },
+    "offsetLeft":  { "x": 0, "y": 0 }
+  },
+
+  "sfx": {
+    "muzzle": "generic_muzzle.wav",
+    "volume": 0.7
+  },
+
+  "props": {
+    "spreadDeg": 0.6,
+    "swayAmplDeg": 1.6,
+    "recoilKnockbackVX": 180.0
+  }
+}

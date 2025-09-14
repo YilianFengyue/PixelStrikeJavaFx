@@ -32,10 +32,10 @@ public final class NetClient {
                     @Override
                     public CompletionStage<?> onText(WebSocket webSocket, CharSequence data, boolean last) {
                         String s = data.toString();
-                        // System.out.println("[WS] << " + (s.length() > 160 ? s.substring(0,160)+"..." : s));
+                        System.out.println("[WS] << " + (s.length() > 160 ? s.substring(0,160)+"..." : s));
                         onMessage.accept(s);
-                        webSocket.request(1);
-                        return null;
+                        webSocket.request(1);                 // [FIX] 再次申请下一条
+                        return null; // returning null 也可；或 CompletableFuture.completedFuture(null)
                     }
 
                     @Override
@@ -61,7 +61,13 @@ public final class NetClient {
         // ★★★ 真的发出去
         send(json); // <-- 新增：别再注释
     }
-
+    //支持带 charId 的 join
+    public void sendJoin(String name, String charId) {
+        String safeChar = (charId == null || charId.isEmpty()) ? "ash" : charId;
+        String json = "{\"type\":\"join\",\"name\":\"" + name + "\",\"charId\":\"" + safeChar + "\"}";
+        System.out.println("[WS] >> " + json);
+        send(json);
+    }
     public void sendState(double x, double y, double vx, double vy, boolean facing, boolean onGround,
                           long ts, long seq) {
         String j = String.format(

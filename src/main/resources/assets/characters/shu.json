@@ -1,0 +1,22 @@
+{
+  "id": "shu",
+
+  "sockets": { "muzzleRightX": 150, "muzzleLeftX": 0, "muzzleY": 0 },
+
+  "idle":  { "sheet":"characters/shu/shu_idle.png",  "frames":101, "w":200, "h":200,
+    "from":0, "to":100, "duration":3.2 },
+
+  "walk":  { "sheet":"characters/shu/shu_walk.png",  "frames":101, "w":200, "h":200,
+    "from":0, "to":100, "duration":1.5 },
+
+  "run":   { "sheet":"characters/shu/shu_walk.png",  "frames":101, "w":200, "h":200,
+    "from":0, "to":100, "duration":0.8 },
+
+  "die":   { "sheet":"characters/shu/shu_die.png",   "frames":30,  "w":200, "h":200,
+    "from":0, "to":29,  "duration":1.0 },
+
+  "attack": { "layout":"LOOP",
+    "loop": { "sheet":"characters/shu/shu_attack.png", "frames":37, "w":200, "h":200,
+      "from":0, "to":36, "duration":0.9 }
+  }
+}
