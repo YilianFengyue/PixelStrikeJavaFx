@@ -24,6 +24,7 @@ import org.csu.pixelstrikejavafx.lobby.events.*;
 import org.csu.pixelstrikejavafx.lobby.network.ApiClient;
 import org.csu.pixelstrikejavafx.lobby.network.NetworkManager;
 import org.csu.pixelstrikejavafx.core.GlobalState;
+import org.csu.pixelstrikejavafx.lobby.ui.dialog.DialogManager;
 
 import java.io.File;
 import java.io.IOException;
@@ -73,6 +74,9 @@ public class LobbyController implements Initializable {
      */
     @Override
     public void initialize(URL location, ResourceBundle resources) {
+
+        URL cssUrl = getClass().getResource("/assets/css/lobby-style.css");
+        System.out.println("DEBUG: 尝试查找 lobby-style.css, 找到的路径是 -> " + cssUrl);
         try {
             Image bg = new Image(Objects.requireNonNull(getClass().getResourceAsStream("/assets/textures/background.png")));
             backgroundImageView.setImage(bg);
@@ -276,28 +280,16 @@ public class LobbyController implements Initializable {
 
     @FXML
     private void handleLogout() {
-        System.out.println("用户请求登出...");
-
-        // 因为登出需要进行网络请求，所以必须放在后台线程
         new Thread(() -> {
             try {
-                // 1. 先调用后端的登出接口
                 apiClient.logout();
-                // 2. 后端成功登出后，再执行客户端的清理 (必须在UI线程)
                 Platform.runLater(() -> {
-                    // 主动断开全局 WebSocket 连接
                     NetworkManager.getInstance().disconnect();
-                    // 清除本地存储的用户凭证 (token)
                     GlobalState.authToken = null;
-                    // 使用 UIManager 切换回登录界面
                     UIManager.load("login-view.fxml");
                 });
             } catch (Exception e) {
-                // 如果登出失败，在UI上给出提示
-                Platform.runLater(() -> {
-                    System.err.println("登出失败: " + e.getMessage());
-                    // 你可以在大厅界面添加一个 Label 来显示这个错误
-                });
+                Platform.runLater(() -> DialogManager.showMessage("登出失败", e.getMessage()));
                 e.printStackTrace();
             }
         }).start();
@@ -569,7 +561,7 @@ public class LobbyController implements Initializable {
         // 监听好友状态更新
         FXGL.getEventBus().addEventHandler(FriendStatusEvent.ANY, this::onFriendStatusUpdate);
 
-       /* // 监听匹配成功
+       /*// 监听匹配成功
         FXGL.getEventBus().addEventHandler(MatchSuccessEvent.ANY, this::onMatchSuccess);*/
 
         // 监听“收到新好友申请”事件
@@ -604,55 +596,37 @@ public class LobbyController implements Initializable {
 
     private void onNewFriendRequest(NewFriendRequestEvent event) {
         Platform.runLater(() -> {
-            JsonObject data = event.getData();
-            String senderNickname = data.get("senderNickname").getAsString();
-
-            // 1. 弹出一个通知，告诉玩家收到了申请
-            FXGL.getNotificationService().pushNotification("收到来自 " + senderNickname + " 的好友申请");
-
-            // 2. 自动刷新“申请”标签页的内容
+            String senderNickname = event.getData().get("senderNickname").getAsString();
+            DialogManager.showNotification("收到来自 " + senderNickname + " 的好友申请");
             loadFriendRequests();
         });
     }
 
+
     private void onFriendRequestAccepted(FriendRequestAcceptedEvent event) {
         Platform.runLater(() -> {
-            JsonObject data = event.getData();
-            String acceptorNickname = data.get("acceptorNickname").getAsString();
-
-            // 1. 弹出一个通知
-            FXGL.getNotificationService().pushNotification(acceptorNickname + " 已同意你的好友申请");
-
-            // 2. 自动刷新好友列表，新好友会出现在里面
+            String acceptorNickname = event.getData().get("acceptorNickname").getAsString();
+            DialogManager.showNotification(acceptorNickname + " 已同意你的好友申请");
             loadFriendsList();
         });
     }
 
     @FXML
     private void handleCreateRoom() {
-        // 可以在这里禁用按钮，防止重复点击
-        // createRoomButton.setDisable(true);
-
-        // 因为需要进行网络请求，所以必须在后台线程中执行
         new Thread(() -> {
             try {
-                // 1. 调用 ApiClient 的 createRoom 方法
-                String roomId = apiClient.createRoom();
-
-                // 2. 房间创建成功后，后端会通过 WebSocket 推送一个 room_update 消息。
-                //    我们的 RoomController 会监听到这个消息并用它来更新房间的初始状态。
-                //    因此，客户端在这里只需要做一件事：切换到房间界面。
+                apiClient.createRoom();
                 Platform.runLater(() -> {
-                    System.out.println("房间创建成功，ID: " + roomId + "，正在进入房间...");
+                    System.out.println("房间创建成功，正在进入房间...");
+
+                    // ↓↓↓ 修改点：不再自己弹窗，而是设置下一页的消息 ↓↓↓
+                    UIManager.showMessageOnNextScreen("房间创建成功！");
+
+                    // 正常加载房间界面
                     UIManager.load("room-view.fxml");
                 });
-
             } catch (Exception e) {
-                // 如果创建失败（例如，玩家已在另一个房间），在UI上显示错误
-                Platform.runLater(() -> {
-                    FXGL.getDialogService().showMessageBox("创建房间失败: " + e.getMessage());
-                    // createRoomButton.setDisable(false); // 恢复按钮
-                });
+                Platform.runLater(() -> DialogManager.showMessage("创建房间失败", e.getMessage()));
                 e.printStackTrace();
             }
         }).start();
@@ -660,32 +634,24 @@ public class LobbyController implements Initializable {
 
     @FXML
     private void handleJoinRoom() {
-        String roomId = roomIdField.getText().trim(); // 获取输入并去除首尾空格
-
+        String roomId = roomIdField.getText().trim();
         if (roomId.isEmpty()) {
-            FXGL.getDialogService().showMessageBox("请输入房间ID！");
+            DialogManager.showMessage("提示", "请输入房间ID！");
             return;
         }
-
-        // 在后台线程执行网络请求
         new Thread(() -> {
             try {
-                // 调用我们之前在 ApiClient 中写好的 joinRoom 方法
                 apiClient.joinRoom(roomId);
-
-                // 加入成功后，后端会通过 WebSocket 推送 room_update 消息，
-                // 我们的 RoomController 会监听到并更新UI。
-                // 客户端只需要切换到房间界面即可。
                 Platform.runLater(() -> {
                     System.out.println("成功加入房间: " + roomId);
+
+                    // ↓↓↓ 修改点：设置下一页的消息 ↓↓↓
+                    UIManager.showMessageOnNextScreen("成功加入房间！");
+
                     UIManager.load("room-view.fxml");
                 });
-
             } catch (Exception e) {
-                // 如果加入失败（例如房间不存在、已满员），在UI上显示错误弹窗
-                Platform.runLater(() -> {
-                    FXGL.getDialogService().showMessageBox("加入房间失败: "+e.getMessage());
-                });
+                Platform.runLater(() -> DialogManager.showMessage("加入房间失败", e.getMessage()));
                 e.printStackTrace();
             }
         }).start();
@@ -762,38 +728,27 @@ public class LobbyController implements Initializable {
 
     @FXML
     private void handleChangeNickname() {
-        // 使用 FXGL 的输入对话框，让用户输入新昵称
-        FXGL.getDialogService().showInputBox("请输入新的昵称 (2-7位):", newNickname -> {
-            // 如果用户点击了取消或输入为空，则不做任何事
-            if (newNickname == null || newNickname.trim().isEmpty()) {
-                return;
-            }
-            String trimmedNickname = newNickname.trim(); // 去除首尾空格
-
+        DialogManager.showCancellableInput("修改昵称", "请输入新的昵称 (2-7位):", newNickname -> {
+            if (newNickname == null) return; // 用户点击了取消
+            String trimmedNickname = newNickname.trim();
             if (trimmedNickname.length() < 2 || trimmedNickname.length() > 7) {
-                // 如果长度不符合要求，则弹窗提示并终止操作
-                Platform.runLater(() ->
-                        FXGL.getDialogService().showMessageBox("昵称长度必须在 2-7 位之间！")
-                );
-                return; // 终止后续的网络请求
+                DialogManager.showMessage("输入无效", "昵称长度必须在 2-7 位之间！");
+                return;
             }
             new Thread(() -> {
                 try {
-                    // 使用经过验证的 trimmedNickname
                     JsonObject updatedProfile = apiClient.updateNickname(trimmedNickname);
                     String confirmedNickname = updatedProfile.get("nickname").getAsString();
-
-                    // 成功后，在UI线程更新全局状态和界面显示
                     Platform.runLater(() -> {
                         GlobalState.nickname = confirmedNickname;
                         nicknameLabel.setText("昵称: " + confirmedNickname);
-                        FXGL.getNotificationService().pushNotification("昵称已更新！");
+                        DialogManager.showNotification("昵称已更新！");
                     });
                 } catch (Exception e) {
-                    Platform.runLater(() -> FXGL.getDialogService().showMessageBox("修改失败: " + e.getMessage()));
+                    Platform.runLater(() -> DialogManager.showMessage("修改失败", e.getMessage()));
                 }
             }).start();
-        });
+        }, null); // onCancel回调为null，表示取消时只关闭对话框
     }
 
     @FXML
@@ -834,35 +789,25 @@ public class LobbyController implements Initializable {
      */
     @FXML
     private void handleUploadAvatar() {
-        // 1. 创建文件选择器
         FileChooser fileChooser = new FileChooser();
         fileChooser.setTitle("选择头像图片");
-        fileChooser.getExtensionFilters().addAll(
-                new FileChooser.ExtensionFilter("Image Files", "*.png", "*.jpg", "*.jpeg")
-        );
-
-        // 2. 显示文件选择对话框
-        // getPrimaryStage() 可以在 FXGL 的任何地方获取主窗口
+        fileChooser.getExtensionFilters().addAll(new FileChooser.ExtensionFilter("Image Files", "*.png", "*.jpg", "*.jpeg"));
         File selectedFile = fileChooser.showOpenDialog(FXGL.getPrimaryStage());
 
         if (selectedFile != null) {
-            // 3. 在后台线程执行上传操作
             new Thread(() -> {
                 try {
                     JsonObject updatedProfile = apiClient.uploadAvatar(selectedFile);
-
-                    // 4. 上传成功后，在UI线程更新全局状态和界面显示
                     Platform.runLater(() -> {
                         JsonElement newAvatarUrlElement = updatedProfile.get("avatarUrl");
                         if (newAvatarUrlElement != null && !newAvatarUrlElement.isJsonNull()) {
                             GlobalState.avatarUrl = newAvatarUrlElement.getAsString();
                         }
-                        // 重新加载头像以显示最新版本
                         loadAvatar();
-                        FXGL.getNotificationService().pushNotification("头像更新成功！");
+                        DialogManager.showNotification("头像更新成功！");
                     });
                 } catch (Exception e) {
-                    Platform.runLater(() -> FXGL.getDialogService().showMessageBox("上传失败: " + e.getMessage()));
+                    Platform.runLater(() -> DialogManager.showMessage("上传失败", e.getMessage()));
                 }
             }).start();
         }
@@ -980,13 +925,14 @@ public class LobbyController implements Initializable {
                     deleteButton.setOnAction(event -> {
                         long friendId = ((Number) friend.get("userId")).longValue();
                         String nickname = (String) friend.get("nickname");
-                        showCustomConfirm("确定要删除好友 " + nickname + " 吗？", () -> {
+                        // 使用新的DialogManager来显示确认框
+                        DialogManager.showConfirmation("确认删除", "确定要删除好友 " + nickname + " 吗？", () -> {
                             new Thread(() -> {
                                 try {
                                     apiClient.deleteFriend(friendId);
                                     Platform.runLater(() -> loadFriendsList());
                                 } catch (Exception e) {
-                                    Platform.runLater(() -> FXGL.getDialogService().showMessageBox("删除失败: " + e.getMessage()));
+                                    Platform.runLater(() -> DialogManager.showMessage("删除失败", e.getMessage()));
                                 }
                             }).start();
                         });

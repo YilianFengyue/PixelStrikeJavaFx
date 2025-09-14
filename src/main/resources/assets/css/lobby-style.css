@@ -417,3 +417,78 @@
 .confirm-pane-button-no:hover {
     -fx-background-color: #95a5a6;
 }
+
+
+
+
+
+
+
+
+
+
+/* --- 自定义通知样式 --- */
+.game-dialog-pane {
+    -fx-background-color: rgba(20, 25, 40, 0.48);
+    -fx-background-radius: 5;
+    -fx-border-color: rgba(100, 120, 180, 0.5);
+    -fx-border-width: 1px;
+    -fx-border-radius: 5;
+    -fx-effect: dropshadow(gaussian, rgba(0, 0, 0, 0.6), 25, 0, 0, 0);
+}
+
+.game-dialog-title {
+    -fx-font-family: 'Press Start 2P', sans-serif; /* 像素字体 */
+    -fx-font-size: 20px;
+    -fx-text-fill: white;
+}
+
+.game-dialog-message {
+    -fx-font-size: 16px;
+    -fx-text-fill: #ccc;
+    -fx-text-alignment: center;
+}
+
+.game-dialog-input {
+    -fx-background-color: rgba(0, 0, 0, 0.5);
+    -fx-text-fill: white;
+    -fx-border-color: #555;
+    -fx-border-radius: 3;
+    -fx-background-radius: 3;
+    -fx-font-size: 16px;
+}
+
+.game-dialog-button-confirm {
+    -fx-background-color: #3498db;
+    -fx-text-fill: white;
+    -fx-font-family: 'Press Start 2P', sans-serif;
+    -fx-font-size: 14px;
+    -fx-padding: 8px 25px;
+    -fx-background-radius: 3;
+    -fx-cursor: hand;
+}
+.game-dialog-button-confirm:hover { -fx-background-color: #5dade2; }
+
+.game-dialog-button-cancel {
+    -fx-background-color: #7f8c8d;
+    -fx-text-fill: white;
+    -fx-font-family: 'Press Start 2P', sans-serif;
+    -fx-font-size: 14px;
+    -fx-padding: 8px 25px;
+    -fx-background-radius: 3;
+    -fx-cursor: hand;
+}
+.game-dialog-button-cancel:hover { -fx-background-color: #95a5a6; }
+
+/* --- 自定义动画通知 --- */
+.game-notification {
+    -fx-background-color: rgba(20, 25, 40, 0.9);
+    -fx-background-radius: 10 0 0 10; /* 左侧圆角 */
+    -fx-padding: 15px 25px;
+    -fx-text-fill: white;
+    -fx-font-size: 16px;
+    -fx-border-color: #3498db;
+    -fx-border-width: 0 0 0 4px; /* 左侧蓝色边框 */
+    -fx-effect: dropshadow(gaussian, rgba(0, 0, 0, 0.5), 10, 0, 0, 0);
+    -fx-margin: 20px;
+}

@@ -8,6 +8,7 @@ import javafx.scene.layout.StackPane;
 import org.csu.pixelstrikejavafx.lobby.network.ApiClient;
 import org.csu.pixelstrikejavafx.lobby.network.NetworkManager;
 import org.csu.pixelstrikejavafx.core.GlobalState;
+import org.csu.pixelstrikejavafx.lobby.ui.dialog.DialogManager;
 
 public class FXMLMainMenu extends FXGLMenu {
 
@@ -22,6 +23,7 @@ public class FXMLMainMenu extends FXGLMenu {
         // 2. 将这个根容器传递给 UIManager 进行管理 (关键一步！)
         // 必须在调用任何 UIManager.load() 之前执行
         UIManager.setRoot(uiRoot);
+        DialogManager.setRoot(uiRoot);
 
         // 3. 加载初始界面 (例如登录页)
         UIManager.load("login-view.fxml");
