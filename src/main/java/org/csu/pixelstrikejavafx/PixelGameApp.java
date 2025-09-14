@@ -95,7 +95,7 @@ public class PixelGameApp extends GameApplication {
         getGameScene().clearGameViews();
         getPhysicsWorld().clear();
 
-        getPhysicsWorld().setGravity(0, 1100);
+        getPhysicsWorld().setGravity(0, 3200);
         MapBuilder.buildLevel();
 
         Player localPlayer = playerManager.createLocalPlayer(networkService);
