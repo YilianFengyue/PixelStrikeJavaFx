@@ -649,7 +649,7 @@ public class ApiClient {
 
     public List<Map<String, Object>> getHistory() throws IOException {
         if (GlobalState.authToken == null) throw new IllegalStateException("Not logged in");
-        String url = BASE_URL + "/matches/me";
+        String url = BASE_URL + "/history";
         Request request = new Request.Builder().url(url).addHeader("Authorization", "Bearer " + GlobalState.authToken).build();
         try (Response response = client.newCall(request).execute()) {
             if (!response.isSuccessful()) throw new IOException("获取历史战绩失败: " + response);
@@ -671,6 +671,8 @@ public class ApiClient {
         try (Response response = client.newCall(request).execute()) {
             if (!response.isSuccessful()) throw new IOException("获取战绩详情失败: " + response);
             String responseBody = Objects.requireNonNull(response.body()).string();
+            // 【新增】打印从后端接收到的原始JSON字符串
+            System.out.println("DEBUG: Received history details JSON from backend: " + responseBody);
             JsonObject jsonObject = gson.fromJson(responseBody, JsonObject.class);
             if (jsonObject.get("status").getAsInt() == 0) {
                 return jsonObject.getAsJsonObject("data");
