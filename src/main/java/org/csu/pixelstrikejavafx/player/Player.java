@@ -17,6 +17,9 @@ import com.almasb.fxgl.entity.components.CollidableComponent;
 import org.csu.pixelstrikejavafx.content.CharacterDef;
 import org.csu.pixelstrikejavafx.content.CharacterRegistry;
 import javafx.geometry.Point2D;
+//武器挂点
+import org.csu.pixelstrikejavafx.content.WeaponDef;
+import org.csu.pixelstrikejavafx.content.WeaponRegistry;
 
 /**
  * 角色控制（行走/跑步/跳跃/二段跳），不含动画。
@@ -65,6 +68,8 @@ public class Player {
     //角色射击组件
     private  PlayerShooting shootingSys;
 
+    //默认武器
+    private WeaponDef currentWeapon = WeaponRegistry.get("pistol");
 
     private double knockVX = 0.0;   // ★ 水平击退临时速度（逐帧衰减）
     // 运行时状态
@@ -536,17 +541,26 @@ public class Player {
         if (entity != null) {
             entity.translateY(1);
         }
+
+        setWeapon(WeaponRegistry.get("pistol"));
+
     }
     //提供枪口世界坐标（射击改用它）
-    public Point2D getMuzzleWorld() {
-        double rx = 150, lx = 0, my = 0;      // 兼容：角色没配时的回退
+    public javafx.geometry.Point2D getMuzzleWorld() {
+        double rx = 150, lx = 0, my = 0; // 角色 sockets 兜底
         if (ch != null && ch.sockets != null) {
             rx = ch.sockets.muzzleRightX;
             lx = ch.sockets.muzzleLeftX;
             my = ch.sockets.muzzleY;
         }
+        WeaponDef w = getWeapon();
+        if (w != null && w.muzzleOffsetDelta != null) {
+            if (getFacingRight()) rx += w.muzzleOffsetDelta.rightX;
+            else                   lx += w.muzzleOffsetDelta.leftX;
+            my += w.muzzleOffsetDelta.y;
+        }
         double offX = getFacingRight() ? rx : -lx;
-        return new Point2D(
+        return new javafx.geometry.Point2D(
                 entity.getX() + entity.getWidth()  / 2.0 + offX,
                 entity.getY() + entity.getHeight() / 2.0 + my
         );
@@ -589,4 +603,13 @@ public class Player {
             default:    return "IDLE";
         }
     }
+
+    public WeaponDef getWeapon() {
+        return (currentWeapon != null) ? currentWeapon : WeaponRegistry.get("pistol");
+    }
+    public void setWeapon(WeaponDef def) {
+        if (def == null) def = WeaponRegistry.get("pistol");
+        this.currentWeapon = def;
+    }
+
 }

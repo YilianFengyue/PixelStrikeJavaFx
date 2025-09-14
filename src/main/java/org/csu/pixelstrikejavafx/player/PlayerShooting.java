@@ -11,6 +11,8 @@ import org.csu.pixelstrikejavafx.core.GameType;
 import static com.almasb.fxgl.dsl.FXGL.*;
 
 import java.util.concurrent.ThreadLocalRandom;
+
+import org.csu.pixelstrikejavafx.content.WeaponDef;
 /**
  * 射击系统 - 基于射线检测的射击逻辑
  * 参考Unity的MyPlayerShooting设计
@@ -88,10 +90,12 @@ public class PlayerShooting {
         // 摆动相位推进（持续轻微抖动）
         swayPhase += SWAY_SPEED * tpf;
 
-        if (isShooting && time >= TIME_BETWEEN_BULLETS) {
+//        if (isShooting && time >= TIME_BETWEEN_BULLETS) {
+//            performShoot();
+//        }
+        if (isShooting && time >= getInterval()) {
             performShoot();
         }
-
         if (time >= EFFECTS_DISPLAY_TIME) {
             hideShootEffects();
         }
@@ -104,8 +108,9 @@ public class PlayerShooting {
     public void startShooting() {
         isShooting = true;
 
-        if (time < TIME_BETWEEN_BULLETS) time = TIME_BETWEEN_BULLETS;
-
+//        if (time < TIME_BETWEEN_BULLETS) time = TIME_BETWEEN_BULLETS;
+        double itv = getInterval();
+        if (time < itv) time = itv;
         System.out.println("[Shoot] start by " + player.hashCode());
     }
 
@@ -166,7 +171,8 @@ public class PlayerShooting {
         showShootEffects(shootOrigin, hitPoint);
 
         // 连发后坐角累积（上限保护）+ 给角色一个小反冲
-        recoilAngleDeg = Math.min(RECOIL_MAX_DEG, recoilAngleDeg + RECOIL_KICK_DEG);
+//        recoilAngleDeg = Math.min(RECOIL_MAX_DEG, recoilAngleDeg + RECOIL_KICK_DEG);
+        recoilAngleDeg = Math.min(RECOIL_MAX_DEG, recoilAngleDeg + getRecoilKickDeg());
         applyRecoilToPlayer();
 
         //末尾“报送一次射击
@@ -174,7 +180,7 @@ public class PlayerShooting {
             reporter.onShot(
                     shootOrigin.getX(), shootOrigin.getY(),
                     shootDirection.getX(), shootDirection.getY(),
-                    SHOOT_RANGE, (int)DAMAGE, System.currentTimeMillis()   // [NEW]
+                    SHOOT_RANGE, getDamage(), System.currentTimeMillis()   // [NEW]
             );
         }
     }
@@ -271,5 +277,22 @@ public class PlayerShooting {
 
     public double getTimeBetweenBullets() {
         return TIME_BETWEEN_BULLETS;
+    }
+
+    private WeaponDef W() { return player != null ? player.getWeapon() : null; }
+
+    private double getInterval() {
+        WeaponDef w = W();
+        return (w != null && w.shootInterval > 0) ? w.shootInterval : TIME_BETWEEN_BULLETS;
+    }
+
+    private int getDamage() {
+        WeaponDef w = W();
+        return (w != null && w.damage > 0) ? w.damage : (int) DAMAGE;
+    }
+
+    private double getRecoilKickDeg() {
+        WeaponDef w = W();
+        return (w != null && w.recoilKickDeg >= 0) ? w.recoilKickDeg : RECOIL_KICK_DEG;
     }
 }

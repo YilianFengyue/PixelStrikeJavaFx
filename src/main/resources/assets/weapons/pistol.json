@@ -1,0 +1,13 @@
+{
+  "id": "pistol",
+  "name": "9mm Pistol",
+  "shootInterval": 0.12,
+  "damage": 8,
+  "recoilKickDeg": 0.35,
+  "muzzleOffsetDelta": { "rightX": 6, "leftX": 4, "y": -2 },
+  "props": {
+    "spreadDeg": 0.6,
+    "swayAmplDeg": 1.6,
+    "recoilKnockbackVX": 180.0
+  }
+}

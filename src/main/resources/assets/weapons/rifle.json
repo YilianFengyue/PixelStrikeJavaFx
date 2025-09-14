@@ -1,0 +1,13 @@
+{
+  "id": "rifle",
+  "name": "Assault Rifle",
+  "shootInterval": 0.16,
+  "damage": 20,
+  "recoilKickDeg": 0.55,
+  "muzzleOffsetDelta": { "rightX": 14, "leftX": 10, "y": -3 },
+  "props": {
+    "spreadDeg": 0.5,
+    "swayAmplDeg": 1.2,
+    "recoilKnockbackVX": 220.0
+  }
+}

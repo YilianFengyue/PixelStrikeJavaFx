@@ -54,7 +54,7 @@ public class PixelGameApp extends GameApplication {
     private boolean joinedAck = false;       // ← 新增：拿到 welcome 才算就绪
     private long seq = 1;                    // ← 新增：本地递增序号
 
-    private static String CURRENT_CHAR_ID = "bluep_marthe"; // 先用默认，后面接大厅/热切再改
+    private static String CURRENT_CHAR_ID = "ash"; // 先用默认，后面接大厅/热切再改
 
     private String myName = "Player_" + System.currentTimeMillis();
 
@@ -226,7 +226,7 @@ public class PixelGameApp extends GameApplication {
     private void setupPlayer() {
         var ch = org.csu.pixelstrikejavafx.content.CharacterRegistry.get(CURRENT_CHAR_ID); // 先写死
         player = new Player(500, GameConfig.MAP_H - 211 - 128, ch);
-
+        player.setWeapon(org.csu.pixelstrikejavafx.content.WeaponRegistry.get("rifle"));
         player.getShootingSys().setShotReporter((ox,oy,dx,dy,range,dmg,ts)->{
             if (netClient != null && joinedAck) {
                 netClient.sendShot(ox,oy,dx,dy,range,dmg,ts, seq++);
