@@ -1,10 +1,20 @@
 {
   "id": "rifle",
-  "name": "Assault Rifle",
+  "name": "AK-47",
   "shootInterval": 0.16,
-  "damage": 20,
+  "damage": 12,
   "recoilKickDeg": 0.55,
   "muzzleOffsetDelta": { "rightX": 14, "leftX": 10, "y": -3 },
+
+  "skin": {
+    "image": "AK47.png",
+    "h": 60,
+    "pivotX": 115,
+    "pivotY": 26,
+    "offsetRight": { "x": 0, "y": 0 },
+    "offsetLeft":  { "x": 0, "y": 0 }
+  },
+
   "props": {
     "spreadDeg": 0.5,
     "swayAmplDeg": 1.2,

@@ -5,6 +5,16 @@
   "damage": 8,
   "recoilKickDeg": 0.35,
   "muzzleOffsetDelta": { "rightX": 6, "leftX": 4, "y": -2 },
+
+  "skin": {
+    "image": "pistol.png",
+    "h": 30,
+    "pivotX": 52,
+    "pivotY": 28,
+    "offsetRight": { "x": -50, "y": 0 },
+    "offsetLeft":  { "x": 0, "y": 0 }
+  },
+
   "props": {
     "spreadDeg": 0.6,
     "swayAmplDeg": 1.6,

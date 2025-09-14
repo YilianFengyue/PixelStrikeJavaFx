@@ -34,6 +34,7 @@ import java.util.concurrent.ConcurrentHashMap;
 import org.csu.pixelstrikejavafx.player.RemoteAvatar; // ★ 远端影子动画
 import org.csu.pixelstrikejavafx.content.CharacterRegistry; // 新增
 // ...
+;
 
 public class PixelGameApp extends GameApplication {
 
@@ -226,7 +227,7 @@ public class PixelGameApp extends GameApplication {
     private void setupPlayer() {
         var ch = org.csu.pixelstrikejavafx.content.CharacterRegistry.get(CURRENT_CHAR_ID); // 先写死
         player = new Player(500, GameConfig.MAP_H - 211 - 128, ch);
-        player.setWeapon(org.csu.pixelstrikejavafx.content.WeaponRegistry.get("rifle"));
+//        player.setWeapon(org.csu.pixelstrikejavafx.content.WeaponRegistry.get("rifle"));
         player.getShootingSys().setShotReporter((ox,oy,dx,dy,range,dmg,ts)->{
             if (netClient != null && joinedAck) {
                 netClient.sendShot(ox,oy,dx,dy,range,dmg,ts, seq++);

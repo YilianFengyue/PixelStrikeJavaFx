@@ -21,6 +21,8 @@ import javafx.geometry.Point2D;
 import org.csu.pixelstrikejavafx.content.WeaponDef;
 import org.csu.pixelstrikejavafx.content.WeaponRegistry;
 
+
+import javafx.scene.Group;
 /**
  * 角色控制（行走/跑步/跳跃/二段跳），不含动画。
  * 输入仍由外部（GameApp 的 UserAction）调用 start/stop/jump。
@@ -58,6 +60,15 @@ public class Player {
     private static final double DJUMP_VY   = 500.0;
 
     private static final long   DOUBLE_TAP_MS = 300;  // A/D 双击触发跑步
+
+    // --- 武器贴图层（可选） ---
+    private Group weaponGroup = null;   // 容器：定位/镜像都作用在这层
+    private Texture weaponTex = null;   // 实际图片
+    // 缓存 skin 参数（避免每帧取 JSON）
+    private double skinPivotX = 0, skinPivotY = 0;
+    private double skinOffRX = 0, skinOffRY = 0;
+    private double skinOffLX = 0, skinOffLY = 0;
+    private double skinScale  = 1.0;
 
     // 组件
     private Entity entity;
@@ -124,6 +135,7 @@ public class Player {
         createEntity(spawnX, spawnY);
         initAnimator(def);                // 把 def 传给动画机
         shootingSys = new PlayerShooting(this);
+        refreshWeaponSkin();   // 初始武器（pistol）也要刷一次
     }
 
 
@@ -264,6 +276,7 @@ public class Player {
         if (animator != null) {
             animator.update();
         }
+        updateWeaponSkinTransform();   // ★ 让贴图每帧跟位&镜像
 
         // 9) 射线/冷却照旧
         if (shootingSys != null) {
@@ -565,6 +578,107 @@ public class Player {
                 entity.getY() + entity.getHeight() / 2.0 + my
         );
     }
+
+    /** 当 currentWeapon 变化或复活时调用：重建/清空武器贴图层 */
+    private void refreshWeaponSkin() {
+        // 清旧
+        if (weaponGroup != null) {
+            entity.getViewComponent().removeChild(weaponGroup);
+            weaponGroup = null;
+            weaponTex = null;
+        }
+        WeaponDef w = getWeapon();
+        if (w == null || w.skin == null || w.skin.image == null || w.skin.image.isBlank()) {
+            return; // 没有皮肤配置：不显示贴图层
+        }
+        try {
+            // 1) 载图（资源放 /assets/weapons/）
+            weaponTex = getAssetLoader().loadTexture("weapons/" + w.skin.image);
+            weaponTex.setSmooth(false);
+
+            // 2) 计算缩放（优先 h，其次 w，再其次 scale）
+            double scale = 1.0;
+            if (w.skin.h != null && w.skin.h > 0) {
+                double rawH = weaponTex.getImage().getHeight();
+                scale = w.skin.h / Math.max(1.0, rawH);
+            } else if (w.skin.w != null && w.skin.w > 0) {
+                double rawW = weaponTex.getImage().getWidth();
+                scale = w.skin.w / Math.max(1.0, rawW);
+            } else if (w.skin.scale != null && w.skin.scale > 0) {
+                scale = w.skin.scale;
+            }
+            weaponTex.setScaleX(scale);
+            weaponTex.setScaleY(scale);
+
+            // 3) 记录 pivot/offset（pivot 是贴图像素坐标）
+            skinScale  = scale;
+            skinPivotX = w.skin.pivotX;
+            skinPivotY = w.skin.pivotY;
+            if (w.skin.offsetRight != null) {
+                skinOffRX = w.skin.offsetRight.x;
+                skinOffRY = w.skin.offsetRight.y;
+            } else { skinOffRX = skinOffRY = 0; }
+            if (w.skin.offsetLeft != null) {
+                skinOffLX = w.skin.offsetLeft.x;
+                skinOffLY = w.skin.offsetLeft.y;
+            } else { skinOffLX = skinOffLY = 0; }
+
+            // 4) 让贴图以 pivot 为原点绘制：先把贴图移到 (-pivot)
+            weaponTex.setTranslateX(-skinPivotX * skinScale);
+            weaponTex.setTranslateY(-skinPivotY * skinScale);
+
+            // 5) 建容器并挂载到实体视图（放在动画之上）
+            weaponGroup = new Group(weaponTex);
+            entity.getViewComponent().addChild(weaponGroup);
+            System.out.println("[WeaponSkin] ok image=" + w.skin.image +
+                    " raw=" + weaponTex.getImage().getWidth() + "x" + weaponTex.getImage().getHeight() +
+                    " scale=" + skinScale +
+                    " pivot=(" + skinPivotX + "," + skinPivotY + ")" +
+                    " offR=(" + skinOffRX + "," + skinOffRY + ")" +
+                    " offL=(" + skinOffLX + "," + skinOffLY + ")"
+            );
+
+        } catch (Exception e) {
+            System.err.println("[WeaponSkin] load failed: " + e);
+            weaponGroup = null;
+            weaponTex = null;
+            System.err.println("[WeaponSkin] load failed for image=" + (w!=null && w.skin!=null?w.skin.image:"<null>"));
+
+        }
+
+
+    }
+
+    /** 每帧把武器贴图层移动到“物理枪口”附近，并按朝向镜像 */
+
+    private void updateWeaponSkinTransform() {
+        if (weaponGroup == null || entity == null) return;
+
+        // A) 枪口 = 世界坐标
+        var muzzle = getMuzzleWorld();
+
+        // B) 转成本地坐标（实体视图的(0,0)就是 entity 的世界左上角）
+        double lx = muzzle.getX() - entity.getX();
+        double ly = muzzle.getY() - entity.getY();
+
+        // C) 按朝向选择视觉微调 offset，并设置镜像
+        double ox, oy;
+        if (getFacingRight()) {
+            ox = skinOffRX; oy = skinOffRY;
+            weaponGroup.setScaleX(1);
+        } else {
+            ox = skinOffLX; oy = skinOffLY;
+            weaponGroup.setScaleX(-1);
+        }
+        weaponGroup.setScaleY(1);
+
+        // D) 定位（本地系）
+        weaponGroup.setTranslateX(lx + ox);
+        weaponGroup.setTranslateY(ly + oy);
+    }
+
+
+
     // —— Getter ——
     public Entity getEntity() { return entity; }
     public PhysicsComponent getPhysics() { return physics; }
@@ -607,9 +721,11 @@ public class Player {
     public WeaponDef getWeapon() {
         return (currentWeapon != null) ? currentWeapon : WeaponRegistry.get("pistol");
     }
+
     public void setWeapon(WeaponDef def) {
         if (def == null) def = WeaponRegistry.get("pistol");
         this.currentWeapon = def;
+        refreshWeaponSkin();            // ★ 每次切枪都刷新贴图
     }
 
 }
