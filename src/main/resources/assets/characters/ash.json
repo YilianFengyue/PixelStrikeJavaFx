@@ -1,0 +1,27 @@
+{
+  "id": "ash",
+
+  "sockets": { "muzzleRightX": 150, "muzzleLeftX": 0, "muzzleY": 0 },
+
+  "idle": { "sheet": "ash_idle1.png",  "frames": 81, "w": 200, "h": 200,
+    "from": 0, "to": 80, "duration": 2.7 },
+
+  "walk": { "sheet": "ash_walk1.png",  "frames": 40, "w": 200, "h": 200,
+    "from": 0, "to": 39, "duration": 1.333 },
+
+  "run":  { "sheet": "ash_walk1.png",  "frames": 40, "w": 200, "h": 200,
+    "from": 0, "to": 39, "duration": 0.683 },
+
+  "die":  { "sheet": "ash_die.png",    "frames": 30, "w": 200, "h": 200,
+    "from": 0, "to": 29, "duration": 1.0 },
+
+  "attack": {
+    "layout": "SPLIT",
+    "begin": { "sheet": "ash_attack1.png", "frames": 41, "w": 200, "h": 200,
+      "from": 0, "to": 8, "duration": 0.3 },
+    "loop":  { "sheet": "ash_attack1.png", "frames": 41, "w": 200, "h": 200,
+      "from": 10, "to": 14, "duration": 0.25 },
+    "end":   { "sheet": "ash_attack1.png", "frames": 41, "w": 200, "h": 200,
+      "from": 15, "to": 39, "duration": 0.8333 }
+  }
+}

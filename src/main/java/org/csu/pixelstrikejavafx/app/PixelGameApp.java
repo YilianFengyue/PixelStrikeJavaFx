@@ -10,6 +10,7 @@ import javafx.scene.Node;
 import javafx.scene.effect.ColorAdjust;
 import javafx.scene.input.KeyCode;
 import org.csu.pixelstrikejavafx.camera.CameraFollow;
+import org.csu.pixelstrikejavafx.content.CharacterRegistry;
 import org.csu.pixelstrikejavafx.core.GameConfig;
 import org.csu.pixelstrikejavafx.core.GameType;
 import org.csu.pixelstrikejavafx.map.MapBuilder;
@@ -31,6 +32,7 @@ import java.util.concurrent.ConcurrentHashMap;
 
 
 import org.csu.pixelstrikejavafx.player.RemoteAvatar; // ★ 远端影子动画
+import org.csu.pixelstrikejavafx.content.CharacterRegistry; // 新增
 // ...
 
 public class PixelGameApp extends GameApplication {
@@ -81,6 +83,7 @@ public class PixelGameApp extends GameApplication {
 
         long lastUpdate = System.currentTimeMillis();
 
+        String charId;   // ★ 新增：记录这个远端玩家的当前角色ID
         RemotePlayer(Entity e, RemoteAvatar a) {  // ★ 新构造
             this.entity = e;
             this.avatar = a;
@@ -219,16 +222,14 @@ public class PixelGameApp extends GameApplication {
     }
 
     private void setupPlayer() {
-        // 你已有的 Player 构造，摆个合理出生点（贴着地面）
-        player = new Player(500, GameConfig.MAP_H - 211 - 128);  // MAP底 - 地面高 - 角色高
+        var ch = org.csu.pixelstrikejavafx.content.CharacterRegistry.get("ash"); // 先写死
+        player = new Player(500, GameConfig.MAP_H - 211 - 128, ch);
 
-        // [NEW] 把射击上报接入网络（joinedAck为真才发）
-        player.getShootingSys().setShotReporter((ox, oy, dx, dy, range, dmg, ts) -> {
+        player.getShootingSys().setShotReporter((ox,oy,dx,dy,range,dmg,ts)->{
             if (netClient != null && joinedAck) {
-                netClient.sendShot(ox, oy, dx, dy, range, dmg, ts, seq++);
+                netClient.sendShot(ox,oy,dx,dy,range,dmg,ts, seq++);
             }
         });
-
     }
 
     private void setupCollisionHandlers() {
@@ -329,110 +330,7 @@ public class PixelGameApp extends GameApplication {
             );
         }
     }
-    // [NEW]
-//    private void handleServerMessage(String json) {
-//        try {
-//            String type = extractString(json, "\"type\":\"");
-//            if (type == null) return;
-//
-//            switch (type) {
-//                case "welcome" -> {
-//                    // ★ 清表，防止旧影子
-//                    remotePlayers.values().forEach(rp -> { if (rp.entity != null) rp.entity.removeFromWorld(); });
-//                    remotePlayers.clear();
-//
-//                    myPlayerId   = extractInt(json, "\"id\":");
-//                    welcomeSrvTS = extractLong(json, "\"serverTime\":");   // 【NEW】代际时间栅栏
-//                    joinedAck    = true;
-//                    System.out.println("WELCOME myId=" + myPlayerId + " srvTS=" + welcomeSrvTS);
-//                }
-//
-//                case "state" -> {
-//                    if (!joinedAck) return;
-//
-//                    // 【NEW】丢弃“早于 welcome 的旧时代包”
-//                    long srvTS = readSrvTS(json);
-//                    if (welcomeSrvTS > 0 && srvTS > 0 && srvTS < welcomeSrvTS) {
-//                        // System.out.println("DROP old state srvTS=" + srvTS);
-//                        return;
-//                    }
-//
-//                    int id = extractInt(json, "\"id\":");
-//                    if (id == 0 || (myPlayerId != null && id == myPlayerId)) return;
-//
-//                    // ...（原有解析与 upsertRemotePlayer 保持不变）...
-//                    double x = extractDouble(json, "\"x\":");
-//                    double y = extractDouble(json, "\"y\":");
-//                    double vx = extractDouble(json, "\"vx\":");
-//                    double vy = extractDouble(json, "\"vy\":");
-//                    boolean facing   = json.contains("\"facing\":true");
-//                    boolean onGround = json.contains("\"onGround\":true");
-//                    String  anim  = extractString(json, "\"anim\":\"");
-//                    String  phase = extractString(json, "\"phase\":\"");
-//                    long    seq   = extractLong(json, "\"seq\":");
-//
-//                    upsertRemotePlayer(id, x, y, facing);
-//                    RemotePlayer rp = remotePlayers.get(id);
-//                    if (rp == null) return;
-//
-//                    // 单调过滤
-//                    if (seq > 0 && seq <= rp.lastSeq) return;
-//                    rp.lastSeq = seq;
-//
-//                    rp.onGround     = onGround;
-//                    rp.lastVX       = vx;
-//                    rp.lastVY       = vy;
-//                    rp.anim         = anim;
-//                    rp.phase        = phase;
-//                    rp.targetX      = x;
-//                    rp.targetY      = y;
-//                    rp.targetFacing = facing;
-//                    rp.lastUpdate   = System.currentTimeMillis();
-//                }
-//
-//                case "shot" -> {
-//                    // 【NEW】代际栅栏
-//                    long srvTS = readSrvTS(json);
-//                    if (welcomeSrvTS > 0 && srvTS > 0 && srvTS < welcomeSrvTS) return;
-//
-//                    double ox = extractDouble(json, "\"ox\":");
-//                    double oy = extractDouble(json, "\"oy\":");
-//                    double dx = extractDouble(json, "\"dx\":");
-//                    double dy = extractDouble(json, "\"dy\":");
-//                    double range = extractDouble(json, "\"range\":");
-//                    playShotEffect(ox, oy, dx, dy, range);
-//                }
-//
-//                case "damage" -> {
-//                    // 【NEW】代际栅栏
-//                    long srvTS = readSrvTS(json);
-//                    if (welcomeSrvTS > 0 && srvTS > 0 && srvTS < welcomeSrvTS) return;
-//
-//                    int victim = extractInt(json, "\"victim\":");
-//                    int dmg    = extractInt(json, "\"damage\":");
-//                    boolean hasKx = json.contains("\"kx\":");
-//                    boolean hasKy = json.contains("\"ky\":");
-//                    double kx  = hasKx ? extractDouble(json, "\"kx\":")
-//                            : (player != null && player.getFacingRight() ? -220.0 : 220.0);
-//                    double ky  = hasKy ? extractDouble(json, "\"ky\":") : 0.0;
-//
-//                    if (myPlayerId != null && victim == myPlayerId && player != null) {
-//                        player.applyHit(Math.max(1, dmg), kx, ky);
-//                    }
-//                }
-//
-//                case "leave" -> {
-//                    int id = extractInt(json, "\"id\":");
-//                    RemotePlayer rp = remotePlayers.remove(id);
-//                    if (rp != null && rp.entity != null) rp.entity.removeFromWorld();
-//                }
-//
-//                default -> { /* ignore */ }
-//            }
-//        } catch (Exception e) {
-//            System.err.println("handleServerMessage error: " + e.getMessage());
-//        }
-//    }
+
     // PixelGameApp.java —— 完整替换 handleServerMessage
     private void handleServerMessage(String json) {
         try {
@@ -479,8 +377,9 @@ public class PixelGameApp extends GameApplication {
                     String  anim  = extractString(json, "\"anim\":\"");
                     String  phase = extractString(json, "\"phase\":\"");
                     long    seq   = extractLong(json, "\"seq\":");
-
-                    upsertRemotePlayer(id, x, y, facing);
+                    //远端解析
+                    String  charId = extractString(json, "\"charId\":\"");  // 可能为 null（兼容旧服务器）
+                    upsertRemotePlayer(id, x, y, facing, charId);
                     RemotePlayer rp = remotePlayers.get(id);
                     if (rp == null) return;
 
@@ -553,13 +452,22 @@ public class PixelGameApp extends GameApplication {
     }
 
 
+    // 旧签名：保留，兼容旧消息；内部转调到带 charId 的版本
     private void upsertRemotePlayer(int id, double x, double y, boolean facing) {
+        upsertRemotePlayer(id, x, y, facing, null);
+    }
+
+    // 新签名：携带 charId（可能为 null）
+    private void upsertRemotePlayer(int id, double x, double y, boolean facing, String charId) {
         RemotePlayer rp = remotePlayers.get(id);
         if (rp == null) {
-            // ★ 影子动画
-            RemoteAvatar avatar = new RemoteAvatar();
+            // >>> 关键一行：没有 charId 就强制用 "shu"（想看谁就把 "shu" 改成 "angel_neng"/"bluep_marthe"/"ash"）
+            RemoteAvatar avatar = new RemoteAvatar(
+                    org.csu.pixelstrikejavafx.content.CharacterRegistry.get(
+                            (charId != null) ? charId : "ash"
+                    )
+            );
 
-            // ★ 视图 = 动画贴图；初始朝向
             var ent = entityBuilder()
                     .at(x, y)
                     .view(avatar.view())
@@ -567,23 +475,37 @@ public class PixelGameApp extends GameApplication {
                     .buildAndAttach();
             avatar.setFacingRight(facing);
 
-            // ★ 按 id 稳定变色（可选）
-            double hue = ((id * 57) % 360) / 360.0;      // 0..1
-            var adj = new ColorAdjust();
-            adj.setHue(hue * 2 - 1);                     // -1..1
+            double hue = ((id * 57) % 360) / 360.0;
+            var adj = new javafx.scene.effect.ColorAdjust();
+            adj.setHue(hue * 2 - 1);
             adj.setSaturation(0.2);
             avatar.view().setEffect(adj);
 
             rp = new RemotePlayer(ent, avatar);
+            rp.charId = (charId != null) ? charId : "ash";
             remotePlayers.put(id, rp);
             System.out.println("spawn remote " + id + " @(" + x + "," + y + ")");
+        } else {
+            if (charId != null && (rp.charId == null || !rp.charId.equals(charId))) {
+                RemoteAvatar newAvatar = new RemoteAvatar(
+                        org.csu.pixelstrikejavafx.content.CharacterRegistry.get(charId)
+                );
+                rp.entity.getViewComponent().clearChildren();
+                rp.entity.getViewComponent().addChild(newAvatar.view());
+                newAvatar.setFacingRight(facing);
+                var oldFx = rp.avatar.view().getEffect();
+                newAvatar.view().setEffect(oldFx);
+                rp.avatar = newAvatar;
+                rp.charId = charId;
+            }
         }
-        // 更新插值目标
+
         rp.targetX = x;
         rp.targetY = y;
         rp.targetFacing = facing;
         rp.lastUpdate = System.currentTimeMillis();
     }
+
 
     // [NEW]
     private int extractInt(String json, String key) {

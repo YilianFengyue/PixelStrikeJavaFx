@@ -1,0 +1,21 @@
+{
+  "id": "bluep_marthe",
+  "sockets": { "muzzleRightX": 150, "muzzleLeftX": 0, "muzzleY": 0 },
+
+  "idle":  { "sheet":"characters/bluep_marthe/bluep_marthe_idle.png", "frames":121, "w":200, "h":200,
+    "from":0, "to":120, "duration":4.0 },
+
+  "walk":  { "sheet":"characters/bluep_marthe/bluep_marthe_move.png", "frames":81,  "w":200, "h":200,
+    "from":0, "to":80,  "duration":1.6 },
+
+  "run":   { "sheet":"characters/bluep_marthe/bluep_marthe_move.png", "frames":81,  "w":200, "h":200,
+    "from":0, "to":80,  "duration":0.8 },
+
+  "die":   { "sheet":"characters/bluep_marthe/bluep_marthe_die.png",  "frames":30,  "w":200, "h":200,
+    "from":0, "to":29,  "duration":1.0 },
+
+  "attack": { "layout":"LOOP",
+    "loop": { "sheet":"characters/bluep_marthe/bluep_marthe_attack.png", "frames":31, "w":200, "h":200,
+      "from":0, "to":30, "duration":0.9 }
+  }
+}

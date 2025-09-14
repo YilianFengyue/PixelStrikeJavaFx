@@ -182,14 +182,17 @@ public class PlayerShooting {
     /**
      * 获取射击起点（武器位置）
      */
+//    private Point2D getShootOrigin() {
+//        Entity e = player.getEntity();
+//        double offsetX = player.getFacingRight() ? MUZZLE_RIGHT_X : -MUZZLE_LEFT_X;
+//        double offsetY = MUZZLE_Y;
+//        return new Point2D(
+//                e.getX() + e.getWidth()  / 2.0 + offsetX,
+//                e.getY() + e.getHeight() / 2.0 + offsetY
+//        );
+//    }
     private Point2D getShootOrigin() {
-        Entity e = player.getEntity();
-        double offsetX = player.getFacingRight() ? MUZZLE_RIGHT_X : -MUZZLE_LEFT_X;
-        double offsetY = MUZZLE_Y;
-        return new Point2D(
-                e.getX() + e.getWidth()  / 2.0 + offsetX,
-                e.getY() + e.getHeight() / 2.0 + offsetY
-        );
+        return player.getMuzzleWorld();
     }
 
     /**

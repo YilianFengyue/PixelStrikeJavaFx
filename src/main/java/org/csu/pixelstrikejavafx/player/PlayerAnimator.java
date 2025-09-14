@@ -7,6 +7,8 @@ import javafx.util.Duration;
 import static com.almasb.fxgl.dsl.FXGL.*;
 import javafx.scene.transform.Scale;
 
+import org.csu.pixelstrikejavafx.content.CharacterDef;
+import org.csu.pixelstrikejavafx.content.AnimClip;
 /**
  * 角色动画系统 - 监听Player状态，切换对应动画
  * 支持：idle, walk, run, attack, die
@@ -31,9 +33,19 @@ public class PlayerAnimator {
 
     private Scale flip;   // 新增：专门控制朝向的变换
 
+
+
+    private CharacterDef def;   // 可为空：为空走旧硬编码
+
     public PlayerAnimator(Player player) {
         this.player = player;
         setupAnimations();
+    }
+
+    public PlayerAnimator(Player player, CharacterDef def) {
+        this.player = player;
+        this.def = def;
+        setupAnimations(def);   // 用 JSON 构建动画通道
     }
 
     private void setupAnimations() {
@@ -132,10 +144,12 @@ public class PlayerAnimator {
                 return "die";
             case SHOOTING:
                 switch (player.getAttackPhase()) {
-                    case BEGIN: return "attack_begin";
-                    case IDLE: return "attack_idle";
-                    case END: return "attack_end";
-                    default: return "attack_begin";
+                    case BEGIN:
+                        return (attackBeginAnimation != null) ? "attack_begin" : "attack_idle";
+                    case END:
+                        return (attackEndAnimation != null) ? "attack_end" : "attack_idle";
+                    default:
+                        return "attack_idle";
                 }
             case WALK:
                 return "walk";
@@ -151,48 +165,30 @@ public class PlayerAnimator {
     }
 
     private void switchAnimation(String animName) {
+        // ★ 当 begin/end 缺失时，自动改成 attack_idle
+        if ("attack_begin".equals(animName) && attackBeginAnimation == null) {
+            animName = "attack_idle";
+        }
+        if ("attack_end".equals(animName) && attackEndAnimation == null) {
+            animName = "attack_idle";
+        }
+
         AnimationChannel channel;
         boolean shouldLoop = true;
 
         switch (animName) {
-            case "idle":
-                channel = idleAnimation;
-                break;
-            case "walk":
-                channel = walkAnimation;
-                break;
-            case "run":
-                channel = runAnimation;
-                break;
-
-            case "attack_begin":
-                channel = attackBeginAnimation;
-                shouldLoop = false;
-                break;
-            case "attack_idle":
-                channel = attackIdleAnimation;
-                shouldLoop = true;  // 循环播放
-                break;
-            case "attack_end":
-                channel = attackEndAnimation;
-                shouldLoop = false;
-                break;
-            case "die":
-                channel = dieAnimation;
-                shouldLoop = false; // 死亡动画只播放一次
-                break;
-            default:
-                channel = idleAnimation;
-                break;
+            case "idle":  channel = idleAnimation;  break;
+            case "walk":  channel = walkAnimation;  break;
+            case "run":   channel = runAnimation;   break;
+            case "attack_begin": shouldLoop = false; channel = attackBeginAnimation; break;
+            case "attack_idle":  shouldLoop = true;  channel = attackIdleAnimation;  break;
+            case "attack_end":   shouldLoop = false; channel = attackEndAnimation;   break;
+            case "die":   shouldLoop = false; channel = dieAnimation; break;
+            default:      channel = idleAnimation;  break;
         }
 
-        if (shouldLoop) {
-            animatedTexture.loopAnimationChannel(channel);
-        } else {
-            animatedTexture.playAnimationChannel(channel);
-        }
-
-        System.out.println("切换动画: " + animName);
+        if (shouldLoop) animatedTexture.loopAnimationChannel(channel);
+        else            animatedTexture.playAnimationChannel(channel);
     }
 
     private void updateFacing() {
@@ -202,6 +198,46 @@ public class PlayerAnimator {
 //        boolean facingRight = player.getFacingRight();
 //        double scaleX = facingRight ? 1.0 : -1.0;
 //        player.getEntity().setScaleX(scaleX);
+    }
+
+    private AnimationChannel mk(AnimClip c) {
+        return new AnimationChannel(
+                image(c.sheet), c.frames, c.w, c.h,
+                Duration.seconds(c.duration), c.from, c.to
+        );
+    }
+    //两段工具方法
+    private void setupAnimations(CharacterDef ch) {
+        try {
+            idleAnimation = mk(ch.idle);
+            walkAnimation = mk(ch.walk);
+            runAnimation  = mk(ch.run);
+            dieAnimation  = mk(ch.die);
+
+            if (ch.attack != null && "SPLIT".equalsIgnoreCase(ch.attack.layout)) {
+                attackBeginAnimation = mk(ch.attack.begin);
+                attackIdleAnimation  = mk(ch.attack.loop);
+                attackEndAnimation   = mk(ch.attack.end);
+            } else if (ch.attack != null && ch.attack.loop != null) {
+                attackBeginAnimation = null;
+                attackIdleAnimation  = mk(ch.attack.loop);
+                attackEndAnimation   = null;
+            } else {
+                attackBeginAnimation = attackIdleAnimation = attackEndAnimation = null;
+            }
+
+            animatedTexture = new AnimatedTexture(idleAnimation);
+            animatedTexture.loop();
+            if (flip == null) flip = new Scale(1, 1, 120, 100);
+            animatedTexture.getTransforms().add(flip);
+
+            currentAnimationName = "idle";
+            animationLoaded = true;
+        } catch (Exception e) {
+            System.err.println("PlayerAnimator(json)失败，回退老资源: " + e.getMessage());
+            this.def = null;
+            setupAnimations(); // 走你原来的硬编码
+        }
     }
 
     /**

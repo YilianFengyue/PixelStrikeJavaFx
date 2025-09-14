@@ -13,6 +13,11 @@ import org.csu.pixelstrikejavafx.core.GameType;
 
 import static com.almasb.fxgl.dsl.FXGL.*;
 import com.almasb.fxgl.entity.components.CollidableComponent;
+
+import org.csu.pixelstrikejavafx.content.CharacterDef;
+import org.csu.pixelstrikejavafx.content.CharacterRegistry;
+import javafx.geometry.Point2D;
+
 /**
  * 角色控制（行走/跑步/跳跃/二段跳），不含动画。
  * 输入仍由外部（GameApp 的 UserAction）调用 start/stop/jump。
@@ -54,7 +59,7 @@ public class Player {
     // 组件
     private Entity entity;
     private PhysicsComponent physics;
-
+    private final CharacterDef ch;
     // 生命组件（极简）
     private final PlayerHealth health = new PlayerHealth(this);
     //角色射击组件
@@ -103,11 +108,19 @@ public class Player {
     private static final int RAISE_SKIP_THRESHOLD_MS = 220; // 刚收枪后很快再按，直接从 idle 开枪
     private long lastShootEndTime = 0;                      // 最近一次 END 播完时间
 
+    // 旧API：保持兼容，默认用 ash
     public Player(double spawnX, double spawnY) {
-        createEntity(spawnX, spawnY);
-        initAnimator(); // 动画状态
-        shootingSys = new PlayerShooting(this);   // 角色射击
+        this(spawnX, spawnY, CharacterRegistry.get("ash"));
     }
+
+    // 新：显式传入角色定义
+    public Player(double spawnX, double spawnY, CharacterDef def) {
+        this.ch = (def != null ? def : CharacterRegistry.get("ash"));
+        createEntity(spawnX, spawnY);
+        initAnimator(def);                // 把 def 传给动画机
+        shootingSys = new PlayerShooting(this);
+    }
+
 
     private void createEntity(double x, double y) {
         // 1) 视图（优先使用贴图，失败则用矩形）
@@ -164,10 +177,10 @@ public class Player {
 
     }
 
-    private void initAnimator() {
-        animator = new PlayerAnimator(this);
+    private void initAnimator(CharacterDef def) {
+        animator = (def == null) ? new PlayerAnimator(this)
+                : new PlayerAnimator(this, def);
         if (animator.isAnimationLoaded()) {
-            // 如果动画加载成功，替换entity的view
             entity.getViewComponent().clearChildren();
             entity.getViewComponent().addChild(animator.getAnimatedTexture());
         }
@@ -523,6 +536,20 @@ public class Player {
         if (entity != null) {
             entity.translateY(1);
         }
+    }
+    //提供枪口世界坐标（射击改用它）
+    public Point2D getMuzzleWorld() {
+        double rx = 150, lx = 0, my = 0;      // 兼容：角色没配时的回退
+        if (ch != null && ch.sockets != null) {
+            rx = ch.sockets.muzzleRightX;
+            lx = ch.sockets.muzzleLeftX;
+            my = ch.sockets.muzzleY;
+        }
+        double offX = getFacingRight() ? rx : -lx;
+        return new Point2D(
+                entity.getX() + entity.getWidth()  / 2.0 + offX,
+                entity.getY() + entity.getHeight() / 2.0 + my
+        );
     }
     // —— Getter ——
     public Entity getEntity() { return entity; }

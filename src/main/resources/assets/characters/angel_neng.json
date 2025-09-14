@@ -1,0 +1,21 @@
+{
+  "id": "angel_neng",
+  "sockets": { "muzzleRightX": 150, "muzzleLeftX": 0, "muzzleY": 0 },
+
+  "idle":  { "sheet":"characters/angel_neng/angel_neng_idle.png",  "frames":63, "w":200, "h":200,
+    "from":0, "to":62, "duration":2.1 },
+
+  "walk":  { "sheet":"characters/angel_neng/angel_neng_move.png",  "frames":41, "w":200, "h":200,
+    "from":0, "to":40, "duration":1.2 },
+
+  "run":   { "sheet":"characters/angel_neng/angel_neng_move.png",  "frames":41, "w":200, "h":200,
+    "from":0, "to":40, "duration":0.6 },
+
+  "die":   { "sheet":"characters/angel_neng/angel_neng_die.png",   "frames":30, "w":200, "h":200,
+    "from":0, "to":29, "duration":1.0 },
+
+  "attack": { "layout":"LOOP",
+    "loop": { "sheet":"characters/angel_neng/angel_neng_attack.png", "frames":31, "w":200, "h":200,
+      "from":0, "to":30, "duration":0.9 }
+  }
+}
