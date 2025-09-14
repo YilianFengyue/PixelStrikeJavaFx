@@ -27,6 +27,9 @@
         <Button fx:id="leaveRoomButton" onAction="#handleLeaveRoom" text="离开房间" style="-fx-background-color: #e67e22;" AnchorPane.bottomAnchor="50.0" AnchorPane.leftAnchor="50.0">
             <font><Font size="22.0" /></font>
         </Button>
+        <Button fx:id="changeCharacterButton" text="更换角色" onAction="#handleChangeCharacter" style="-fx-background-color: #fac3dc;" AnchorPane.bottomAnchor="50.0" AnchorPane.leftAnchor="450.0">
+            <font><Font size="22.0" /></font>
+        </Button>
         <Button fx:id="startGameButton" onAction="#handleStartGame" text="开始游戏 (房主)" style="-fx-background-color: #2ecc71;" AnchorPane.bottomAnchor="50.0" AnchorPane.rightAnchor="50.0">
             <font><Font size="22.0" /></font>
         </Button>

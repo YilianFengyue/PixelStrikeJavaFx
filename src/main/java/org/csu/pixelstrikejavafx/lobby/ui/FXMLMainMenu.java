@@ -26,15 +26,63 @@ public class FXMLMainMenu extends FXGLMenu {
         DialogManager.setRoot(uiRoot);
 
         // 3. 加载初始界面 (例如登录页)
-        UIManager.load("login-view.fxml");
+        // 2. 【核心】智能调度逻辑
+        /*if (GlobalState.shouldShowLastMatchResults && GlobalState.lastMatchResults != null) {
+            // 场景一：信使旗帜升起，并且战绩数据存在 -> 显示战绩！
+            System.out.println("检测到游戏结束状态，正在跳转到战绩页面...");
+            GlobalState.shouldShowLastMatchResults = false; // **重要**：检查后立即放下旗帜，防止下次误判
+            UIManager.load("results-view.fxml"); // 加载您已写好的战绩 FXML
+
+        } else if (GlobalState.authToken != null) {
+            // 场景二：无战绩，但用户已登录 -> 显示大厅
+            System.out.println("用户已登录，正在加载大厅...");
+            UIManager.load("lobby-view.fxml");
+
+        } else {
+            // 场景三：未登录 -> 显示登录页
+            System.out.println("用户未登录，正在加载登录页面...");
+            UIManager.load("login-view.fxml");
+        }*/
 
         // 4. 将我们的 UI 根容器添加到 FXGL 菜单场景中
         getContentRoot().getChildren().add(uiRoot);
-
+        // 4) 自动路由：下一帧执行一次 + 每次该菜单被显示时再次执行
+        setupAutoRoute();
         addExitHandler();
     }
 
+    /**
+     * 安装自动路由：构造后下一帧触发一次 + 每次菜单重新显示时触发。
+     */
+    private void setupAutoRoute() {
+        // 下一帧执行（确保 FXGL/Scene 布局已完成）
+        Platform.runLater(this::routeToProperView);
 
+        // 监听菜单可见性（FXGL 切换菜单时会切换可见/激活状态）
+        getContentRoot().visibleProperty().addListener((obs, wasVisible, nowVisible) -> {
+            if (nowVisible) {
+                Platform.runLater(this::routeToProperView);
+            }
+        });
+    }
+
+    /**
+     * 根据全局状态决定加载哪个界面。
+     */
+    private void routeToProperView() {
+        try {
+            if (GlobalState.lastMatchResults != null) {
+                UIManager.load("results-view.fxml");
+            } else if (GlobalState.authToken != null) {
+                UIManager.load("lobby-view.fxml");
+            } else {
+                UIManager.load("login-view.fxml");
+            }
+        } catch (Exception ex) {
+            ex.printStackTrace();
+            FXGL.getDialogService().showMessageBox("加载主菜单界面失败: " + ex.getMessage());
+        }
+    }
     /**
      * 为游戏窗口添加关闭请求处理器。
      * 当用户点击窗口的 "X" 按钮时，这个处理器会被调用。

@@ -10,5 +10,5 @@ public class GlobalState {
     public static String currentGameServerUrl = null;
     public static Long currentGameId = null;
     public static JsonObject lastMatchResults = null; // <- 新增此行
-
+    public static boolean shouldShowLastMatchResults = false; // <- 新增此行
 }

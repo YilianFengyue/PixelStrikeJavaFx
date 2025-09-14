@@ -22,6 +22,81 @@ public class ApiClient {
     private final Gson gson = new Gson();
 
     /**
+     * 调用后端 API 获取所有可用地图的列表
+     * @return 包含地图信息的 Map 列表
+     * @throws IOException
+     */
+    public List<Map<String, Object>> getMaps() throws IOException {
+        String url = BASE_URL + "/game-data/maps";
+        Request request = new Request.Builder().url(url).build(); // 无需Token
+
+        try (Response response = client.newCall(request).execute()) {
+            if (!response.isSuccessful()) throw new IOException("获取地图列表失败: " + response);
+            String responseBody = Objects.requireNonNull(response.body()).string();
+            JsonObject jsonObject = gson.fromJson(responseBody, JsonObject.class);
+            if (jsonObject.get("status").getAsInt() == 0) {
+                Type listType = new TypeToken<List<Map<String, Object>>>() {}.getType();
+                return gson.fromJson(jsonObject.get("data"), listType);
+            } else {
+                throw new IOException(jsonObject.get("message").getAsString());
+            }
+        }
+    }
+
+    /**
+     * 调用后端 API 获取所有可用角色的列表
+     * @return 包含角色信息的 Map 列表
+     * @throws IOException
+     */
+    public List<Map<String, Object>> getCharacters() throws IOException {
+        String url = BASE_URL + "/game-data/characters";
+        Request request = new Request.Builder().url(url).build(); // 无需Token
+
+        try (Response response = client.newCall(request).execute()) {
+            if (!response.isSuccessful()) throw new IOException("获取角色列表失败: " + response);
+            String responseBody = Objects.requireNonNull(response.body()).string();
+            JsonObject jsonObject = gson.fromJson(responseBody, JsonObject.class);
+            if (jsonObject.get("status").getAsInt() == 0) {
+                Type listType = new TypeToken<List<Map<String, Object>>>() {}.getType();
+                return gson.fromJson(jsonObject.get("data"), listType);
+            } else {
+                throw new IOException(jsonObject.get("message").getAsString());
+            }
+        }
+    }
+
+    /**
+     * 在自定义房间内更换角色
+     * @param characterId 新的角色ID
+     * @throws IOException
+     */
+    public void changeCharacterInRoom(long characterId) throws IOException {
+        if (GlobalState.authToken == null) throw new IllegalStateException("Not logged in");
+
+        HttpUrl url = Objects.requireNonNull(HttpUrl.parse(BASE_URL + "/custom-room/character/change"))
+                .newBuilder()
+                .addQueryParameter("characterId", String.valueOf(characterId))
+                .build();
+
+        RequestBody body = RequestBody.create(new byte[0]);
+
+        Request request = new Request.Builder()
+                .url(url)
+                .addHeader("Authorization", "Bearer " + GlobalState.authToken)
+                .post(body)
+                .build();
+
+        try (Response response = client.newCall(request).execute()) {
+            if (!response.isSuccessful()) throw new IOException("更换角色请求失败: " + response);
+            String responseBody = Objects.requireNonNull(response.body()).string();
+            JsonObject jsonObject = gson.fromJson(responseBody, JsonObject.class);
+            if (jsonObject.get("status").getAsInt() != 0) {
+                throw new IOException(jsonObject.get("message").getAsString());
+            }
+        }
+    }
+
+    /**
      * 调用后端 /auth/login 接口 (新版)
      * @param username 用户名
      * @param password 密码
@@ -350,7 +425,7 @@ public class ApiClient {
      * @return 成功时返回房间的 ID 字符串。
      * @throws IOException 当网络或业务逻辑失败时抛出。
      */
-    public String createRoom() throws IOException {
+    /*public String createRoom() throws IOException {
         if (GlobalState.authToken == null) throw new IllegalStateException("Not logged in");
 
         String url = BASE_URL + "/custom-room/create";
@@ -375,6 +450,69 @@ public class ApiClient {
                 return jsonObject.get("data").getAsString();
             } else {
                 // 失败时，抛出后端返回的错误信息
+                throw new IOException(jsonObject.get("message").getAsString());
+            }
+        }
+    }*/
+
+    // 修改为（使其接受 mapId 参数）
+    public String createRoom(String mapId) throws IOException {
+        if (GlobalState.authToken == null) throw new IllegalStateException("Not logged in");
+
+        // 根据新API文档，使用带参数的URL
+        HttpUrl url = Objects.requireNonNull(HttpUrl.parse(BASE_URL + "/custom-room/create"))
+                .newBuilder()
+                .addQueryParameter("mapId", mapId)
+                .build();
+
+        RequestBody body = RequestBody.create(new byte[0]);
+
+        Request request = new Request.Builder()
+                .url(url)
+                .addHeader("Authorization", "Bearer " + GlobalState.authToken)
+                .post(body)
+                .build();
+
+        try (Response response = client.newCall(request).execute()) {
+            if (!response.isSuccessful()) {
+                throw new IOException("创建房间请求失败: " + response.code());
+            }
+            String responseBody = Objects.requireNonNull(response.body()).string();
+            JsonObject jsonObject = gson.fromJson(responseBody, JsonObject.class);
+            if (jsonObject.get("status").getAsInt() == 0) {
+                return jsonObject.get("data").getAsString();
+            } else {
+                throw new IOException(jsonObject.get("message").getAsString());
+            }
+        }
+    }
+
+    /**
+     * (房主) 移交房主权限给房间内另一位玩家
+     * @param newHostId 新房主的用户ID
+     * @throws IOException
+     */
+    public void transferHost(long newHostId) throws IOException {
+        if (GlobalState.authToken == null) throw new IllegalStateException("Not logged in");
+
+        HttpUrl url = Objects.requireNonNull(HttpUrl.parse(BASE_URL + "/custom-room/transfer-host"))
+                .newBuilder()
+                .addQueryParameter("newHostId", String.valueOf(newHostId))
+                .build();
+
+        RequestBody body = RequestBody.create(new byte[0]);
+
+        Request request = new Request.Builder()
+                .url(url)
+                .addHeader("Authorization", "Bearer " + GlobalState.authToken)
+                .post(body)
+                .build();
+
+        try (Response response = client.newCall(request).execute()) {
+            if (!response.isSuccessful()) throw new IOException("移交房主请求失败: " + response);
+            String responseBody = Objects.requireNonNull(response.body()).string();
+            JsonObject jsonObject = gson.fromJson(responseBody, JsonObject.class);
+            if (jsonObject.get("status").getAsInt() != 0) {
                 throw new IOException(jsonObject.get("message").getAsString());
             }
         }

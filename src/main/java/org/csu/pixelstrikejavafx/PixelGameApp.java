@@ -366,11 +366,23 @@ public class PixelGameApp extends GameApplication {
 
                 case "game_over" -> {
                     System.out.println("Received game over message from server.");
-                    // 服务器会统一处理所有玩家的游戏结束流程。
-                    // 客户端只需等待，然后返回主菜单即可。
+
+                    com.google.gson.JsonObject gameOverMsg = new com.google.gson.Gson().fromJson(json, com.google.gson.JsonObject.class);
+
+                    if (gameOverMsg.has("results") && gameOverMsg.get("results").isJsonObject()) {
+                        // 【核心修改】更新响应式数据模型，UI会自动收到通知并刷新
+                        org.csu.pixelstrikejavafx.core.MatchResultsModel.setMatchResults(
+                                gameOverMsg.getAsJsonObject("results")
+                        );
+                        System.out.println("Match results updated in the model.");
+                    } else {
+                        // 如果没有战绩，也通知模型（虽然它可能仍在加载状态）
+                        org.csu.pixelstrikejavafx.core.MatchResultsModel.setMatchResults(null);
+                    }
+
+                    // 显示“游戏结束”弹窗，用户点击后返回主菜单 (大厅UI此时已经显示着最终战绩了)
                     getGameScene().getViewport().fade(() -> getDialogService().showMessageBox("游戏结束!", () -> {
-                        // networkService.sendLeaveMessage(); // 不再需要发送 leave 消息
-                        getGameController().gotoMainMenu();  // 直接返回主菜单
+                        getGameController().gotoMainMenu();
                     }));
                 }
 

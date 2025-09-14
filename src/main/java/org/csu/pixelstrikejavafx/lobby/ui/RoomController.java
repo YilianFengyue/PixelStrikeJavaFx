@@ -7,17 +7,16 @@ import javafx.application.Platform;
 import javafx.fxml.FXML;
 import javafx.fxml.FXMLLoader;
 import javafx.fxml.Initializable;
+import javafx.geometry.Insets;
 import javafx.scene.Parent;
-import javafx.scene.control.Button;
-import javafx.scene.control.Label;
-import javafx.scene.control.ListView;
-import javafx.scene.control.ListCell;
+import javafx.scene.control.*;
 import javafx.scene.image.ImageView;
 import javafx.scene.layout.HBox;
 import javafx.scene.layout.Priority;
 import javafx.scene.layout.Region;
 import javafx.geometry.Pos;
 
+import javafx.scene.layout.VBox;
 import org.csu.pixelstrikejavafx.lobby.events.KickedFromRoomEvent;
 import org.csu.pixelstrikejavafx.lobby.events.RoomUpdateEvent;
 import org.csu.pixelstrikejavafx.lobby.network.ApiClient;
@@ -27,6 +26,8 @@ import org.csu.pixelstrikejavafx.lobby.ui.dialog.DialogManager;
 
 import java.io.IOException;
 import java.net.URL;
+import java.util.List;
+import java.util.Map;
 import java.util.ResourceBundle;
 
 
@@ -39,6 +40,8 @@ public class RoomController implements Initializable {
     private Button leaveRoomButton;
     @FXML
     private Button startGameButton;
+    @FXML
+    private Button changeCharacterButton;
 
     private final ApiClient apiClient = new ApiClient();
 
@@ -138,10 +141,74 @@ public class RoomController implements Initializable {
         }).start();
     }
 
+    @FXML
+    private void handleChangeCharacter() {
+        new Thread(() -> {
+            try {
+                // 1. 获取角色列表
+                List<Map<String, Object>> characters = apiClient.getCharacters();
+                // 2. 弹出角色选择框 (逻辑与LobbyController类似，但需要一个独立的辅助方法)
+                Platform.runLater(() -> showCharacterSelectionDialog(characters, selectedCharacter -> {
+                    if (selectedCharacter == null) return; // 用户取消
+                    long characterId = ((Number) selectedCharacter.get("id")).longValue();
+
+                    // 3. 调用更换角色API
+                    new Thread(() -> {
+                        try {
+                            apiClient.changeCharacterInRoom(characterId);
+                            // 成功后，后端会广播 room_update 消息，UI会自动刷新，无需在此做任何事
+                        } catch (Exception e) {
+                            Platform.runLater(() -> FXGL.getDialogService().showMessageBox("更换角色失败: " + e.getMessage()));
+                        }
+                    }).start();
+                }));
+            } catch (Exception e) {
+                Platform.runLater(() -> FXGL.getDialogService().showMessageBox("获取角色列表失败: " + e.getMessage()));
+            }
+        }).start();
+    }
+
+    // 房间内专用的选择对话框辅助方法
+    private void showCharacterSelectionDialog(List<Map<String, Object>> items, java.util.function.Consumer<Map<String, Object>> onItemSelected) {
+        Dialog<Map<String, Object>> dialog = new Dialog<>();
+        dialog.setTitle("更换角色");
+
+        dialog.getDialogPane().getButtonTypes().addAll(ButtonType.OK, ButtonType.CANCEL);
+
+        ListView<Map<String, Object>> listView = new ListView<>();
+        listView.getItems().setAll(items);
+        listView.setCellFactory(lv -> new ListCell<>() {
+            @Override
+            protected void updateItem(Map<String, Object> item, boolean empty) {
+                super.updateItem(item, empty);
+                if (empty) {
+                    setText(null);
+                } else {
+                    // 可以显示更详细的信息
+                    setText(String.format("%s (生命: %s, 速度: %s)",
+                            item.get("name"), item.get("health"), item.get("speed")));
+                }
+            }
+        });
+        listView.setPrefHeight(200);
+
+        VBox content = new VBox(10, listView);
+        dialog.getDialogPane().setContent(content);
+
+        dialog.setResultConverter(dialogButton -> {
+            if (dialogButton == ButtonType.OK) {
+                return listView.getSelectionModel().getSelectedItem();
+            }
+            return null;
+        });
+
+        dialog.showAndWait().ifPresent(onItemSelected);
+    }
+
     /**
      * 设置玩家列表 ListView 的单元格如何显示
      */
-    private void setupPlayersCellFactory() {
+    /*private void setupPlayersCellFactory() {
         playersListView.setCellFactory(lv -> new ListCell<JsonElement>() {
             private HBox hbox = new HBox(10);
             private final ImageView avatarView = new ImageView();
@@ -167,8 +234,11 @@ public class RoomController implements Initializable {
                     String nickname = player.get("nickname").getAsString();
                     long userId = player.get("userId").getAsLong();
                     boolean isHost = player.get("host").getAsBoolean();
+                    // 新增：从 room_update 消息中获取角色名
+                    String characterName = player.get("characterName").getAsString();
 
-                    playerInfoLabel.setText(nickname + (isHost ? " (房主)" : ""));
+                    // 修改：将角色名加入显示文本
+                    playerInfoLabel.setText(String.format("%s (%s)%s", nickname, characterName, (isHost ? " - 房主" : "")));
 
                     // 在使用 GlobalState.currentRoomInfo 之前，必须检查它是否为 null
                     if (GlobalState.currentRoomInfo != null) {
@@ -193,6 +263,88 @@ public class RoomController implements Initializable {
                     });
                     avatarView.setImage(UIManager.loadAvatar(player.has("avatarUrl") ? player.get("avatarUrl").getAsString() : null));
 
+                    setGraphic(hbox);
+                }
+            }
+        });
+    }*/
+
+    private void setupPlayersCellFactory() {
+        playersListView.setCellFactory(lv -> new ListCell<JsonElement>() {
+            private HBox hbox = new HBox(10);
+            private final ImageView avatarView = new ImageView();
+            private Label playerInfoLabel = new Label();
+            private Region spacer = new Region();
+            private Button kickButton = new Button("踢出");
+
+            {
+                avatarView.setFitHeight(40);
+                avatarView.setFitWidth(40);
+                HBox.setHgrow(spacer, Priority.ALWAYS);
+                hbox.setAlignment(Pos.CENTER_LEFT);
+                hbox.setPadding(new Insets(5)); // 给HBox一点内边距，让高亮更好看
+                hbox.getChildren().addAll(avatarView, playerInfoLabel, spacer, kickButton);
+            }
+
+            @Override
+            protected void updateItem(JsonElement item, boolean empty) {
+                super.updateItem(item, empty);
+
+                // 清理旧的样式和事件，防止复用出错
+                hbox.setOnMouseClicked(null);
+                hbox.setStyle("");
+
+                if (empty || item == null) {
+                    setGraphic(null);
+                } else {
+                    JsonObject player = item.getAsJsonObject();
+                    String nickname = player.get("nickname").getAsString();
+                    long userId = player.get("userId").getAsLong();
+                    boolean isHost = player.get("host").getAsBoolean();
+                    String characterName = player.get("characterName").getAsString();
+
+                    playerInfoLabel.setText(String.format("%s (%s)%s", nickname, characterName, (isHost ? " - 房主" : "")));
+
+                    boolean amIHost = GlobalState.currentRoomInfo != null && GlobalState.userId != null && GlobalState.userId == GlobalState.currentRoomInfo.get("hostId").getAsLong();
+                    boolean isMe = GlobalState.userId != null && GlobalState.userId == userId;
+
+                    // --- 渲染UI ---
+                    kickButton.setVisible(amIHost && !isHost); // 踢人按钮逻辑不变
+                    if (isMe) {
+                        // 高亮显示自己
+                        hbox.setStyle("-fx-background-color: #3e4c5a; -fx-background-radius: 5;");
+                    }
+
+                    // --- 绑定事件 ---
+                    kickButton.setOnAction(event -> {
+                        new Thread(() -> {
+                            try {
+                                apiClient.kickPlayer(userId);
+                            } catch (Exception e) {
+                                Platform.runLater(() -> FXGL.getDialogService().showMessageBox("操作失败: " + e.getMessage()));
+                            }
+                        }).start();
+                    });
+
+                    // 只有我是房主，且点击的不是我自己时，才添加移交房主事件
+                    if (amIHost && !isMe) {
+                        hbox.setOnMouseClicked(event -> {
+                            FXGL.getDialogService().showConfirmationBox("是否将房主移交给 " + nickname + "?", yes -> {
+                                if (yes) {
+                                    new Thread(() -> {
+                                        try {
+                                            apiClient.transferHost(userId);
+                                            // 成功后后端会广播，UI自动更新
+                                        } catch (Exception e) {
+                                            Platform.runLater(() -> FXGL.getDialogService().showMessageBox("移交失败: " + e.getMessage()));
+                                        }
+                                    }).start();
+                                }
+                            });
+                        });
+                    }
+
+                    avatarView.setImage(UIManager.loadAvatar(player.has("avatarUrl") ? player.get("avatarUrl").getAsString() : null));
                     setGraphic(hbox);
                 }
             }

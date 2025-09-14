@@ -19,6 +19,7 @@ import javafx.geometry.Pos;
 
 import javafx.scene.shape.Circle;
 import javafx.stage.FileChooser;
+import org.csu.pixelstrikejavafx.core.MatchResultsModel;
 import org.csu.pixelstrikejavafx.core.MatchSuccessEvent;
 import org.csu.pixelstrikejavafx.lobby.events.*;
 import org.csu.pixelstrikejavafx.lobby.network.ApiClient;
@@ -31,7 +32,11 @@ import java.io.IOException;
 import java.net.URL;
 import java.util.*;
 
-
+import javafx.scene.image.Image;
+import javafx.scene.image.ImageView;
+import javafx.scene.text.Text;
+import javafx.beans.property.SimpleObjectProperty;
+import javafx.scene.layout.BorderPane;
 /**
  * LobbyController 负责处理 lobby-view.fxml 的所有用户交互。
  * 例如：显示好友列表、处理匹配按钮点击、监听服务器事件等。
@@ -122,6 +127,11 @@ public class LobbyController implements Initializable {
                 GlobalState.currentGameServerUrl = event.getServerAddress();
                 System.out.println("Game Server URL saved to GlobalState: " + GlobalState.currentGameServerUrl);
                 GlobalState.currentGameId = event.getGameId();
+
+                MatchResultsModel.reset();
+                // 立即切换到战绩页面，它会一直显示“加载中”，直到游戏结束
+                UIManager.load("results-view.fxml");
+                System.out.println("Switched to results view in loading state.");
 
                 UIManager.load("lobby-view.fxml");
                 // 【您的方案】在进入游戏前，立即恢复按钮状态，为返回做准备
@@ -235,42 +245,274 @@ public class LobbyController implements Initializable {
     /**
      * 处理点击“开始匹配”按钮的事件
      */
+
+    /*@FXML
+    private void handleStartMatch() {
+        // 匹配流程: 选地图 -> 选角色 -> 开始匹配
+        new Thread(() -> {
+            try {
+                // 1. 获取地图列表
+                List<Map<String, Object>> maps = apiClient.getMaps();
+                // 2. 弹出地图选择框 (在UI线程)
+                Platform.runLater(() -> showSelectionDialog("选择地图", maps, selectedMap -> {
+                    if (selectedMap == null) return; // 用户取消
+                    long mapId = ((Number) selectedMap.get("id")).longValue();
+
+                    // 3. 地图选好后，获取角色列表
+                    new Thread(() -> {
+                        try {
+                            List<Map<String, Object>> characters = apiClient.getCharacters();
+                            // 4. 弹出角色选择框 (在UI线程)
+                            Platform.runLater(() -> showSelectionDialog("选择角色", characters, selectedCharacter -> {
+                                if (selectedCharacter == null) return; // 用户取消
+                                long characterId = ((Number) selectedCharacter.get("id")).longValue();
+
+                                // 5. 一切就绪，调用新的开始匹配接口
+                                startMatchmakingWithSelection(mapId, characterId);
+                            }));
+                        } catch (Exception e) {
+                            Platform.runLater(() -> FXGL.getDialogService().showMessageBox("获取角色列表失败: " + e.getMessage()));
+                        }
+                    }).start();
+                }));
+            } catch (Exception e) {
+                Platform.runLater(() -> FXGL.getDialogService().showMessageBox("获取地图列表失败: " + e.getMessage()));
+            }
+        }).start();
+    }
+    @FXML
+    private void handleCreateRoom() {
+        // 开房流程: 选地图 -> 创建房间
+        new Thread(() -> {
+            try {
+                List<Map<String, Object>> maps = apiClient.getMaps();
+                Platform.runLater(() -> showSelectionDialog("选择地图创建房间", maps, selectedMap -> {
+                    if (selectedMap == null) return; // 用户取消
+                    long mapId = ((Number) selectedMap.get("id")).longValue();
+
+                    new Thread(() -> {
+                        try {
+                            // 调用带 mapId 的 createRoom 接口
+                            apiClient.createRoom(String.valueOf(mapId));
+                            Platform.runLater(() -> {
+                                System.out.println("房间创建成功，正在进入...");
+                                UIManager.load("room-view.fxml");
+                            });
+                        } catch (Exception e) {
+                            Platform.runLater(() -> FXGL.getDialogService().showMessageBox("创建房间失败: " + e.getMessage()));
+                        }
+                    }).start();
+                }));
+            } catch (Exception e) {
+                Platform.runLater(() -> FXGL.getDialogService().showMessageBox("获取地图列表失败: " + e.getMessage()));
+            }
+        }).start();
+    }
+*/
+
     @FXML
     private void handleStartMatch() {
-        // 确保 matchStatusLabel 不为 null 后再使用
+        // 匹配流程: 选地图 -> 选角色 -> 开始匹配
+        new Thread(() -> {
+            try {
+                List<Map<String, Object>> maps = apiClient.getMaps();
+                Platform.runLater(() -> showMapSelectionDialog("选择地图", maps, selectedMap -> {
+                    if (selectedMap == null) return; // 用户取消
+                    long mapId = ((Number) selectedMap.get("id")).longValue();
+
+                    // 后续的角色选择流程不变
+                    new Thread(() -> {
+                        try {
+                            List<Map<String, Object>> characters = apiClient.getCharacters();
+                            Platform.runLater(() -> showSelectionDialog("选择角色", characters, selectedCharacter -> {
+                                if (selectedCharacter == null) return;
+                                long characterId = ((Number) selectedCharacter.get("id")).longValue();
+                                startMatchmakingWithSelection(mapId, characterId);
+                            }));
+                        } catch (Exception e) {
+                            Platform.runLater(() -> FXGL.getDialogService().showMessageBox("获取角色列表失败: " + e.getMessage()));
+                        }
+                    }).start();
+                }));
+            } catch (Exception e) {
+                Platform.runLater(() -> FXGL.getDialogService().showMessageBox("获取地图列表失败: " + e.getMessage()));
+            }
+        }).start();
+    }
+
+    @FXML
+    private void handleCreateRoom() {
+        // 开房流程: 选地图 -> 创建房间
+        new Thread(() -> {
+            try {
+                List<Map<String, Object>> maps = apiClient.getMaps();
+                Platform.runLater(() -> showMapSelectionDialog("选择地图创建房间", maps, selectedMap -> {
+                    if (selectedMap == null) return; // 用户取消
+                    long mapId = ((Number) selectedMap.get("id")).longValue();
+
+                    new Thread(() -> {
+                        try {
+                            apiClient.createRoom(String.valueOf(mapId));
+                            Platform.runLater(() -> {
+                                System.out.println("房间创建成功，正在进入...");
+                                UIManager.load("room-view.fxml");
+                            });
+                        } catch (Exception e) {
+                            Platform.runLater(() -> FXGL.getDialogService().showMessageBox("创建房间失败: " + e.getMessage()));
+                        }
+                    }).start();
+                }));
+            } catch (Exception e) {
+                Platform.runLater(() -> FXGL.getDialogService().showMessageBox("获取地图列表失败: " + e.getMessage()));
+            }
+        }).start();
+    }
+
+    /**
+     * 新增：显示一个图片轮播式的地图选择对话框
+     */
+    private void showMapSelectionDialog(String title, List<Map<String, Object>> maps, java.util.function.Consumer<Map<String, Object>> onItemSelected) {
+        if (maps == null || maps.isEmpty()) {
+            FXGL.getDialogService().showMessageBox("没有可用的地图！");
+            return;
+        }
+
+        Dialog<Map<String, Object>> dialog = new Dialog<>();
+        dialog.setTitle(title);
+        dialog.getDialogPane().getButtonTypes().addAll(ButtonType.OK, ButtonType.CANCEL);
+
+        // --- UI 组件 ---
+        BorderPane root = new BorderPane();
+        root.setPrefSize(400, 300);
+
+        ImageView mapView = new ImageView();
+        mapView.setFitHeight(200);
+        mapView.setPreserveRatio(true);
+
+        Text mapName = new Text();
+        mapName.setStyle("-fx-font-size: 18px; -fx-font-weight: bold;");
+        Text mapDescription = new Text();
+        VBox mapInfoBox = new VBox(5, mapName, mapDescription);
+        mapInfoBox.setAlignment(Pos.CENTER);
+
+        Button leftButton = new Button("<");
+        Button rightButton = new Button(">");
+
+        root.setCenter(mapView);
+        root.setBottom(mapInfoBox);
+        root.setLeft(leftButton);
+        root.setRight(rightButton);
+        BorderPane.setAlignment(leftButton, Pos.CENTER_LEFT);
+        BorderPane.setAlignment(rightButton, Pos.CENTER_RIGHT);
+        BorderPane.setMargin(mapInfoBox, new Insets(10));
+
+        // --- 逻辑 ---
+        SimpleObjectProperty<Map<String, Object>> currentMap = new SimpleObjectProperty<>(maps.get(0));
+        final int[] currentIndex = {0};
+
+        // 更新显示内容的方法
+        Runnable updateDisplay = () -> {
+            Map<String, Object> map = maps.get(currentIndex[0]);
+            currentMap.set(map);
+            mapName.setText((String) map.get("name"));
+            mapDescription.setText((String) map.get("description"));
+
+            Object urlObj = map.get("thumbnailUrl");
+            Image image;
+            if (urlObj != null && !urlObj.toString().isEmpty()) {
+                image = new Image(urlObj.toString(), true); // true表示后台加载
+            } else {
+                image = new Image(Objects.requireNonNull(getClass().getResourceAsStream("/assets/textures/background.png"))); // 默认图
+            }
+            mapView.setImage(image);
+        };
+
+        // 按钮事件
+        leftButton.setOnAction(e -> {
+            currentIndex[0] = (currentIndex[0] - 1 + maps.size()) % maps.size();
+            updateDisplay.run();
+        });
+        rightButton.setOnAction(e -> {
+            currentIndex[0] = (currentIndex[0] + 1) % maps.size();
+            updateDisplay.run();
+        });
+
+        // 初始显示
+        updateDisplay.run();
+
+        dialog.getDialogPane().setContent(root);
+        dialog.setResultConverter(dialogButton -> (dialogButton == ButtonType.OK) ? currentMap.get() : null);
+        dialog.showAndWait().ifPresent(onItemSelected);
+    }
+
+
+    // 新增一个私有方法来处理最终的API调用
+    private void startMatchmakingWithSelection(long mapId, long characterId) {
         if (matchStatusLabel != null) {
             matchStatusLabel.setText("正在发送匹配请求...");
         }
         startMatchButton.setDisable(true);
         cancelMatchButton.setDisable(false);
-        // 必须在后台线程中执行网络请求，否则UI会卡死
+
         new Thread(() -> {
             try {
-                // 调用我们刚刚在 ApiClient 中添加的方法
-                apiClient.startMatchmaking();
-
-                // 网络请求成功后，在UI线程上更新界面
+                // 调用带参数的 startMatchmaking 方法
+                apiClient.startMatchmaking(String.valueOf(mapId), String.valueOf(characterId));
                 Platform.runLater(() -> {
                     if (matchStatusLabel != null) {
                         matchStatusLabel.setText("已进入匹配队列，等待服务器通知...");
                     }
-                    // 可以在这里启用“取消匹配”按钮（如果需要）
                 });
-
             } catch (Exception e) {
-                // 如果请求失败（例如网络问题或后端返回错误），在UI线程上显示错误信息
                 Platform.runLater(() -> {
                     if (matchStatusLabel != null) {
                         matchStatusLabel.setText("开始匹配失败: " + e.getMessage());
                     }
-                    startMatchButton.setDisable(false); // 恢复按钮的可点击状态
+                    startMatchButton.setDisable(false);
                     cancelMatchButton.setDisable(true);
                 });
-                e.printStackTrace(); // 在控制台打印详细错误，便于调试
+                e.printStackTrace();
             }
         }).start();
     }
 
+
+
+    /**
+     * 新增：一个通用的选择对话框
+     * @param title 对话框标题
+     * @param items 要显示的项目列表 (每个Map应包含 "id" 和 "name")
+     * @param onItemSelected 用户选择后的回调函数
+     */
+    private void showSelectionDialog(String title, List<Map<String, Object>> items, java.util.function.Consumer<Map<String, Object>> onItemSelected) {
+        Dialog<Map<String, Object>> dialog = new Dialog<>();
+        dialog.setTitle(title);
+
+        dialog.getDialogPane().getButtonTypes().addAll(ButtonType.OK, ButtonType.CANCEL);
+
+        ListView<Map<String, Object>> listView = new ListView<>();
+        listView.getItems().setAll(items);
+        listView.setCellFactory(lv -> new ListCell<>() {
+            @Override
+            protected void updateItem(Map<String, Object> item, boolean empty) {
+                super.updateItem(item, empty);
+                setText(empty ? null : (String) item.get("name"));
+            }
+        });
+
+        VBox content = new VBox(10, new Label("请选择一项:"), listView);
+        content.setPadding(new Insets(20));
+        dialog.getDialogPane().setContent(content);
+
+        dialog.setResultConverter(dialogButton -> {
+            if (dialogButton == ButtonType.OK) {
+                return listView.getSelectionModel().getSelectedItem();
+            }
+            return null;
+        });
+
+        dialog.showAndWait().ifPresent(onItemSelected);
+    }
 
     @FXML
     private void handleStartGame() {
@@ -658,26 +900,7 @@ public class LobbyController implements Initializable {
         });
     }
 
-    @FXML
-    private void handleCreateRoom() {
-        new Thread(() -> {
-            try {
-                apiClient.createRoom();
-                Platform.runLater(() -> {
-                    System.out.println("房间创建成功，正在进入房间...");
 
-                    // ↓↓↓ 修改点：不再自己弹窗，而是设置下一页的消息 ↓↓↓
-                    UIManager.showMessageOnNextScreen("房间创建成功！");
-
-                    // 正常加载房间界面
-                    UIManager.load("room-view.fxml");
-                });
-            } catch (Exception e) {
-                Platform.runLater(() -> DialogManager.showMessage("创建房间失败", e.getMessage()));
-                e.printStackTrace();
-            }
-        }).start();
-    }
 
     @FXML
     private void handleJoinRoom() {
