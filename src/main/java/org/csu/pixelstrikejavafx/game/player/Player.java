@@ -43,13 +43,14 @@ public class Player implements OnFireCallback {
     public static final double HB_H =160;       // 碰撞体高度
 
     // —— 手感参数（可按需微调）——
-    private static final double WALK_SPEED = 200.0;
-    private static final double RUN_SPEED  = 400.0;
-    private static final double ACCEL      = 400.0;  // 水平加速度
-    private static final double JUMP_VY    = 650.0;
-    private static final double DJUMP_VY   = 500.0;
+    private static final double WALK_SPEED = 550.0;
+    private static final double RUN_SPEED  = 850.0;
+    private static final double GROUND_ACCEL = 12000.0;  // 水平加速度
+    private static final double AIR_ACCEL    = 2500.0; // 空中加速度
+    private static final double JUMP_VY    = 1200.0;
+    private static final double DJUMP_VY   = 1000.0;
 
-    private static final long   DOUBLE_TAP_MS = 300;  // A/D 双击触发跑步
+    private static final long   DOUBLE_TAP_MS = 200;  // A/D 双击触发跑步
 
     // 组件
     private Entity entity;
@@ -78,6 +79,7 @@ public class Player implements OnFireCallback {
     private boolean running     = false;
     private boolean onGround    = false;
 
+    private long respawnProtectionEndTime = 0;
     private int jumpsUsed = 0;      // 0/1/2
     private boolean facingRight = true;  // 记录当前朝向
 
@@ -183,20 +185,30 @@ public class Player implements OnFireCallback {
         } else {
             vxTarget = 0;
         }
+        double accel = onGround ? GROUND_ACCEL : AIR_ACCEL;
+        if (Math.signum(vxTarget) != Math.signum(vxCurrent) && vxTarget != 0 && vxCurrent != 0) {
+            accel *= 2.5; // 制动时的加速度是普通加速度的2.5倍
+        }
 
         // 2) 平滑趋近
         double diff = vxTarget - vxCurrent;
-        double step = ACCEL * tpf;
+        double step = accel * tpf;
         if (Math.abs(diff) > step) {
             vxCurrent += Math.signum(diff) * step;
         } else {
             vxCurrent = vxTarget;
         }
+        if (onGround && vxTarget == 0) {
+            vxCurrent *= 0.75; // 每次更新速度衰减到75%，实现快速停止
+            if (Math.abs(vxCurrent) < 10) {
+                vxCurrent = 0; // 当速度很小时，直接归零
+            }
+        }
         double totalVX = vxCurrent + knockVX;
         physics.setVelocityX(totalVX);
 
         // ★ 按时间衰减击退（与帧率无关）
-        double decel = 900 * tpf; // 每秒把绝对值减少约 900 像素/秒，可按手感调
+        double decel = 600 * tpf; // 每秒把绝对值减少约 900 像素/秒，可按手感调
         if (Math.abs(knockVX) <= decel) {
             knockVX = 0;
         } else {

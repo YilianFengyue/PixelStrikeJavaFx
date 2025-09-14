@@ -31,34 +31,48 @@ public final class GameConfig {
     public static final class Weapons {
         private Weapons() {}
         public static final WeaponStats PISTOL = new WeaponStats(
-                "Pistol", 10.0, 0.15, 1200.0, 1500.0, 0.0,
+                "Pistol",
+                15.0,
+                0.2,
+                1200.0, 1800.0, 0.0,
                 150.0, 0.0, 0.0,
                 1, 0.0,
-                1.6, 18.0, 0.6,
-                0.5, 6.0, 8.0,
-                200.0, 20.0
+                1.2, 18.0, 0.2,
+                0.2, 4.0, 6.0,
+                100.0, 10.0
         );
 
         public static final WeaponStats MACHINE_GUN = new WeaponStats(
-                "MachineGun", 8.0, 0.08, 1200.0, 1800.0, 0.0,
+                "MachineGun",
+                9.0,
+                0.07,
+                1200.0, 1800.0, 0.0,
                 150.0, 0.0, 0.0,
                 1, 0.0,
-                0.0, 0.0, 2.5,
-                0.8, 10.0, 12.0,
+                0.0, 0.0, 4.0,
+                1.2, 15.0, 18.0,
                 0.0, 0.0
         );
 
         public static final WeaponStats SHOTGUN = new WeaponStats(
-                "Shotgun", 4.0, 0.8, 600.0, 2000.0, 0.0,
+                "Shotgun",
+                8.0,
+                1.0,
+                500.0,
+                2000.0, 0.0,
                 150.0, 0.0, 0.0,
-                8, 15.0,
+                8,
+                22.0,
                 0.0, 0.0, 0.0,
                 0.0, 0.0, 0.0,
                 0.0, 0.0
         );
         public static final WeaponStats RAILGUN = new WeaponStats(
-                "Railgun", 75.0, 1.0, 4000.0, 0.0, 0.0,
-                150.0, 150.0, 0.0, // Muzzle Left X set to 150 for symmetry with -offsetX
+                "Railgun",
+                90.0,
+                1.5,
+                4000.0, 0.0, 0.0,
+                150.0, 150.0, 0.0,
                 1, 0.0,
                 0.0, 0.0, 0.0,
                 0.0, 0.0, 0.0,
