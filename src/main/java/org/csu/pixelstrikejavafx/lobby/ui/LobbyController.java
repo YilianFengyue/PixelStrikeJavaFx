@@ -580,8 +580,22 @@ public class LobbyController implements Initializable {
         FXGL.getEventBus().addEventHandler(FriendProfileUpdateEvent.ANY, this::onFriendProfileUpdate);
         // 监听“好友申请被接受”事件
         FXGL.getEventBus().addEventHandler(FriendRequestAcceptedEvent.ANY, this::onFriendRequestAccepted);
-
+        // 【新增】监听被好友删除的事件
+        FXGL.getEventBus().addEventHandler(FriendRemovedEvent.ANY, this::onFriendRemoved);
         FXGL.getEventBus().addEventHandler(RoomInvitationEvent.ANY, this::onRoomInvitation);
+    }
+
+    /**
+     * 当被好友删除时，此方法被调用
+     */
+    private void onFriendRemoved(FriendRemovedEvent event) {
+        Platform.runLater(() -> {
+            // 弹出一个通知告诉用户
+            FXGL.getNotificationService().pushNotification("您已被对方从好友列表中移除。");
+
+            // 重新加载好友列表，被删除的好友会从列表中消失
+            loadFriendsList();
+        });
     }
 
     /**
