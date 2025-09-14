@@ -499,13 +499,39 @@ public class LobbyController implements Initializable {
                 setText(empty ? null : (String) item.get("name"));
             }
         });
-
+        // --- 新增逻辑：在这里设置默认选项 ---
+        if ("选择角色".equals(title) && !items.isEmpty()) {
+            // 遍历列表，找到ID为1的角色
+            for (Map<String, Object> character : items) {
+                // GSON解析JSON数字时默认为Double类型，所以用 1.0 比较
+                if (character.get("id") instanceof Number && ((Number) character.get("id")).doubleValue() == 1.0) {
+                    // 找到后，设置为默认选中项
+                    listView.getSelectionModel().select(character);
+                    break; // 找到后即可退出循环
+                }
+            }
+            // 如果没找到ID为1的，默认会选中第一项
+            if (listView.getSelectionModel().isEmpty()){
+                listView.getSelectionModel().selectFirst();
+            }
+        }
         VBox content = new VBox(10, new Label("请选择一项:"), listView);
         content.setPadding(new Insets(20));
         dialog.getDialogPane().setContent(content);
 
         dialog.setResultConverter(dialogButton -> {
             if (dialogButton == ButtonType.OK) {
+                // 如果用户没有手动选择，确保返回默认选中的项
+                if (listView.getSelectionModel().getSelectedItem() == null) {
+                    // 如果是角色选择，且没有手动选择，可以强制返回ID为1的角色
+                    if ("选择角色".equals(title)) {
+                        for (Map<String, Object> character : items) {
+                            if (character.get("id") instanceof Number && ((Number) character.get("id")).doubleValue() == 1.0) {
+                                return character;
+                            }
+                        }
+                    }
+                }
                 return listView.getSelectionModel().getSelectedItem();
             }
             return null;
