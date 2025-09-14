@@ -405,12 +405,21 @@ public class PixelGameApp extends GameApplication {
                     long srvTS = readSrvTS(json);
                     if (welcomeSrvTS > 0 && srvTS > 0 && srvTS < welcomeSrvTS) return;
 
+                    int attacker = extractInt(json, "\"attacker\":");  // ★ 新增
+
                     double ox = extractDouble(json, "\"ox\":");
                     double oy = extractDouble(json, "\"oy\":");
                     double dx = extractDouble(json, "\"dx\":");
                     double dy = extractDouble(json, "\"dy\":");
                     double range = extractDouble(json, "\"range\":");
                     playShotEffect(ox, oy, dx, dy, range);
+
+
+
+                    // 不是我自己发的 shot 才播放远端音（避免本地重复）
+                    if (myPlayerId == null || attacker == 0 || attacker != myPlayerId) {
+                        playRemoteShotSfx();
+                    }
                 }
 
                 case "damage" -> {
@@ -509,6 +518,16 @@ public class PixelGameApp extends GameApplication {
         rp.lastUpdate = System.currentTimeMillis();
     }
 
+
+    private void playRemoteShotSfx() {
+        try {
+            var snd  = getAssetLoader().loadSound("weapons/generic_muzzle.wav");
+            double prev = getSettings().getGlobalSoundVolume();   // <-- 用 Settings
+            getSettings().setGlobalSoundVolume(0.85);
+            getAudioPlayer().playSound(snd);
+            runOnce(() -> getSettings().setGlobalSoundVolume(prev), javafx.util.Duration.millis(1));
+        } catch (Exception ignore) { }
+    }
 
     // [NEW]
     private int extractInt(String json, String key) {

@@ -28,6 +28,18 @@ public final class WeaponDef {
     /** 预留扩展字段容器（散布/摆动/反冲/特效/弹体参数等） */
     public Map<String, Object> props;
 
+    /** 可选：武器音效（缺省=静音/用通用音效） */
+    public Sfx sfx;
+
+    @com.fasterxml.jackson.annotation.JsonIgnoreProperties(ignoreUnknown = true)
+    public static final class Sfx {
+        /** 枪口音效文件名，相对 assets/sounds/weapons/ ，如 "ak47_muzzle.wav" */
+        public String muzzle;
+        /** 播放音量 0.0~1.0，缺省 1.0 */
+        public Double volume;
+    }
+
+
     @JsonIgnoreProperties(ignoreUnknown = true)
     public static final class MuzzleDelta {
         public double rightX = 0;

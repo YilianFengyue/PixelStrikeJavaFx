@@ -167,6 +167,8 @@ public class PlayerShooting {
         } else {
             System.out.println("射击未命中");
         }
+        // 播放本地开火音效
+        playMuzzleSfx();
 
         showShootEffects(shootOrigin, hitPoint);
 
@@ -270,6 +272,37 @@ public class PlayerShooting {
         player.getPhysics().setVelocityX(player.getPhysics().getVelocityX() + kickX);
         player.getPhysics().setVelocityY(player.getPhysics().getVelocityY() - RECOIL_KNOCKBACK_UP);
     }
+
+    /**枪械音效**/
+    // 直接替换你现在的 playMuzzleSfx()
+    private void playMuzzleSfx() {
+        String path = "weapons/generic_muzzle.wav";
+        double vol = 1.0;
+
+        WeaponDef w = W();
+        if (w != null && w.sfx != null && w.sfx.muzzle != null && !w.sfx.muzzle.isBlank()) {
+            path = "weapons/" + w.sfx.muzzle;
+            if (w.sfx.volume != null) vol = Math.max(0.0, Math.min(1.0, w.sfx.volume));
+        }
+        playSfxOnce(path, vol);
+    }
+
+    // 小工具：一次性以指定音量播放（临时改全局→播放→立刻恢复）
+    private void playSfxOnce(String path, double vol01) {
+        try {
+            var snd  = getAssetLoader().loadSound(path);
+            double prev = getSettings().getGlobalSoundVolume();   // <-- 用 Settings
+            getSettings().setGlobalSoundVolume(Math.max(0, Math.min(1, vol01)));
+            getAudioPlayer().playSound(snd);
+            runOnce(() -> getSettings().setGlobalSoundVolume(prev), javafx.util.Duration.millis(1));
+        } catch (Exception e) {
+            try {
+                var fallback = getAssetLoader().loadSound("weapons/generic_muzzle.wav");
+                getAudioPlayer().playSound(fallback);
+            } catch (Exception ignore) { }
+        }
+    }
+
     // ===== Getter方法 =====
     public boolean isShooting() {
         return isShooting;
