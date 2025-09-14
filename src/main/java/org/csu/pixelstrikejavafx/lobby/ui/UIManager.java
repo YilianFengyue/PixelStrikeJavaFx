@@ -7,6 +7,7 @@ import javafx.scene.image.Image;
 import javafx.scene.layout.Pane;
 import java.io.IOException;
 import java.net.URL;
+import java.util.Objects;
 
 /**
  * UI Manager (界面管理器)
@@ -20,6 +21,7 @@ public final class UIManager {
 
     // 静态变量，持有对主 UI 容器的引用
     private static Pane rootContainer;
+    private static String messageForNextScreen = null;
 
     /**
      * 获取主 UI 容器。
@@ -35,6 +37,20 @@ public final class UIManager {
      */
     public static void setRoot(Pane rootPane) {
         rootContainer = rootPane;
+    }
+
+    public static void showMessageOnNextScreen(String message) {
+        messageForNextScreen = message;
+    }
+
+    /**
+     * 获取并清除“下一个界面的消息”。
+     * @return 如果有消息则返回消息字符串，否则返回 null。
+     */
+    public static String getAndClearMessageForNextScreen() {
+        String message = messageForNextScreen;
+        messageForNextScreen = null; // 取走后立即清空
+        return message;
     }
 
     /**
@@ -54,10 +70,13 @@ public final class UIManager {
                 throw new IOException("Cannot find FXML file: " + fxmlName);
             }
 
-            Parent newContent = FXMLLoader.load(url);
+            Parent view = FXMLLoader.load(Objects.requireNonNull(UIManager.class.getResource("/fxml/" + fxmlName)));
 
-            // 替换掉 rootContainer 中的所有子节点为新的 FXML 内容
-            rootContainer.getChildren().setAll(newContent);
+            // 2.【关键步骤】清空我们持久化的 rootPane 的所有子节点。
+            rootContainer.getChildren().clear();
+
+            // 3.【关键步骤】将新加载的视图作为子节点添加到 rootPane 中。
+            rootContainer.getChildren().add(view);
 
         } catch (IOException e) {
             System.err.println("Failed to load FXML: " + fxmlName);
@@ -84,4 +103,6 @@ public final class UIManager {
         // 如果 URL 为 null、为空或加载失败，都返回默认头像
         return DEFAULT_AVATAR;
     }
+
+
 }

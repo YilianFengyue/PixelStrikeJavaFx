@@ -1,0 +1,31 @@
+<?xml version="1.0" encoding="UTF-8"?>
+
+<?import javafx.geometry.Insets?>
+<?import javafx.scene.control.Button?>
+<?import javafx.scene.control.Label?>
+<?import javafx.scene.control.TextField?>
+<?import javafx.scene.layout.*?>
+<StackPane xmlns="http://javafx.com/javafx/21" xmlns:fx="http://javafx.com/fxml/1"
+           fx:controller="org.csu.pixelstrikejavafx.lobby.ui.dialog.CustomDialogController"
+           alignment="CENTER"  stylesheets="/assets/css/lobby-style.css">
+
+    <Pane fx:id="backgroundPane" style="-fx-background-color: rgba(0, 0, 0, 0.6);" />
+
+    <VBox fx:id="dialogContainer" styleClass="game-dialog-pane" maxHeight="300" maxWidth="600" spacing="25" alignment="CENTER" AnchorPane.topAnchor="300.0">
+        <padding>
+            <Insets top="25" right="30" bottom="25" left="30"/>
+        </padding>
+
+        <Label fx:id="titleLabel" styleClass="game-dialog-title" managed="false" visible="false"/>
+
+        <Label fx:id="messageLabel" styleClass="game-dialog-message" wrapText="true"/>
+
+        <TextField fx:id="inputField" styleClass="game-dialog-input" managed="false" visible="false"/>
+
+        <HBox fx:id="buttonBox" spacing="20" alignment="CENTER">
+            <Button fx:id="confirmButton" text="确认" styleClass="game-dialog-button-confirm"/>
+            <Button fx:id="cancelButton" text="取消" styleClass="game-dialog-button-cancel" managed="false" visible="false"/>
+        </HBox>
+    </VBox>
+
+</StackPane>

@@ -23,6 +23,7 @@ import org.csu.pixelstrikejavafx.lobby.events.RoomUpdateEvent;
 import org.csu.pixelstrikejavafx.lobby.network.ApiClient;
 import org.csu.pixelstrikejavafx.lobby.network.NetworkManager;
 import org.csu.pixelstrikejavafx.core.GlobalState;
+import org.csu.pixelstrikejavafx.lobby.ui.dialog.DialogManager;
 
 import java.io.IOException;
 import java.net.URL;
@@ -43,6 +44,20 @@ public class RoomController implements Initializable {
 
     @Override
     public void initialize(URL location, ResourceBundle resources) {
+        Platform.runLater(() -> { // 使用 runLater 确保在UI完全准备好后执行
+            String message = UIManager.getAndClearMessageForNextScreen();
+            if (message != null) {
+                DialogManager.showNotification(message);
+            }
+            // 检查消息是否存在
+            if (message != null) {
+                // 如果消息存在，就调用 DialogManager 来显示它
+                // 【新增诊断日志】为了确认这部分代码是否执行，我们在这里加一句打印
+                System.out.println("RoomController: 正在调用 DialogManager.showNotification 显示: " + message);
+
+                DialogManager.showNotification(message);
+            }
+        });
         // 监听来自 NetworkManager 的房间状态更新事件
         FXGL.getEventBus().addEventHandler(RoomUpdateEvent.ANY, this::onRoomUpdate);
         FXGL.getEventBus().addEventHandler(KickedFromRoomEvent.ANY, this::onKickedFromRoom);
