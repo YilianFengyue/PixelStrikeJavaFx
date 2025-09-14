@@ -1,0 +1,419 @@
+/*
+@font-face {
+    font-family: 'Anton';
+    src: url('/assets/fonts/anton-regular.ttf');
+}
+*/
+
+/* --- 全局与根节点 --- */
+.root {
+    -fx-font-family: sans-serif;
+    -fx-background-color: #1a1a1a; /* 后备背景色 */
+}
+
+/* --- 面板通用样式 --- */
+.panel {
+    -fx-background-color: rgba(0, 0, 0, 0.5);
+    -fx-background-radius: 10;
+    -fx-padding: 20px;
+    -fx-border-color: rgba(255, 255, 255, 0.1);
+    -fx-border-width: 1px;
+    -fx-border-radius: 10;
+}
+
+/* --- 右上角用户信息 --- */
+.user-info-corner {
+    -fx-spacing: 15px;
+    -fx-alignment: CENTER_LEFT;
+    -fx-padding: 10px;
+    -fx-background-color: rgba(0, 0, 0, 0.4);
+    -fx-background-radius: 8;
+}
+
+.nickname-label {
+    -fx-font-size: 18px;
+    -fx-text-fill: white;
+    -fx-font-weight: bold;
+}
+
+.avatar-image-view {
+    -fx-effect: dropshadow(gaussian, rgba(0, 255, 255, 0.5), 15, 0.5, 0, 0); /* 青色光晕 */
+    -fx-cursor: hand;
+}
+
+@font-face {
+    font-family: 'Press Start 2P';
+    src: url('/assets/fonts/PressStart2P-Regular.ttf');
+}
+/* --- 右侧操作按钮面板 --- */
+/* --- 右侧操作按钮面板 --- */
+.actions-panel {
+    -fx-spacing: 15px;
+    -fx-alignment: CENTER_RIGHT; /* 面板内所有按钮都左对齐 */
+    -fx-background-color: transparent; /* 面板本身也透明 */
+    -fx-border-color: transparent; /* 面板无边框 */
+    -fx-padding: 20px 0; /* 上下留出一些空间 */
+}
+
+/* --- 按钮通用样式 (全新复刻版) --- */
+.action-button {
+    -fx-min-width: 700px;
+    -fx-font-family: 'Press Start 2P'; /* 应用新字体 */
+    -fx-font-size: 28px; /* 字体大小 */
+    -fx-text-fill: #EAEAEA; /* 字体填充颜色 (浅灰色，比纯白更柔和) */
+
+
+    -fx-stroke-type: outside; /* 描边在文字外部 */
+    -fx-stroke: black; /* 描边颜色为黑色 */
+    -fx-stroke-width: 3px; /* 描边宽度 */
+
+    -fx-background-color: transparent; /* 默认背景完全透明 */
+    -fx-border-color: transparent; /* 默认边框完全透明 */
+    -fx-padding: 5px 15px; /* 稍微增加左右内边距，让文字离边缘远一点 */
+    -fx-alignment: CENTER_RIGHT;
+    -fx-effect: none; /* 移除默认阴影 */
+}
+
+/* --- 按钮悬浮/选中效果 --- */
+.action-button:hover {
+    -fx-background-color: rgba(0, 0, 0, 0.4); /* 鼠标悬停时显示半透明黑色背景 */
+    -fx-cursor: hand;
+}
+
+/* --- 特定按钮的微调 --- */
+.logout-button {
+    -fx-font-size: 24px; /* 退出按钮可以稍微小一点 */
+}
+
+/* --- 中间加入房间按钮的样式 --- */
+.join-room-box {
+    -fx-alignment: CENTER;
+    -fx-spacing: 10;
+}
+
+/* “加入”按钮也使用新样式 */
+.join-button {
+    -fx-font-family: 'Press Start 2P';
+    -fx-font-size: 20px;
+    -fx-text-fill: #EAEAEA;
+    -fx-stroke-type: outside;
+    -fx-stroke: black;
+    -fx-stroke-width: 2px;
+    -fx-background-color: transparent;
+    -fx-border-color: transparent;
+    -fx-padding: 5px;
+}
+.join-button:hover {
+    -fx-background-color: rgba(0, 0, 0, 0.4);
+    -fx-cursor: hand;
+}
+
+
+
+/* --- 左侧好友列表面板 --- */
+.friends-panel {
+    -fx-spacing: 10px;
+}
+
+
+
+.toggle-friends-button {
+    -fx-background-color: rgba(44, 62, 80, 0.8);
+    -fx-background-radius: 20;
+    -fx-border-color: rgba(255, 255, 255, 0.3);
+    -fx-border-radius: 20;
+    -fx-border-width: 1px;
+    -fx-padding: 0;
+    -fx-alignment: CENTER; /* StackPane 默认就是居中，但这行可以保留 */
+}
+
+/* 鼠标悬停状态 */
+.toggle-friends-button:hover {
+    -fx-background-color: rgba(80, 80, 80, 0.9);
+    -fx-cursor: hand;
+}
+
+/* 鼠标按下状态 */
+.toggle-friends-button:pressed {
+    -fx-background-color: rgba(80, 80, 80, 0.9);
+}
+
+/* 图标本身的颜色样式 (保持不变) */
+.icon-style {
+    -fx-fill: white;
+}
+/* --- 中间大厅标题和加入 --- */
+.center-panel {
+    -fx-spacing: 30px;
+    -fx-alignment: TOP_CENTER;
+}
+.lobby-title {
+    -fx-font-family: "Anton", sans-serif;
+    -fx-font-size: 80px;
+    -fx-text-fill: white;
+    -fx-effect: dropshadow(gaussian, rgba(0, 0, 0, 0.7), 10, 0, 0, 2);
+}
+
+.room-id-field {
+    -fx-pref-height: 50px;
+    -fx-background-color: rgba(0, 0, 0, 0.5);
+    -fx-text-fill: white;
+    -fx-border-color: #7f8c8d;
+    -fx-border-radius: 5;
+    -fx-background-radius: 5;
+    -fx-prompt-text-fill: #95a5a6;
+}
+
+.social-tab-pane {
+    -fx-background-color: transparent;
+    -fx-border-color: transparent;
+}
+
+.social-tab-pane .tab-header-area {
+    -fx-padding: 0;
+    -fx-border-color: rgba(255, 255, 255, 0.2);
+    -fx-border-width: 0 0 1px 0;
+}
+.social-tab-pane .tab-header-area .tab-header-background {
+    -fx-background-color: transparent;
+}
+
+/* 标签页按钮本身 (不再设置文字颜色) */
+.social-tab-pane .tab {
+    -fx-background-color: transparent;
+    -fx-padding: 10px 30px;
+    -fx-font-size: 18px;
+    -fx-font-weight: bold;
+    -fx-border-color: transparent;
+    /* [注意] 这里不再有 -fx-text-fill 属性 */
+}
+
+/* [关键修正] 使用更具体的选择器，直接控制文字标签的颜色 */
+.social-tab-pane .tab .tab-label {
+    -fx-text-fill: white; /* 强制将文字颜色设为纯白 */
+}
+
+
+/* 鼠标悬停效果 (只改变光标) */
+.social-tab-pane .tab:hover {
+    -fx-cursor: hand;
+}
+
+/* 选中的标签页 (使用背景高亮) */
+.social-tab-pane .tab:selected {
+    -fx-background-color: rgba(255, 255, 255, 0.1);
+    -fx-background-radius: 5 5 0 0;
+}
+/* 选中标签页的文字，确保也是白色 (虽然默认已经是) */
+.social-tab-pane .tab:selected .tab-label {
+    -fx-text-fill: white;
+}
+
+
+/* 标签页的内容区域 */
+.social-tab-pane .tab-content-area {
+    -fx-background-color: rgba(0, 0, 0, 0.6);
+    -fx-padding: 0;
+}
+/* --- ListView 样式 (全新高级版) --- */
+.list-view {
+    -fx-background-color: transparent; /* ListView 本身透明 */
+}
+
+/* 列表单元格 ListCell 的样式 */
+.list-view .list-cell {
+    -fx-background-color: transparent; /* 单元格背景透明 */
+    -fx-padding: 0; /* 移除默认的内边距 */
+    -fx-border-color: #444; /* 分隔线颜色 */
+    -fx-border-width: 0 0 1px 0; /* 只显示底部边框作为分隔线 */
+}
+
+/* 鼠标悬停在单元格上时的效果 */
+.list-view .list-cell:hover {
+    -fx-background-color: rgba(255, 255, 255, 0.1); /* 柔和的白色高亮 */
+}
+
+/* --- 单元格内部我们自定义的 HBox 容器样式 --- */
+.friend-cell-container {
+    -fx-padding: 10px 15px; /* 单元格内边距 */
+}
+
+/* --- 状态指示器圆点 --- */
+.status-indicator {
+    -fx-effect: dropshadow(gaussian, rgba(0, 0, 0, 0.5), 3, 0, 0, 1);
+}
+.status-online {
+    -fx-fill: #2ecc71; /* 绿色 - 在线 */
+}
+.status-offline {
+    -fx-fill: #95a5a6; /* 灰色 - 离线 */
+}
+.status-ingame {
+    -fx-fill: #f1c40f; /* 黄色 - 游戏中 */
+}
+.status-matching {
+    -fx-fill: #3498db; /* 蓝色 - 匹配中 */
+}
+.status-in-room {
+    -fx-fill: #e67e22; /* 橙色 - 房间中 */
+}
+
+/* --- 好友信息文本样式 --- */
+.friend-nickname-label {
+    -fx-font-size: 16px;
+    -fx-text-fill: white; /* 白色，清晰 */
+    -fx-font-weight: bold; /* 加粗，更突出 */
+}
+
+.friend-status-label {
+    -fx-font-size: 12px;
+    -fx-text-fill: #bdc3c7; /* 浅灰色，作为次要信息 */
+}
+
+/* --- 删除好友按钮 --- */
+.delete-friend-button {
+    -fx-background-color: #c0392b;
+    -fx-text-fill: white;
+    -fx-font-size: 12px;
+    -fx-padding: 5px 10px;
+    -fx-background-radius: 5;
+}
+.delete-friend-button:hover {
+    -fx-background-color: #e74c3c;
+}
+
+.search-bar-container {
+    -fx-padding: 5px;
+}
+
+/* 搜索输入框本身 */
+.search-text-field {
+    -fx-background-color: rgba(0, 0, 0, 0.5);
+    -fx-text-fill: white;
+    -fx-font-size: 14px;
+    -fx-border-color: #7f8c8d;
+    -fx-border-radius: 20; /* 圆角边框 */
+    -fx-background-radius: 20; /* 圆角背景 */
+    -fx-prompt-text-fill: #95a5a6;
+
+    /* 关键：增加右侧内边距，确保文字不会被图标遮挡 */
+    -fx-padding: 5px 35px 5px 15px;
+}
+
+/* 输入框获得焦点时的效果 */
+.search-text-field:focused {
+    -fx-border-color: #3498db; /* 边框变亮 */
+}
+
+/* 内嵌的图标按钮 */
+.search-icon-button {
+    -fx-background-color: transparent; /* 背景透明 */
+    -fx-text-fill: #95a5a6; /* 图标默认颜色与提示文字相同 */
+    -fx-font-size: 16px; /* 调整图标大小 */
+    -fx-padding: 0 10px 0 0; /* 将图标定位在右侧 */
+
+}
+
+/* 鼠标悬停在图标按钮上时 */
+.search-icon-button:hover {
+    -fx-text-fill: white; /* 图标变白，提示可点击 */
+    -fx-cursor: hand;
+}
+
+.add-friend-button {
+    -fx-background-color: #3498db; /* 主题蓝色 */
+    -fx-text-fill: white;
+    -fx-font-size: 12px;
+    -fx-padding: 5px 10px;
+    -fx-background-radius: 5;
+}
+.add-friend-button:hover {
+    -fx-background-color: #5dade2; /* 悬停时变亮 */
+}
+.add-friend-button:disabled {
+    -fx-background-color: #95a5a6; /* 禁用时为灰色 */
+    -fx-opacity: 0.7;
+}
+
+/* “同意”按钮 (绿色) */
+.accept-request-button {
+    -fx-background-color: #27ae60; /* 主题绿色 */
+    -fx-text-fill: white;
+    -fx-font-size: 12px;
+    -fx-padding: 5px 10px;
+    -fx-background-radius: 5;
+}
+.accept-request-button:hover {
+    -fx-background-color: #2ecc71;
+}
+.accept-request-button:disabled {
+    -fx-background-color: #95a5a6;
+    -fx-opacity: 0.7;
+}
+
+/* “拒绝”按钮 (灰色/中性色) */
+.reject-request-button {
+    -fx-background-color: #7f8c8d; /* 中性灰色 */
+    -fx-text-fill: white;
+    -fx-font-size: 12px;
+    -fx-padding: 5px 10px;
+    -fx-background-radius: 5;
+}
+.reject-request-button:hover {
+    -fx-background-color: #95a5a6;
+}
+
+.edit-nickname-button {
+    -fx-background-color: transparent; /* 默认背景完全透明 */
+    -fx-background-radius: 20; /* 设置成圆形 */
+
+    /* 将按钮尺寸固定为一个 30x30 的小圆圈 */
+    -fx-min-width: 30px;
+    -fx-pref-width: 30px;
+    -fx-min-height: 30px;
+    -fx-pref-height: 30px;
+
+    -fx-border-color: transparent;
+    -fx-padding: 0;
+    -fx-alignment: CENTER;
+}
+
+.edit-nickname-button:hover {
+    -fx-background-color: rgba(255, 255, 255, 0.1); /* 悬停时显示柔和的白色高亮 */
+    -fx-cursor: hand;
+}
+
+.confirm-pane {
+    -fx-max-width: 450px;
+    -fx-background-color: rgba(10, 20, 30, 0.85); /* 更深邃的背景 */
+    -fx-background-radius: 10;
+    -fx-border-color: rgba(52, 152, 219, 0.5); /* 蓝色边框 */
+    -fx-border-width: 1px;
+    -fx-border-radius: 10;
+    -fx-effect: dropshadow(gaussian, rgba(0, 0, 0, 0.8), 20, 0, 0, 0);
+}
+
+.confirm-pane-message {
+    -fx-font-size: 18px;
+    -fx-text-fill: white;
+    -fx-text-alignment: center;
+}
+
+.confirm-pane-button-yes {
+    -fx-background-color: #27ae60; /* 绿色 */
+    -fx-text-fill: white;
+    -fx-font-weight: bold;
+    -fx-pref-width: 100px;
+}
+.confirm-pane-button-yes:hover {
+    -fx-background-color: #2ecc71;
+}
+
+.confirm-pane-button-no {
+    -fx-background-color: #7f8c8d; /* 灰色 */
+    -fx-text-fill: white;
+    -fx-pref-width: 100px;
+}
+.confirm-pane-button-no:hover {
+    -fx-background-color: #95a5a6;
+}

@@ -1,5 +1,6 @@
 package org.csu.pixelstrikejavafx;
 
+import com.almasb.fxgl.animation.AnimationBuilder;
 import com.almasb.fxgl.app.ApplicationMode;
 import com.almasb.fxgl.app.GameApplication;
 import com.almasb.fxgl.app.GameSettings;
@@ -13,11 +14,15 @@ import javafx.application.Platform;
 import javafx.geometry.Point2D;
 import javafx.scene.input.KeyCode;
 import javafx.scene.layout.Region;
+import javafx.scene.layout.StackPane;
 import javafx.scene.paint.Color;
 import javafx.scene.shape.Line;
 import javafx.scene.shape.Rectangle;
+import javafx.scene.text.Font;
+import javafx.scene.text.Text;
 import javafx.util.Duration;
-import org.csu.pixelstrikejavafx.game.player.component.GrenadeComponent;
+import org.csu.pixelstrikejavafx.game.player.component.PoisonedComponent;
+import org.csu.pixelstrikejavafx.game.player.component.SupplyDropComponent;
 import org.csu.pixelstrikejavafx.game.services.NetworkService;
 import org.csu.pixelstrikejavafx.game.services.PlayerManager;
 import org.csu.pixelstrikejavafx.game.world.CameraFollow;
@@ -79,15 +84,13 @@ public class PixelGameApp extends GameApplication {
         s.setScaleAffectedOnResize(false);
         s.setApplicationMode(ApplicationMode.DEVELOPER);
         s.setDeveloperMenuEnabled(true);
+        s.setManualResizeEnabled(true);
     }
 
     @Override
     protected void initGame() {
-        // --- 核心修改：初始化所有 Service ---
         playerManager = new PlayerManager();
         networkService = new NetworkService(this::handleServerMessage);
-        //getGameWorld().getEntities().forEach(Entity::removeFromWorld);
-        // 核心修改：使用 .getEntitiesCopy() 来获取列表副本
         getGameWorld().getEntitiesCopy().forEach(Entity::removeFromWorld);
         getGameScene().clearGameViews();
         getPhysicsWorld().clear();
@@ -98,10 +101,20 @@ public class PixelGameApp extends GameApplication {
         Player localPlayer = playerManager.createLocalPlayer(networkService);
 
         var vp = getGameScene().getViewport();
-        vp.setBounds(0, 0, (int)(GameConfig.MAP_W - getAppWidth()), (int)(GameConfig.MAP_H - getAppHeight()));
-        cameraFollow = new CameraFollow(vp, GameConfig.MAP_W, GameConfig.MAP_H, getAppWidth(), getAppHeight());
-        cameraFollow.setTarget(localPlayer.getEntity());
+        double zoom = 0.85;
+        vp.setZoom(zoom);
 
+        // 计算缩放后的实际视口宽高
+        double zoomedViewWidth = getAppWidth() / zoom;
+        double zoomedViewHeight = getAppHeight() / zoom;
+
+        // 使用缩放后的尺寸来设置边界 (这行依然重要，用于物理世界的边界)
+        vp.setBounds(0, 0, (int)(GameConfig.MAP_W - zoomedViewWidth), (int)(GameConfig.MAP_H - zoomedViewHeight));
+
+        // 将原始窗口尺寸 getAppWidth() 和 getAppHeight() 传递给 CameraFollow
+        cameraFollow = new CameraFollow(vp, GameConfig.MAP_W, GameConfig.MAP_H, zoomedViewWidth, zoomedViewHeight, getAppWidth(), getAppHeight());
+
+        cameraFollow.setTarget(localPlayer.getEntity());
         setupCollisionHandlers();
 
         // 连接到服务器
@@ -159,6 +172,7 @@ public class PixelGameApp extends GameApplication {
             }
         }, KeyCode.J);
 
+        /*
         getInput().addAction(new UserAction("Next Weapon") {
             @Override
             protected void onActionBegin() {
@@ -168,6 +182,7 @@ public class PixelGameApp extends GameApplication {
                 }
             }
         }, KeyCode.Q); // 按 Q 切换武器
+        */        // 现在武器只能从场上获取
     }
 
     @Override
@@ -292,9 +307,6 @@ public class PixelGameApp extends GameApplication {
                             case "Railgun":
                                 spawnRemoteRailgunBeam(attackerId, ox, oy, new Point2D(dx, dy));
                                 break;
-                            case "GrenadeLauncher":
-                                spawnRemoteGrenade(attackerId, ox, oy, new Point2D(dx, dy));
-                                break;
                             default:
                                 // 保留一个默认行为以防万一，或者留空
                                 System.err.println("Received unknown weaponType for remote shot: " + weaponType);
@@ -363,11 +375,85 @@ public class PixelGameApp extends GameApplication {
                 }
 
                 case "leave" -> playerManager.removeRemotePlayer(extractInt(json, "\"id\":"));
+                case "health_update" -> {
+                    int userId = extractInt(json, "\"userId\":");
+                    int hp = extractInt(json, "\"hp\":");
+                    // 检查是不是本地玩家的血量更新
+                    if (networkService.getMyPlayerId() != null && userId == networkService.getMyPlayerId()) {
+                        playerManager.getLocalPlayer().setHealth(hp);
+                        System.out.println("Local player health updated to: " + hp);
+                    }
+                    // 你也可以在这里为远程玩家更新血条UI（如果需要的话）
+                }
+                case "supply_spawn" -> {
+                    long dropId = extractLong(json, "\"dropId\":");
+                    String dropType = extractString(json, "\"dropType\":\"");
+                    double x = extractDouble(json, "\"x\":");
+                    double y = extractDouble(json, "\"y\":");
+                    spawnSupplyDrop(dropId, dropType, x, y);
+                }
+                case "supply_removed" -> {
+                    long dropId = extractLong(json, "\"dropId\":");
+                    // 查找并移除对应的实体
+                    getGameWorld().getEntitiesByType(GameType.SUPPLY_DROP).stream()
+                            .filter(e -> e.getComponent(SupplyDropComponent.class).getDropId() == dropId)
+                            .findFirst()
+                            .ifPresent(Entity::removeFromWorld);
+                }
+                case "weapon_equip" -> {
+                    int userId = extractInt(json, "\"userId\":");
+                    String weaponType = extractString(json, "\"weaponType\":\"");
+
+                    if (networkService.getMyPlayerId() != null && userId == networkService.getMyPlayerId()) {
+                        // 如果是本地玩家，调用切换武器的方法
+                        playerManager.getLocalPlayer().getShootingSys().equipWeapon(weaponType);
+                        FXGL.getNotificationService().pushNotification("装备了 " + weaponType);
+                    }
+                    // 对于远程玩家，目前我们不需要做任何视觉上的改变，
+                    // 但未来可以在这里更新他们手中的武器模型。
+                }
+                case "pickup_notification" -> {
+                    String pickerNickname = extractString(json, "\"pickerNickname\":\"");
+                    String itemType = extractString(json, "\"itemType\":\"");
+
+                    // 为所有玩家显示通知
+                    FXGL.getNotificationService().pushNotification(pickerNickname + " 拾取了 " + itemType + "!");
+                }
+                case "player_poisoned" -> {
+                    int userId = extractInt(json, "\"userId\":");
+                    double duration = extractLong(json, "\"duration\":") / 1000.0; // 毫秒转秒
+
+                    if (networkService.getMyPlayerId() != null && userId == networkService.getMyPlayerId()) {
+                        // 为本地玩家添加中毒组件
+                        playerManager.getLocalPlayer().getEntity().addComponent(new PoisonedComponent(duration));
+                    }
+                }
             }
         } catch (Exception e) {
             System.err.println("handleServerMessage error: " + e.getMessage());
             e.printStackTrace();
         }
+    }
+
+    private void spawnSupplyDrop(long dropId, String dropType, double x, double y) {
+        Rectangle box = new Rectangle(40, 40, Color.SADDLEBROWN);
+        box.setStroke(Color.BLACK);
+        box.setStrokeWidth(2);
+
+        Text questionMark = new Text("?");
+        questionMark.setFont(Font.font("Verdana", 30));
+        questionMark.setFill(Color.WHITE);
+
+        StackPane view = new StackPane(box, questionMark);
+        view.setEffect(new javafx.scene.effect.DropShadow(15, Color.YELLOW));
+
+        entityBuilder()
+                .type(GameType.SUPPLY_DROP)
+                .at(x, y)
+                .viewWithBBox(view)
+                .with(new CollidableComponent(true))
+                .with(new SupplyDropComponent(dropId, dropType))
+                .buildAndAttach();
     }
 
     private void updateRemotePlayers(double tpf) {
@@ -454,31 +540,17 @@ public class PixelGameApp extends GameApplication {
                 bullet.removeFromWorld();
             }
         });
-
-        // 处理榴弹（PROJECTILE）的碰撞
-        getPhysicsWorld().addCollisionHandler(new CollisionHandler(GameType.PROJECTILE, GameType.GROUND) {
+        getPhysicsWorld().addCollisionHandler(new CollisionHandler(GameType.PLAYER, GameType.SUPPLY_DROP) {
             @Override
-            protected void onCollisionBegin(Entity projectile, Entity ground) {
-                // 可以在这里添加爆炸效果
-                projectile.removeFromWorld();
-            }
-        });
-
-        getPhysicsWorld().addCollisionHandler(new CollisionHandler(GameType.PROJECTILE, GameType.PLATFORM) {
-            @Override
-            protected void onCollisionBegin(Entity projectile, Entity platform) {
-                projectile.removeFromWorld();
-            }
-        });
-
-        getPhysicsWorld().addCollisionHandler(new CollisionHandler(GameType.PROJECTILE, GameType.PLAYER) {
-            @Override
-            protected void onCollisionBegin(Entity projectile, Entity playerEntity) {
-                GrenadeComponent grenadeData = projectile.getComponent(GrenadeComponent.class);
-                if (grenadeData.getShooter().equals(playerEntity)) {
-                    return; // 不伤害自己
+            protected void onCollisionBegin(Entity playerEntity, Entity dropEntity) {
+                // 确保只有本地玩家的碰撞才会触发拾取
+                if (playerEntity == playerManager.getLocalPlayer().getEntity()) {
+                    SupplyDropComponent dropData = dropEntity.getComponent(SupplyDropComponent.class);
+                    // 向服务器发送拾取请求
+                    networkService.sendSupplyPickup(dropData.getDropId());
+                    // 客户端立即将物品从世界上移除，以提供即时反馈 (客户端预测)
+                    dropEntity.removeFromWorld();
                 }
-                projectile.removeFromWorld();
             }
         });
     }
@@ -522,36 +594,6 @@ public class PixelGameApp extends GameApplication {
                 .with(new ProjectileComponent(direction, BULLET_SPEED))
                 .with(new BulletComponent(shooterEntity))
                 .buildAndAttach();
-    }
-
-
-    // 远程炮弹效果
-    private void spawnRemoteGrenade(int shooterId, double ox, double oy, Point2D direction) {
-        // 获取射手实体，虽然可能不是必须的，但保持组件完整性是好习惯
-        Entity shooterEntity = null;
-        RemotePlayer remoteShooter = playerManager.getRemotePlayers().get(shooterId);
-        if (remoteShooter != null) {
-            shooterEntity = remoteShooter.entity;
-        }
-
-        // 与 GrenadeLauncher.java 中的 spawnGrenade 逻辑几乎一样
-        com.almasb.fxgl.physics.PhysicsComponent physics = new com.almasb.fxgl.physics.PhysicsComponent();
-        physics.setBodyType(com.almasb.fxgl.physics.box2d.dynamics.BodyType.DYNAMIC);
-        physics.setFixtureDef(new com.almasb.fxgl.physics.box2d.dynamics.FixtureDef().density(0.5f).restitution(0.4f));
-
-        final double LAUNCH_VELOCITY = 800.0; // 与 GrenadeLauncher.java 保持一致
-
-        entityBuilder()
-                .type(GameType.PROJECTILE) // 类型正确
-                .at(ox, oy)
-                .viewWithBBox(new javafx.scene.shape.Circle(8, Color.DARKOLIVEGREEN)) // 视觉效果一致
-                .with(new CollidableComponent(true))
-                .with(physics)
-                .with(new GrenadeComponent(shooterEntity)) // 记录发射者
-                .buildAndAttach();
-
-        // 施加初速度
-        physics.setLinearVelocity(direction.multiply(LAUNCH_VELOCITY));
     }
 
     // 生成远程射线枪效果

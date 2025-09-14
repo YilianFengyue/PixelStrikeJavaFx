@@ -1,12 +1,14 @@
 package org.csu.pixelstrikejavafx.game.core;
 
+import org.csu.pixelstrikejavafx.game.weapon.WeaponStats;
+
 /** 集中配置信息，后续只改这里 */
 public final class GameConfig {
     private GameConfig() {}
 
     // --- 窗口（1080p） ---
-    public static final int WINDOW_W = 1400;
-    public static final int WINDOW_H = 880;
+    public static final int WINDOW_W = 1920;
+    public static final int WINDOW_H = 1080;
 
     // --- 世界/地图尺寸（按你的背景图） ---
     public static final double MAP_W = 4620;   // 背景宽
@@ -25,5 +27,43 @@ public final class GameConfig {
     public static final String G_BASE_STRIP = "ground_base.png";
 
 
+    // --- ★ 武器数据配置中心 ★ ---
+    public static final class Weapons {
+        private Weapons() {}
+        public static final WeaponStats PISTOL = new WeaponStats(
+                "Pistol", 10.0, 0.15, 1200.0, 1500.0, 0.0,
+                150.0, 0.0, 0.0,
+                1, 0.0,
+                1.6, 18.0, 0.6,
+                0.5, 6.0, 8.0,
+                200.0, 20.0
+        );
+
+        public static final WeaponStats MACHINE_GUN = new WeaponStats(
+                "MachineGun", 8.0, 0.08, 1200.0, 1800.0, 0.0,
+                150.0, 0.0, 0.0,
+                1, 0.0,
+                0.0, 0.0, 2.5,
+                0.8, 10.0, 12.0,
+                0.0, 0.0
+        );
+
+        public static final WeaponStats SHOTGUN = new WeaponStats(
+                "Shotgun", 4.0, 0.8, 600.0, 2000.0, 0.0,
+                150.0, 0.0, 0.0,
+                8, 15.0,
+                0.0, 0.0, 0.0,
+                0.0, 0.0, 0.0,
+                0.0, 0.0
+        );
+        public static final WeaponStats RAILGUN = new WeaponStats(
+                "Railgun", 75.0, 1.0, 4000.0, 0.0, 0.0,
+                150.0, 150.0, 0.0, // Muzzle Left X set to 150 for symmetry with -offsetX
+                1, 0.0,
+                0.0, 0.0, 0.0,
+                0.0, 0.0, 0.0,
+                0.0, 0.0
+        );
+    }
 
 }

@@ -16,19 +16,16 @@ import static com.almasb.fxgl.dsl.FXGL.entityBuilder;
 
 public class MachineGun implements Weapon {
 
-    private static final double TIME_BETWEEN_BULLETS = 0.08;
-    private static final double BULLET_SPEED = 1800.0;
-    private static final double SPREAD_NOISE_DEG = 2.5;
-    private static final double DAMAGE = 8.0;
-    private static final double SHOOT_RANGE = 1200.0;
-    private static final double MUZZLE_RIGHT_X = 150, MUZZLE_LEFT_X = 0, MUZZLE_Y = 0;
-    private static final double RECOIL_KICK_DEG = 0.8, RECOIL_MAX_DEG = 10.0;
-    private static final double RECOIL_RECOVER_DEG_PER_SEC = 12.0;
+    private final WeaponStats stats;
 
     private double timeSinceLastShot = 0.0;
     private double recoilAngleDeg = 0.0;
     private boolean isFiring = false;
-    private Player shooter; // 在装备时设置
+    private Player shooter;
+
+    public MachineGun(WeaponStats stats) {
+        this.stats = stats;
+    }
 
     @Override
     public void onEquip(Player player) {
@@ -37,19 +34,19 @@ public class MachineGun implements Weapon {
 
     @Override
     public boolean shoot(Player shooter, OnFireCallback callback) {
-        if (timeSinceLastShot >= TIME_BETWEEN_BULLETS) {
+        if (timeSinceLastShot >= stats.timeBetweenShots) {
             timeSinceLastShot = 0.0;
             Point2D origin = getShootOrigin(shooter);
             Point2D direction = calculateDirection(shooter);
             spawnBullet(origin, direction, shooter);
-            recoilAngleDeg = Math.min(RECOIL_MAX_DEG, recoilAngleDeg + RECOIL_KICK_DEG);
+            recoilAngleDeg = Math.min(stats.recoilMaxDeg, recoilAngleDeg + stats.recoilKickDeg);
 
             if (shooter.getShootingSys().getReporter() != null) {
                 shooter.getShootingSys().getReporter().onShot(
                         origin.getX(), origin.getY(),
                         direction.getX(), direction.getY(),
-                        SHOOT_RANGE, (int)DAMAGE, System.currentTimeMillis(),
-                        "MachineGun"
+                        stats.shootRange, (int)stats.damage, System.currentTimeMillis(),
+                        stats.name
                 );
             }
             if (callback != null) callback.onSuccessfulShot();
@@ -62,7 +59,7 @@ public class MachineGun implements Weapon {
     public void update(double tpf) {
         timeSinceLastShot += tpf;
         if (recoilAngleDeg > 0) {
-            recoilAngleDeg = Math.max(0, recoilAngleDeg - RECOIL_RECOVER_DEG_PER_SEC * tpf);
+            recoilAngleDeg = Math.max(0, recoilAngleDeg - stats.recoilRecoverDegPerSec * tpf);
         }
         if (isFiring && this.shooter != null) {
             shoot(this.shooter, this.shooter);
@@ -79,16 +76,15 @@ public class MachineGun implements Weapon {
         isFiring = false;
     }
 
-    // --- 辅助方法 (无变动) ---
     private Point2D getShootOrigin(Player shooter) {
         var e = shooter.getEntity();
-        double offsetX = shooter.getFacingRight() ? MUZZLE_RIGHT_X : -MUZZLE_LEFT_X;
-        return new Point2D(e.getX() + e.getWidth() / 2.0 + offsetX, e.getY() + e.getHeight() / 2.0 + MUZZLE_Y);
+        double offsetX = shooter.getFacingRight() ? stats.muzzleRightX : -stats.muzzleLeftX;
+        return new Point2D(e.getX() + e.getWidth() / 2.0 + offsetX, e.getY() + e.getHeight() / 2.0 + stats.muzzleY);
     }
 
     private Point2D calculateDirection(Player shooter) {
         double baseDeg = shooter.getFacingRight() ? 0.0 : 180.0;
-        double noiseDeg = ThreadLocalRandom.current().nextDouble(-SPREAD_NOISE_DEG, SPREAD_NOISE_DEG);
+        double noiseDeg = ThreadLocalRandom.current().nextDouble(-stats.spreadNoiseDeg, stats.spreadNoiseDeg);
         double upDeg = recoilAngleDeg + noiseDeg;
         double finalDeg = baseDeg + (shooter.getFacingRight() ? -upDeg : +upDeg);
         double rad = Math.toRadians(finalDeg);
@@ -101,7 +97,7 @@ public class MachineGun implements Weapon {
                 .at(origin)
                 .viewWithBBox(new Rectangle(12, 3, Color.YELLOW))
                 .with(new CollidableComponent(true))
-                .with(new ProjectileComponent(direction, BULLET_SPEED))
+                .with(new ProjectileComponent(direction, stats.bulletSpeed))
                 .with(new BulletComponent(shooter.getEntity()))
                 .buildAndAttach();
     }

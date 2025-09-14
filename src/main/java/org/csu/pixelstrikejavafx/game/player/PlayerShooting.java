@@ -1,13 +1,11 @@
 package org.csu.pixelstrikejavafx.game.player;
 
+import org.csu.pixelstrikejavafx.game.core.GameConfig;
 import org.csu.pixelstrikejavafx.game.weapon.*;
-import java.util.ArrayList;
-import java.util.List;
 
 public class PlayerShooting {
 
     private final Player player;
-    private final List<Weapon> availableWeapons = new ArrayList<>();
     private int currentWeaponIndex = 0;
     private Weapon currentWeapon;
     private ShotReporter reporter;
@@ -18,31 +16,28 @@ public class PlayerShooting {
 
     public PlayerShooting(Player player) {
         this.player = player;
-
-        // 初始化所有可用武器
-        availableWeapons.add(new Pistol());
-        availableWeapons.add(new MachineGun());
-        availableWeapons.add(new Shotgun());
-        availableWeapons.add(new GrenadeLauncher());
-        availableWeapons.add(new Railgun()); // 添加射线枪
-
-        // 默认装备第一把武器
-        equipWeapon(0);
+        // ★ 默认只装备手枪
+        this.currentWeapon = new Pistol(GameConfig.Weapons.PISTOL);
+        this.currentWeapon.onEquip(player);
     }
 
-    public void equipWeapon(int weaponIndex) {
-        if (weaponIndex < 0 || weaponIndex >= availableWeapons.size()) {
-            return;
+    public void equipWeapon(String weaponName) {
+        System.out.println("Player equipping weapon: " + weaponName);
+        switch (weaponName) {
+            case "MachineGun":
+                currentWeapon = new MachineGun(GameConfig.Weapons.MACHINE_GUN);
+                break;
+            case "Shotgun":
+                currentWeapon = new Shotgun(GameConfig.Weapons.SHOTGUN);
+                break;
+            case "Railgun":
+                currentWeapon = new Railgun(GameConfig.Weapons.RAILGUN);
+                break;
+            default: // 包括 "Pistol" 或者任何未知类型，都切换回手枪
+                currentWeapon = new Pistol(GameConfig.Weapons.PISTOL);
+                break;
         }
-        this.currentWeaponIndex = weaponIndex;
-        this.currentWeapon = availableWeapons.get(weaponIndex);
-        this.currentWeapon.onEquip(player); // **调用 onEquip**
-        System.out.println("Equipped: " + this.currentWeapon.getClass().getSimpleName());
-    }
-
-    public void nextWeapon() {
-        int nextIndex = (currentWeaponIndex + 1) % availableWeapons.size();
-        equipWeapon(nextIndex);
+        currentWeapon.onEquip(player);
     }
 
     public void update(double tpf) {

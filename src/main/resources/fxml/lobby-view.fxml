@@ -1,111 +1,72 @@
 <?xml version="1.0" encoding="UTF-8"?>
 
 <?import javafx.geometry.Insets?>
-<?import javafx.scene.control.Button?>
-<?import javafx.scene.control.Label?>
-<?import javafx.scene.control.ListView?>
-<?import javafx.scene.control.Tab?>
-<?import javafx.scene.control.TabPane?>
-<?import javafx.scene.control.TextField?>
-<?import javafx.scene.layout.AnchorPane?>
-<?import javafx.scene.layout.BorderPane?>
-<?import javafx.scene.layout.HBox?>
-<?import javafx.scene.layout.VBox?>
-<?import javafx.scene.text.Font?>
-
-
+<?import javafx.scene.control.*?>
 <?import javafx.scene.image.ImageView?>
-<AnchorPane prefHeight="1080.0" prefWidth="1920.0" style="-fx-background-color: #2c3e50;" xmlns="http://javafx.com/javafx/21" xmlns:fx="http://javafx.com/fxml/1" fx:controller="org.csu.pixelstrikejavafx.lobby.ui.LobbyController">
-    <children>
-        <Label text="游戏大厅" textFill="white" AnchorPane.leftAnchor="0.0" AnchorPane.rightAnchor="0.0" AnchorPane.topAnchor="20.0" alignment="CENTER">
-            <font><Font name="System Bold" size="48.0" /></font>
-        </Label>
-        <Button fx:id="logoutButton" onAction="#handleLogout" text="退出登录" style="-fx-background-color: #c0392b; -fx-text-fill: white;" AnchorPane.rightAnchor="20.0" AnchorPane.topAnchor="20.0">
-            <font><Font size="18.0" /></font>
-        </Button>
+<?import javafx.scene.layout.*?>
 
+<?import javafx.scene.chart.BarChart?>
+<StackPane prefHeight="1080.0" prefWidth="1920.0"
+           xmlns="http://javafx.com/javafx/21" xmlns:fx="http://javafx.com/fxml/1"
+           fx:controller="org.csu.pixelstrikejavafx.lobby.ui.LobbyController"
+           stylesheets="/assets/css/lobby-style.css">
 
-        <HBox alignment="CENTER" maxWidth="450.0" spacing="10.0">
-            <children>
-                <TextField fx:id="roomIdField" promptText="输入房间ID加入" HBox.hgrow="ALWAYS" prefHeight="50.0">
-                    <font><Font size="18.0" /></font>
-                </TextField>
-                <Button onAction="#handleJoinRoom" text="加入" prefHeight="50.0" prefWidth="100.0">
-                    <font><Font size="20.0" /></font>
-                </Button>
-            </children>
-        </HBox>
-        <VBox spacing="10.0" AnchorPane.leftAnchor="20.0" AnchorPane.topAnchor="110.0">
-            <children>
-                <ImageView fx:id="avatarImageView" fitHeight="80.0" fitWidth="80.0" pickOnBounds="true" preserveRatio="true" onMouseClicked="#handleUploadAvatar" style="-fx-cursor: hand;" />
+    <ImageView fx:id="backgroundImageView" fitHeight="1080.0" fitWidth="1920.0" pickOnBounds="true" preserveRatio="false"/>
 
-                <HBox alignment="CENTER_LEFT" spacing="10.0">
-                    <children>
-                        <Label fx:id="nicknameLabel" text="昵称: 加载中..." textFill="white">
-                            <font><Font size="22.0" /></font>
-                        </Label>
-                        <Button onAction="#handleChangeNickname" text="修改" />
-                    </children>
-                </HBox>
-            </children>
+    <AnchorPane>
+        <VBox styleClass="center-panel" AnchorPane.topAnchor="50.0" AnchorPane.leftAnchor="0" AnchorPane.rightAnchor="0">
+            <Label text="游戏大厅" styleClass="lobby-title"/>
+            <HBox styleClass="join-room-box" maxWidth="500.0">
+                <TextField fx:id="roomIdField" promptText="输入房间ID加入" HBox.hgrow="ALWAYS" styleClass="room-id-field"/>
+                <Button onAction="#handleJoinRoom" text="加入" styleClass="join-button"/>
+            </HBox>
         </VBox>
 
-        <HBox alignment="CENTER" spacing="50.0" AnchorPane.bottomAnchor="50.0" AnchorPane.leftAnchor="0.0" AnchorPane.rightAnchor="0.0">
-            <children>
-                <Button onAction="#handleShowHistory" text="历史战绩" prefHeight="50.0" prefWidth="200.0"><font><Font size="20.0" /></font></Button>
-                <Button fx:id="createRoomButton" onAction="#handleCreateRoom" text="创建房间" prefHeight="50.0" prefWidth="200.0"><font><Font size="20.0" /></font></Button>
-                <Button fx:id="cancelMatchButton" onAction="#handleCancelMatch" text="取消匹配" prefHeight="50.0" prefWidth="200.0"><font><Font size="20.0" /></font></Button>
-                <Button fx:id="startMatchButton" onAction="#handleStartMatch" text="开始匹配" prefHeight="50.0" prefWidth="200.0"><font><Font size="20.0" /></font></Button>
-            </children>
-        </HBox>
-
+        <VBox styleClass="actions-panel" AnchorPane.topAnchor="400.0" AnchorPane.rightAnchor="150.0" AnchorPane.leftAnchor="300.0">
+            <Button fx:id="createRoomButton" onAction="#handleCreateRoom" text="创建房间" styleClass="action-button"/>
+            <Button fx:id="startMatchButton" onAction="#handleStartMatch" text="开始匹配"  styleClass="action-button"/>
+            <Button fx:id="cancelMatchButton" onAction="#handleCancelMatch" text="取消匹配"  styleClass="action-button"/>
+            <Button onAction="#handleShowHistory" text="历史战绩"  styleClass="action-button"/>
+            <Button fx:id="logoutButton" onAction="#handleLogout" text="退出登录" styleClass="action-button"/>
+        </VBox>
         <Label fx:id="matchStatusLabel" textFill="#bdc3c7" AnchorPane.bottomAnchor="30.0" AnchorPane.leftAnchor="0.0" AnchorPane.rightAnchor="0.0" alignment="CENTER">
             <font>
-                <Font size="16.0" />
             </font>
         </Label>
 
-        <TabPane layoutX="1550.0" layoutY="100.0" prefHeight="800.0" prefWidth="350.0" tabClosingPolicy="UNAVAILABLE" AnchorPane.rightAnchor="20.0" AnchorPane.topAnchor="100.0">
-            <tabs>
-                <Tab text="好友">
-                    <content>
+
+        <VBox fx:id="friendsPanel" styleClass="friends-panel, panel" prefWidth="380.0"
+              visible="false" managed="false" AnchorPane.topAnchor="200.0" AnchorPane.leftAnchor="150.0" AnchorPane.bottomAnchor="100.0">
+            <TabPane VBox.vgrow="ALWAYS" tabClosingPolicy="UNAVAILABLE" styleClass="social-tab-pane">
+                <tabs>
+                    <Tab text="好友"><ListView fx:id="friendsListView"/></Tab>
+                    <Tab text="查找">
                         <VBox spacing="10.0">
-                            <padding><Insets top="10" right="10" bottom="10" left="10" /></padding>
-                            <children>
-                                <ListView fx:id="friendsListView" prefHeight="750.0" />
-                            </children>
+                            <StackPane styleClass="search-bar-container">
+                                <TextField fx:id="searchUserField" promptText="输入昵称搜索" styleClass="search-text-field" onAction="#handleSearchUser"/>
+                                <Button text="🔍" onAction="#handleSearchUser" styleClass="search-icon-button">
+                                    <StackPane.alignment>CENTER_RIGHT</StackPane.alignment>
+                                </Button>
+                            </StackPane>
+                            <ListView fx:id="searchResultListView" VBox.vgrow="ALWAYS"/>
                         </VBox>
-                    </content>
-                </Tab>
-                <Tab text="查找">
-                    <content>
-                        <VBox spacing="10.0">
-                            <padding><Insets top="10" right="10" bottom="10" left="10" /></padding>
-                            <children>
-                                <HBox spacing="5.0">
-                                    <children>
-                                        <TextField fx:id="searchUserField" HBox.hgrow="ALWAYS" promptText="输入昵称搜索" />
-                                        <Button text="搜索" onAction="#handleSearchUser" />
-                                    </children>
-                                </HBox>
-                                <Label text="搜索结果:" />
-                                <ListView fx:id="searchResultListView" prefHeight="650.0" />
-                            </children>
-                        </VBox>
-                    </content>
-                </Tab>
-                <Tab text="申请">
-                    <content>
-                        <VBox spacing="10.0">
-                            <padding><Insets top="10" right="10" bottom="10" left="10" /></padding>
-                            <children>
-                                <Label text="待处理的申请:" />
-                                <ListView fx:id="requestsListView" prefHeight="700.0" />
-                            </children>
-                        </VBox>
-                    </content>
-                </Tab>
-            </tabs>
-        </TabPane>
-    </children>
-</AnchorPane>
+                    </Tab>
+                    <Tab text="申请">
+                        <ListView fx:id="requestsListView"/>
+                    </Tab>
+                </tabs>
+            </TabPane>
+        </VBox>
+
+        <StackPane fx:id="toggleFriendsButton" onMouseClicked="#handleToggleFriendsList"
+                   styleClass="toggle-friends-button" prefHeight="40" prefWidth="40"
+                   AnchorPane.topAnchor="100.0" AnchorPane.leftAnchor="150.0"/>
+        <HBox styleClass="user-info-corner" AnchorPane.topAnchor="100.0" AnchorPane.rightAnchor="155.0">
+            <ImageView fx:id="avatarImageView" fitHeight="40.0" fitWidth="40.0" onMouseClicked="#handleUploadAvatar" styleClass="avatar-image-view"/>
+            <VBox>
+                <Label fx:id="nicknameLabel" text="昵称: 加载中..." styleClass="nickname-label"/>
+                <Button fx:id="changeNicknameButton" onAction="#handleChangeNickname" styleClass="edit-nickname-button"/>
+            </VBox>
+        </HBox>
+    </AnchorPane>
+</StackPane>

@@ -66,6 +66,12 @@ public class NetworkService {
             netClient.send("{\"type\":\"leave\"}");
         }
     }
+    public void sendSupplyPickup(long dropId) {
+        if (netClient != null && joinedAck) {
+            String json = "{\"type\":\"pickup_supply\",\"dropId\":" + dropId + "}";
+            netClient.send(json);
+        }
+    }
 
     // Getters and Setters
     public boolean isJoinedAck() { return joinedAck; }

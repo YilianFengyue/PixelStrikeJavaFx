@@ -562,4 +562,10 @@ public class Player implements OnFireCallback {
             default:    return "IDLE";
         }
     }
+
+    public void setHealth(int newHp) {
+        if (health != null) {
+            health.setHp(newHp);
+        }
+    }
 }

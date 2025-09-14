@@ -16,36 +16,31 @@ import static com.almasb.fxgl.dsl.FXGL.entityBuilder;
 
 public class Shotgun implements Weapon {
 
-    // 霰弹枪参数
-    private static final double TIME_BETWEEN_BULLETS = 0.8; // 射速慢
-    private static final int PELLETS_COUNT = 8; // 弹丸数量
-    private static final double SPREAD_ARC_DEG = 15.0; // 扩散角度
-    private static final double BULLET_SPEED = 2000.0;
-    private static final double DAMAGE_PER_PELLET = 4.0;
-    private static final double SHOOT_RANGE = 600.0; // 射程较近
+    private final WeaponStats stats;
 
     private double timeSinceLastShot = 0.0;
 
+    public Shotgun(WeaponStats stats) {
+        this.stats = stats;
+    }
+
     @Override
     public boolean shoot(Player shooter, OnFireCallback callback) {
-        if (timeSinceLastShot >= TIME_BETWEEN_BULLETS) {
+        if (timeSinceLastShot >= stats.timeBetweenShots) {
             timeSinceLastShot = 0.0;
 
             Point2D origin = getShootOrigin(shooter);
 
-            // **核心逻辑**：循环多次生成弹丸
-            for (int i = 0; i < PELLETS_COUNT; i++) {
+            for (int i = 0; i < stats.pelletsCount; i++) {
                 Point2D direction = calculateDirection(shooter);
                 spawnBullet(origin, direction, shooter);
 
-                // 只向服务器报告一次射击事件（或多次，取决于服务器验证逻辑）
-                // 为简化，我们报告一次中心射击
                 if (i == 0 && shooter.getShootingSys().getReporter() != null) {
                     shooter.getShootingSys().getReporter().onShot(
-                        origin.getX(), origin.getY(),
-                        direction.getX(), direction.getY(),
-                        SHOOT_RANGE, (int)DAMAGE_PER_PELLET, System.currentTimeMillis(),
-                        "Shotgun"
+                            origin.getX(), origin.getY(),
+                            direction.getX(), direction.getY(),
+                            stats.shootRange, (int)stats.damage, System.currentTimeMillis(),
+                            stats.name
                     );
                 }
             }
@@ -61,24 +56,20 @@ public class Shotgun implements Weapon {
     }
 
     @Override
-    public void onFireStart() {
-        // 霰弹枪是半自动的，按一下打一发
-    }
+    public void onFireStart() {}
 
     @Override
-    public void onFireStop() {
-    }
+    public void onFireStop() {}
 
     private Point2D getShootOrigin(Player shooter) {
         var e = shooter.getEntity();
-        double offsetX = shooter.getFacingRight() ? 150 : 0;
-        return new Point2D(e.getX() + e.getWidth() / 2.0 + offsetX, e.getY() + e.getHeight() / 2.0);
+        double offsetX = shooter.getFacingRight() ? stats.muzzleRightX : -stats.muzzleLeftX;
+        return new Point2D(e.getX() + e.getWidth() / 2.0 + offsetX, e.getY() + e.getHeight() / 2.0 + stats.muzzleY);
     }
 
     private Point2D calculateDirection(Player shooter) {
         double baseDeg = shooter.getFacingRight() ? 0.0 : 180.0;
-        // 在扩散弧度内随机一个角度
-        double spread = ThreadLocalRandom.current().nextDouble(-SPREAD_ARC_DEG / 2, SPREAD_ARC_DEG / 2);
+        double spread = ThreadLocalRandom.current().nextDouble(-stats.spreadArcDeg / 2, stats.spreadArcDeg / 2);
         double finalDeg = baseDeg + spread;
         double rad = Math.toRadians(finalDeg);
         return new Point2D(Math.cos(rad), Math.sin(rad)).normalize();
@@ -88,9 +79,9 @@ public class Shotgun implements Weapon {
         entityBuilder()
                 .type(GameType.BULLET)
                 .at(origin)
-                .viewWithBBox(new Rectangle(6, 6, Color.DARKSLATEGRAY)) // 弹丸小一点
+                .viewWithBBox(new Rectangle(6, 6, Color.DARKSLATEGRAY))
                 .with(new CollidableComponent(true))
-                .with(new ProjectileComponent(direction, BULLET_SPEED))
+                .with(new ProjectileComponent(direction, stats.bulletSpeed))
                 .with(new BulletComponent(shooter.getEntity()))
                 .buildAndAttach();
     }
