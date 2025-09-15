@@ -13,6 +13,7 @@ import org.csu.pixelstrikejavafx.game.player.component.BulletComponent;
 import java.util.concurrent.ThreadLocalRandom;
 
 import static com.almasb.fxgl.dsl.FXGL.entityBuilder;
+import static com.almasb.fxgl.dsl.FXGLForKtKt.play;
 
 public class MachineGun implements Weapon {
 
@@ -36,6 +37,8 @@ public class MachineGun implements Weapon {
     public boolean shoot(Player shooter, OnFireCallback callback) {
         if (timeSinceLastShot >= stats.timeBetweenShots) {
             timeSinceLastShot = 0.0;
+
+            play("machinegun_shot.wav");
             Point2D origin = getShootOrigin(shooter);
             Point2D direction = calculateDirection(shooter);
             spawnBullet(origin, direction, shooter);

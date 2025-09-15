@@ -329,19 +329,22 @@ public class PixelGameApp extends GameApplication {
                         String weaponType = extractString(json, "\"weaponType\":\"");
                         switch (weaponType) {
                             case "Pistol":
+                                play("pistol_shot.wav");
                                 spawnRemotePistolBullet(attackerId, ox, oy, new Point2D(dx, dy));
                                 break;
                             case "MachineGun":
+                                play("machinegun_shot.wav");
                                 spawnRemoteMachineGunBullet(attackerId, ox, oy, new Point2D(dx, dy));
                                 break;
                             case "Shotgun":
+                                play("shotgun_shot.wav");
                                 spawnRemoteShotgunBlast(attackerId, ox, oy);
                                 break;
                             case "Railgun":
+                                play("railgun_shot.wav");
                                 spawnRemoteRailgunBeam(attackerId, ox, oy, new Point2D(dx, dy));
                                 break;
                             default:
-                                // 保留一个默认行为以防万一，或者留空
                                 System.err.println("Received unknown weaponType for remote shot: " + weaponType);
                                 break;
                         }

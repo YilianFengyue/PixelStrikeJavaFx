@@ -12,6 +12,7 @@ import org.csu.pixelstrikejavafx.game.player.Player;
 
 import java.util.concurrent.ThreadLocalRandom;
 import static com.almasb.fxgl.dsl.FXGL.entityBuilder;
+import static com.almasb.fxgl.dsl.FXGLForKtKt.play;
 
 public class Pistol implements Weapon {
 
@@ -30,6 +31,7 @@ public class Pistol implements Weapon {
     public boolean shoot(Player shooter, OnFireCallback callback) {
         if (timeSinceLastShot >= stats.timeBetweenShots) {
             timeSinceLastShot = 0.0;
+            play("pistol_shot.wav");
 
             Point2D origin = getShootOrigin(shooter);
             Point2D direction = calculateDirection(shooter);

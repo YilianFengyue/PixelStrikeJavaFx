@@ -13,6 +13,7 @@ import org.csu.pixelstrikejavafx.game.player.component.BulletComponent;
 import java.util.concurrent.ThreadLocalRandom;
 
 import static com.almasb.fxgl.dsl.FXGL.entityBuilder;
+import static com.almasb.fxgl.dsl.FXGLForKtKt.play;
 
 public class Shotgun implements Weapon {
 
@@ -28,6 +29,8 @@ public class Shotgun implements Weapon {
     public boolean shoot(Player shooter, OnFireCallback callback) {
         if (timeSinceLastShot >= stats.timeBetweenShots) {
             timeSinceLastShot = 0.0;
+
+            play("shotgun_shot.wav");
 
             Point2D origin = getShootOrigin(shooter);
 

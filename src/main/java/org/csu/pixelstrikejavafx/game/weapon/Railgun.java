@@ -9,6 +9,8 @@ import javafx.util.Duration;
 import org.csu.pixelstrikejavafx.game.player.OnFireCallback;
 import org.csu.pixelstrikejavafx.game.player.Player;
 
+import static com.almasb.fxgl.dsl.FXGLForKtKt.play;
+
 public class Railgun implements Weapon {
 
     private final WeaponStats stats;
@@ -23,6 +25,8 @@ public class Railgun implements Weapon {
     public boolean shoot(Player shooter, OnFireCallback callback) {
         if (timeSinceLastShot >= stats.timeBetweenShots) {
             timeSinceLastShot = 0.0;
+
+            play("railgun_shot.wav");
 
             Point2D origin = getShootOrigin(shooter);
             Point2D direction = shooter.getFacingRight() ? new Point2D(1, 0) : new Point2D(-1, 0);
