@@ -5,11 +5,13 @@ import com.google.gson.JsonElement;
 import com.google.gson.JsonObject;
 import de.jensd.fx.glyphs.fontawesome.FontAwesomeIcon;
 import de.jensd.fx.glyphs.fontawesome.FontAwesomeIconView;
+import javafx.animation.AnimationTimer;
 import javafx.application.Platform;
 import javafx.fxml.FXML;
 import javafx.fxml.FXMLLoader;
 import javafx.fxml.Initializable;
 import javafx.geometry.Insets;
+import javafx.scene.Scene;
 import javafx.scene.control.*;
 import javafx.scene.image.Image;
 import javafx.scene.image.ImageView;
@@ -17,8 +19,10 @@ import javafx.scene.layout.*;
 import javafx.geometry.Pos;
 
 
+import javafx.scene.paint.Color;
 import javafx.scene.shape.Circle;
 import javafx.stage.FileChooser;
+import javafx.stage.Stage;
 import org.csu.pixelstrikejavafx.core.MatchResultsModel;
 import org.csu.pixelstrikejavafx.core.MatchSuccessEvent;
 import org.csu.pixelstrikejavafx.lobby.events.*;
@@ -34,6 +38,9 @@ import java.util.*;
 import javafx.scene.text.Text;
 import javafx.beans.property.SimpleObjectProperty;
 import javafx.scene.layout.BorderPane;
+import com.almasb.fxgl.texture.AnimatedTexture;
+import com.almasb.fxgl.texture.AnimationChannel;
+import javafx.util.Duration;
 /**
  * LobbyController 负责处理 lobby-view.fxml 的所有用户交互。
  * 例如：显示好友列表、处理匹配按钮点击、监听服务器事件等。
@@ -69,6 +76,12 @@ public class LobbyController implements Initializable {
     private final Set<Long> friendIds = new HashSet<>();
 
     private final ApiClient apiClient = new ApiClient();
+
+    private static final Map<Integer, String> CHARACTER_ANIMATION_MAP = Map.of(
+            1, "ash_attack.png", // 突击兵
+            2, "ash_idle.png", // 侦察兵 (暂用突击兵动画)
+            3, "ash_walk.png"  // 重装兵 (暂用突击兵动画)
+    );
 
     /**
      * FXML 界面加载完成时，该方法会自动被调用。
@@ -268,13 +281,11 @@ public class LobbyController implements Initializable {
                         new Thread(() -> {
                             try {
                                 List<Map<String, Object>> characters = apiClient.getCharacters();
-                                Platform.runLater(() -> {
-                                    DialogManager.showCharacterSelection("选择角色", characters, selectedCharacter -> {
-                                        if (selectedCharacter == null) return; // 用户取消
-                                        long characterId = ((Number) selectedCharacter.get("id")).longValue();
-                                        startMatchmakingWithSelection(mapId, characterId);
-                                    });
-                                });
+                                Platform.runLater(() -> showAnimatedCharacterSelectionDialog("选择角色", characters, selectedCharacter -> {
+                                    if (selectedCharacter == null) return; // 用户取消
+                                    long characterId = ((Number) selectedCharacter.get("id")).longValue();
+                                    startMatchmakingWithSelection(mapId, characterId);
+                                }));
                             } catch (Exception e) {
                                 Platform.runLater(() -> FXGL.getDialogService().showMessageBox("获取角色列表失败: " + e.getMessage()));
                             }
@@ -285,6 +296,150 @@ public class LobbyController implements Initializable {
                 Platform.runLater(() -> FXGL.getDialogService().showMessageBox("获取地图列表失败: " + e.getMessage()));
             }
         }).start();
+    }
+
+
+    private void showAnimatedCharacterSelectionDialog(String title, List<Map<String, Object>> characters, java.util.function.Consumer<Map<String, Object>> onItemSelected) {
+        if (characters == null || characters.isEmpty()) {
+            FXGL.getDialogService().showMessageBox("没有可用的角色！");
+            return;
+        }
+
+        // --- 1. 创建UI组件 ---
+        VBox rootPane = new VBox();
+        rootPane.setPrefSize(400, 380);
+        rootPane.setStyle("-fx-background-color: black; -fx-border-color: #4b5563; -fx-border-width: 1; -fx-background-radius: 8; -fx-border-radius: 8;");
+
+        // a) 可拖动的标题栏
+        Label titleLabel = new Label(title);
+        titleLabel.setStyle("-fx-text-fill: white; -fx-font-weight: bold; -fx-padding: 10; -fx-cursor: move;");
+        titleLabel.setMaxWidth(Double.MAX_VALUE);
+        titleLabel.setAlignment(Pos.CENTER);
+
+        // b) 动画和信息区域
+        Pane animationContainer = new Pane();
+        animationContainer.setPrefSize(200, 200);
+
+        // --- 核心修复：明确设置文字颜色为白色/浅灰色 ---
+        Text characterName = new Text();
+        characterName.setStyle("-fx-font-size: 18px; -fx-font-weight: bold; -fx-fill: white;");
+        Text characterDescription = new Text();
+        characterDescription.setStyle("-fx-fill: #d1d5db;");
+        // --- 颜色修复结束 ---
+
+        VBox characterInfoBox = new VBox(5, characterName, characterDescription);
+        characterInfoBox.setAlignment(Pos.CENTER);
+        characterInfoBox.setPadding(new Insets(0, 10, 10, 10)); // 增加左右内边距防止文字换行
+
+        // c) 轮播切换按钮
+        Button leftButton = new Button("<");
+        Button rightButton = new Button(">");
+
+        // d) 布局修正：将动画和信息放入一个VBox，再将这个VBox放入BorderPane的中心
+        VBox centerContent = new VBox(10, animationContainer, characterInfoBox);
+        centerContent.setAlignment(Pos.CENTER);
+
+        BorderPane displayArea = new BorderPane();
+        displayArea.setCenter(centerContent);
+        displayArea.setLeft(leftButton);
+        displayArea.setRight(rightButton);
+        BorderPane.setAlignment(leftButton, Pos.CENTER_LEFT);
+        BorderPane.setAlignment(rightButton, Pos.CENTER_RIGHT);
+        displayArea.setPadding(new Insets(5));
+
+        // e) 自定义样式的按钮栏
+        Button btnOK = new Button("确定");
+        Button btnCancel = new Button("取消");
+        String buttonStyle = "-fx-background-color: #2563eb; -fx-text-fill: white; -fx-font-weight: bold; -fx-background-radius: 5; -fx-cursor: hand;";
+        String buttonHoverStyle = "-fx-background-color: #1d4ed8;";
+        btnOK.setStyle(buttonStyle);
+        btnCancel.setStyle(buttonStyle.replace("#2563eb", "#4b5563"));
+        btnOK.setOnMouseEntered(e -> btnOK.setStyle(buttonStyle + buttonHoverStyle));
+        btnOK.setOnMouseExited(e -> btnOK.setStyle(buttonStyle));
+        HBox buttonBar = new HBox(10, btnOK, btnCancel);
+        buttonBar.setAlignment(Pos.CENTER);
+        buttonBar.setPadding(new Insets(10));
+
+        // f) 组装所有UI部分
+        rootPane.getChildren().addAll(titleLabel, new Separator(), displayArea, buttonBar);
+        VBox.setVgrow(displayArea, Priority.ALWAYS);
+
+        // --- 2. 动画与逻辑 ---
+        SimpleObjectProperty<Map<String, Object>> currentCharacter = new SimpleObjectProperty<>(characters.get(0));
+        final int[] currentIndex = {0};
+        final AnimatedTexture[] animatedTexture = {null};
+        AnimationTimer timer = new AnimationTimer() {
+            private long lastUpdate = 0;
+            public void handle(long now) {
+                if (lastUpdate == 0) { lastUpdate = now; return; }
+                double tpf = (now - lastUpdate) / 1_000_000_000.0;
+                if (animatedTexture[0] != null) animatedTexture[0].onUpdate(tpf);
+                lastUpdate = now;
+            }
+        };
+
+        Runnable updateDisplay = () -> {
+            Map<String, Object> character = characters.get(currentIndex[0]);
+            currentCharacter.set(character);
+            characterName.setText((String) character.get("name"));
+            characterDescription.setText((String) character.get("description"));
+            int characterId = ((Number) character.get("id")).intValue();
+            String animationFile = CHARACTER_ANIMATION_MAP.getOrDefault(characterId, "ash_idle.png");
+            try {
+                AnimationChannel animChannel = new AnimationChannel(FXGL.image(animationFile), 15, 200, 200, Duration.seconds(1.0), 0, 14);
+                animatedTexture[0] = new AnimatedTexture(animChannel);
+                animatedTexture[0].loop();
+                animationContainer.getChildren().setAll(animatedTexture[0]);
+            } catch (Exception e) {
+                System.err.println("加载动画失败: " + animationFile);
+            }
+        };
+
+        ((Button)displayArea.getLeft()).setOnAction(e -> {
+            currentIndex[0] = (currentIndex[0] - 1 + characters.size()) % characters.size();
+            updateDisplay.run();
+        });
+        ((Button)displayArea.getRight()).setOnAction(e -> {
+            currentIndex[0] = (currentIndex[0] + 1) % characters.size();
+            updateDisplay.run();
+        });
+        updateDisplay.run();
+
+        // --- 3. 创建和配置独立的窗口 (Stage) ---
+        Stage stage = new Stage();
+        stage.initOwner(FXGL.getPrimaryStage());
+        stage.initModality(javafx.stage.Modality.APPLICATION_MODAL);
+        stage.initStyle(javafx.stage.StageStyle.TRANSPARENT);
+
+        Scene scene = new Scene(rootPane);
+        scene.setFill(Color.TRANSPARENT);
+        stage.setScene(scene);
+
+        // --- 4. 实现窗口拖动 ---
+        final double[] xOffset = {0}, yOffset = {0};
+        titleLabel.setOnMousePressed(event -> {
+            xOffset[0] = event.getSceneX();
+            yOffset[0] = event.getSceneY();
+        });
+        titleLabel.setOnMouseDragged(event -> {
+            stage.setX(event.getScreenX() - xOffset[0]);
+            stage.setY(event.getScreenY() - yOffset[0]);
+        });
+
+        // --- 5. 按钮关闭逻辑 ---
+        btnOK.setOnAction(e -> {
+            stage.close();
+            onItemSelected.accept(currentCharacter.get());
+        });
+        btnCancel.setOnAction(e -> {
+            stage.close();
+            onItemSelected.accept(null);
+        });
+        stage.setOnHidden(e -> timer.stop());
+
+        // --- 6. 显示窗口并启动动画 ---
+        timer.start();
+        stage.showAndWait();
     }
 
     @FXML
