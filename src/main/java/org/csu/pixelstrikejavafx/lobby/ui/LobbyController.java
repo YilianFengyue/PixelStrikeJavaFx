@@ -349,12 +349,7 @@ public class LobbyController implements Initializable {
 
 
 
-   /* *//**
-     * 新增：一个通用的选择对话框
-     * @param title 对话框标题
-     * @param items 要显示的项目列表 (每个Map应包含 "id" 和 "name")
-     * @param onItemSelected 用户选择后的回调函数
-     *//*
+
     private void showSelectionDialog(String title, List<Map<String, Object>> items, java.util.function.Consumer<Map<String, Object>> onItemSelected) {
         Dialog<Map<String, Object>> dialog = new Dialog<>();
         dialog.setTitle(title);
