@@ -10,11 +10,14 @@ import javafx.fxml.Initializable;
 import javafx.geometry.HPos;
 import javafx.geometry.Insets;
 import javafx.geometry.Pos;
+import javafx.scene.Scene;
 import javafx.scene.control.*;
 import javafx.scene.layout.*;
+import javafx.scene.paint.Color;
 import javafx.scene.text.Font;
 import javafx.scene.text.FontWeight;
 import javafx.scene.text.Text;
+import javafx.stage.Stage;
 import org.csu.pixelstrikejavafx.lobby.network.ApiClient;
 import org.csu.pixelstrikejavafx.core.GlobalState;
 import org.csu.pixelstrikejavafx.lobby.ui.dialog.DialogManager;
@@ -114,12 +117,112 @@ public class HistoryController implements Initializable {
         new Thread(() -> {
             try {
                 JsonObject details = apiClient.getHistoryDetails(matchId);
+
                 Platform.runLater(() -> {
-                    DialogManager.showHistoryDetails(details, matchId);
+                    try {
+                        // --- 1. 创建UI组件 ---
+                        VBox rootPane = new VBox();
+                        rootPane.setPrefWidth(550);
+                        rootPane.setStyle("-fx-background-color: black; -fx-border-color: #4b5563; -fx-border-width: 1; -fx-background-radius: 8; -fx-border-radius: 8;");
+
+                        // a) 创建可拖动的标题栏
+                        Label titleLabel = new Label("战绩详情 (ID: " + matchId + ")");
+                        titleLabel.setStyle("-fx-text-fill: white; -fx-font-weight: bold; -fx-padding: 10; -fx-cursor: move;");
+                        titleLabel.setMaxWidth(Double.MAX_VALUE);
+                        titleLabel.setAlignment(Pos.CENTER);
+
+                        // b) 对局概要信息 (不变)
+                        VBox matchInfoBox = new VBox(5);
+                        matchInfoBox.setAlignment(Pos.CENTER_LEFT);
+                        matchInfoBox.setStyle("-fx-padding: 10; -fx-background-color: #1f2937; -fx-background-radius: 8; -fx-border-color: #374151;");
+                        String gameMode = details.get("gameMode").getAsString();
+                        String mapName = details.get("mapName").getAsString();
+                        String startTime = formatDateTime(details.get("startTime").getAsString());
+                        String endTime = formatDateTime(details.get("endTime").getAsString());
+                        matchInfoBox.getChildren().addAll(
+                                new Text("模式: " + gameMode), new Text("地图: " + mapName),
+                                new Text("开始时间: " + startTime), new Text("结束时间: " + endTime)
+                        );
+                        // 为概要信息里的文字设置白色
+                        matchInfoBox.getChildren().forEach(node -> node.setStyle("-fx-fill: white;"));
+
+
+                        // c) 战绩表格 (不变)
+                        GridPane grid = new GridPane();
+                        grid.setHgap(15); grid.setVgap(8); grid.setAlignment(Pos.CENTER); grid.setPadding(new Insets(10));
+                        grid.getColumnConstraints().addAll(
+                                createColumn(60, HPos.CENTER), createColumn(180, HPos.LEFT),
+                                createColumn(80, HPos.CENTER), createColumn(80, HPos.CENTER),
+                                createColumn(80, HPos.CENTER)
+                        );
+                        addGridHeader(grid, 0, "排名", "玩家", "角色", "击杀", "死亡");
+                        grid.add(new Separator(), 0, 1, 5, 1);
+                        JsonArray participantsArray = details.getAsJsonArray("participants");
+                        List<JsonElement> participants = new ArrayList<>();
+                        participantsArray.forEach(participants::add);
+                        participants.sort(Comparator.comparingInt(p -> p.getAsJsonObject().get("ranking").getAsInt()));
+                        int rowIndex = 2;
+                        for (JsonElement pElement : participants) {
+                            JsonObject p = pElement.getAsJsonObject();
+                            boolean isCurrentUser = GlobalState.userId != null && p.get("userId").getAsLong() == GlobalState.userId;
+                            addGridDataRow(grid, rowIndex++, isCurrentUser,
+                                    p.get("ranking").getAsString(), p.get("nickname").getAsString(),
+                                    p.get("characterName").getAsString(), p.get("kills").getAsString(),
+                                    p.get("deaths").getAsString()
+                            );
+                        }
+                        VBox contentPane = new VBox(10, matchInfoBox, grid);
+                        contentPane.setPadding(new Insets(10));
+
+                        // d) 关闭按钮
+                        Button closeButton = new Button("关闭");
+                        String buttonStyle = "-fx-background-color: #4b5563; -fx-text-fill: white; -fx-font-weight: bold; -fx-background-radius: 5; -fx-cursor: hand;";
+                        closeButton.setStyle(buttonStyle);
+                        HBox buttonBar = new HBox(closeButton);
+                        buttonBar.setAlignment(Pos.CENTER);
+                        buttonBar.setPadding(new Insets(10));
+
+                        // e) 组装所有部分
+                        rootPane.getChildren().addAll(titleLabel, new Separator(), contentPane, buttonBar);
+                        VBox.setVgrow(contentPane, Priority.ALWAYS);
+
+                        // --- 2. 创建和配置独立的窗口 (Stage) ---
+                        Stage stage = new Stage();
+                        stage.initOwner(FXGL.getPrimaryStage());
+                        stage.initModality(javafx.stage.Modality.APPLICATION_MODAL);
+                        stage.initStyle(javafx.stage.StageStyle.TRANSPARENT);
+                        Scene scene = new Scene(rootPane);
+                        scene.setFill(Color.TRANSPARENT);
+                        stage.setScene(scene);
+
+                        // --- 3. 实现窗口拖动 ---
+                        final double[] xOffset = {0}, yOffset = {0};
+                        titleLabel.setOnMousePressed(event -> {
+                            xOffset[0] = event.getSceneX();
+                            yOffset[0] = event.getSceneY();
+                        });
+                        titleLabel.setOnMouseDragged(event -> {
+                            stage.setX(event.getScreenX() - xOffset[0]);
+                            stage.setY(event.getScreenY() - yOffset[0]);
+                        });
+
+                        // --- 4. 关闭逻辑 ---
+                        closeButton.setOnAction(e -> stage.close());
+
+                        // --- 5. 显示窗口 ---
+                        stage.showAndWait();
+
+                    } catch (Exception uiException) {
+                        uiException.printStackTrace();
+                        FXGL.getDialogService().showMessageBox("显示详情失败: " + uiException.getMessage());
+                    }
                 });
+
             } catch (Exception e) {
                 e.printStackTrace();
-                Platform.runLater(() -> DialogManager.showMessage("错误", "获取详情失败: " + e.getMessage()));
+                Platform.runLater(() ->
+                        FXGL.getDialogService().showMessageBox("获取详情失败: " + e.getMessage())
+                );
             }
         }).start();
     }
