@@ -409,32 +409,27 @@ public class PixelGameApp extends GameApplication {
                     com.google.gson.JsonObject gameOverMsg = new com.google.gson.Gson().fromJson(json, com.google.gson.JsonObject.class);
 
                     if (gameOverMsg.has("results") && gameOverMsg.get("results").isJsonObject()) {
-                        // 【核心修改】更新响应式数据模型，UI会自动收到通知并刷新
                         org.csu.pixelstrikejavafx.core.MatchResultsModel.setMatchResults(
                                 gameOverMsg.getAsJsonObject("results")
                         );
                         System.out.println("Match results updated in the model.");
                     } else {
-                        // 如果没有战绩，也通知模型（虽然它可能仍在加载状态）
                         org.csu.pixelstrikejavafx.core.MatchResultsModel.setMatchResults(null);
                     }
 
-                    // 显示“游戏结束”弹窗，用户点击后返回主菜单 (大厅UI此时已经显示着最终战绩了)
-                    getGameScene().getViewport().fade(() -> getDialogService().showMessageBox("游戏结束!", () -> {
+                    DialogManager.showFullScreenMessage("游戏结束!", "点击确认结算战绩", () -> {
                         getGameController().gotoMainMenu();
-                    }));
+                    });
                 }
 
                 case "leave" -> playerManager.removeRemotePlayer(extractInt(json, "\"id\":"));
                 case "health_update" -> {
                     int userId = extractInt(json, "\"userId\":");
                     int hp = extractInt(json, "\"hp\":");
-                    // 检查是不是本地玩家的血量更新
                     if (networkService.getMyPlayerId() != null && userId == networkService.getMyPlayerId()) {
                         playerManager.getLocalPlayer().setHealth(hp);
                         System.out.println("Local player health updated to: " + hp);
                     }
-                    // 你也可以在这里为远程玩家更新血条UI（如果需要的话）
                 }
                 case "supply_spawn" -> {
                     long dropId = extractLong(json, "\"dropId\":");

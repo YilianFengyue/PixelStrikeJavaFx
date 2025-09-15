@@ -1,7 +1,6 @@
-// In: org/csu/pixelstrikejavafx/lobby/ui/dialog/DialogManager.java
-
 package org.csu.pixelstrikejavafx.lobby.ui.dialog;
 
+import com.almasb.fxgl.dsl.FXGL;
 import com.google.gson.JsonObject;
 import javafx.animation.*;
 import javafx.fxml.FXMLLoader;
@@ -30,11 +29,12 @@ import java.util.function.Consumer;
 
 public class DialogManager {
 
-    private static StackPane rootPane;
+    private static StackPane mainMenuRootPane;
 
     public static void setRoot(StackPane root) {
-        rootPane = root;
+        mainMenuRootPane = root;
     }
+
 
     // Show simple message box
     public static void showMessage(String title, String message) {
@@ -72,10 +72,12 @@ public class DialogManager {
     }
 
     private static void loadAndShowDialog(Consumer<CustomDialogController> setupAction) {
-        if (rootPane == null) {
-            System.err.println("DialogManager root pane is not set!");
+        Pane activeRoot = getActiveRoot();
+        if (activeRoot == null) {
+            System.err.println("DialogManager Error: Could not find an active root pane!");
             return;
         }
+
 
         try {
             FXMLLoader loader = new FXMLLoader(DialogManager.class.getResource("/fxml/custom-dialog-pane.fxml"));
@@ -89,7 +91,7 @@ public class DialogManager {
             // with our new animation-wrapped callbacks.
             setupAction.accept(controller);
 
-            rootPane.getChildren().add(dialogPane);
+            activeRoot.getChildren().add(dialogPane);
             animateIn(dialogPane);
 
         } catch (IOException e) {
@@ -98,7 +100,8 @@ public class DialogManager {
     }
 
     public static void showNotification(String message) {
-        if (rootPane == null) {
+        Pane activeRoot = getActiveRoot();
+        if (activeRoot == null) {
             System.err.println("DialogManager 错误: rootPane 未设置!");
             return;
         }
@@ -111,7 +114,7 @@ public class DialogManager {
         );
 
         // 将通知添加到场景中
-        rootPane.getChildren().add(notificationLabel);
+        activeRoot.getChildren().add(notificationLabel);
 
         // --- ↓↓↓ 调整位置的核心代码在这里 ↓↓↓ ---
 
@@ -141,7 +144,7 @@ public class DialogManager {
 
         // 组合并播放动画
         SequentialTransition sequence = new SequentialTransition(slideIn, delay, fadeOut);
-        sequence.setOnFinished(event -> rootPane.getChildren().remove(notificationLabel));
+        sequence.setOnFinished(event -> activeRoot.getChildren().remove(notificationLabel));
         sequence.play();
     }
 
@@ -171,10 +174,11 @@ public class DialogManager {
         pt.play();
     }
     private static void animateOut(Node node, Runnable onFinished) {
+        Pane activeRoot = getActiveRoot();
         FadeTransition ft = new FadeTransition(Duration.millis(200), node);
         ft.setToValue(0);
         ft.setOnFinished(event -> {
-            rootPane.getChildren().remove(node);
+            activeRoot.getChildren().remove(node);
             if (onFinished != null) {
                 onFinished.run();
             }
@@ -225,7 +229,8 @@ public class DialogManager {
         }
     }
     public static void showMapSelection(List<Map<String, Object>> maps, Consumer<Map<String, Object>> onConfirm) {
-        if (rootPane == null) {
+        Pane activeRoot = getActiveRoot();
+        if (activeRoot == null) {
             System.err.println("DialogManager root pane is not set!");
             return;
         }
@@ -242,7 +247,7 @@ public class DialogManager {
             controller.setOnCancel(() -> animateOut(dialogPane, null));
 
             // 显示对话框
-            rootPane.getChildren().add(dialogPane);
+            activeRoot.getChildren().add(dialogPane);
             animateIn(dialogPane);
 
         } catch (IOException e) {
@@ -251,7 +256,8 @@ public class DialogManager {
     }
 
     public static void showCharacterSelection(String title, List<Map<String, Object>> characters, Consumer<Map<String, Object>> onConfirm) {
-        if (rootPane == null) return;
+        Pane activeRoot = getActiveRoot();
+        if (activeRoot == null) return;
         try {
             FXMLLoader loader = new FXMLLoader(DialogManager.class.getResource("/fxml/character-selection-view.fxml"));
             Pane dialogPane = loader.load();
@@ -263,7 +269,7 @@ public class DialogManager {
             controller.setOnCancel(() -> animateOut(dialogPane, () -> onConfirm.accept(null))); // 取消时回调 null
 
             // 显示对话框
-            rootPane.getChildren().add(dialogPane);
+          activeRoot.getChildren().add(dialogPane);
             animateIn(dialogPane);
 
         } catch (IOException e) {
@@ -271,7 +277,8 @@ public class DialogManager {
         }
     }
     public static void showHistoryDetails(JsonObject details, long matchId) {
-        if (rootPane == null) return;
+        Pane activeRoot = getActiveRoot();
+        if (activeRoot == null) return;
         try {
             FXMLLoader loader = new FXMLLoader(DialogManager.class.getResource("/fxml/history-details-view.fxml"));
             Pane dialogPane = loader.load();
@@ -280,7 +287,46 @@ public class DialogManager {
             controller.populateDetails(details, matchId);
             controller.setOnClose(() -> animateOut(dialogPane, null));
 
-            rootPane.getChildren().add(dialogPane);
+            activeRoot.getChildren().add(dialogPane);
+            animateIn(dialogPane);
+
+        } catch (IOException e) {
+            e.printStackTrace();
+        }
+    }
+    public static void showMessage(String title, String message, Runnable onConfirm) {
+        loadAndShowDialog(controller -> {
+            Runnable finalConfirm = () -> animateOut(controller.getDialogContainer().getParent(), onConfirm);
+            controller.setupAsMessage(title, message, finalConfirm);
+        });
+    }
+    private static Pane getActiveRoot() {
+        var gameScene = FXGL.getGameScene();
+        // 如果游戏场景是激活状态，就在游戏场景的UI层上绘制
+        if (gameScene != null && gameScene.getRoot().getScene() != null) {
+            return (Pane) gameScene.getRoot();
+        }
+        return mainMenuRootPane;
+    }
+    public static void showFullScreenMessage(String title, String message, Runnable onConfirm) {
+        Pane activeRoot = getActiveRoot();
+        if (activeRoot == null) {
+            System.err.println("DialogManager Error: Could not find an active root pane!");
+            return;
+        }
+        try {
+            FXMLLoader loader = new FXMLLoader(DialogManager.class.getResource("/fxml/full-screen-message-view.fxml"));
+            Pane dialogPane = loader.load(); // dialogPane 是我们 FXML 的根节点 (StackPane)
+            FullScreenMessageController controller = loader.getController();
+
+            // 将关闭逻辑和内容设置传递给新Controller
+            controller.setContent(title, message, () -> animateOut(dialogPane, onConfirm));
+
+            // 【关键修复】在将弹窗添加到场景前，将它的尺寸与场景的尺寸绑定！
+            dialogPane.prefWidthProperty().bind(activeRoot.widthProperty());
+            dialogPane.prefHeightProperty().bind(activeRoot.heightProperty());
+
+            activeRoot.getChildren().add(dialogPane);
             animateIn(dialogPane);
 
         } catch (IOException e) {
@@ -291,7 +337,9 @@ public class DialogManager {
     public static void showActionableNotification(String message,
                                                   String confirmText, Runnable onConfirm,
                                                   String cancelText, Runnable onCancel) {
-        if (rootPane == null) return;
+
+        Pane activeRoot = getActiveRoot();
+        if (activeRoot == null) return;
 
         // 1. 创建UI控件
         HBox notificationPane = new HBox();
@@ -314,7 +362,7 @@ public class DialogManager {
             // 创建退场动画
             FadeTransition ft = new FadeTransition(Duration.millis(300), notificationPane);
             ft.setToValue(0);
-            ft.setOnFinished(e -> rootPane.getChildren().remove(notificationPane));
+            ft.setOnFinished(e -> activeRoot.getChildren().remove(notificationPane));
             ft.play();
         };
 
@@ -338,7 +386,7 @@ public class DialogManager {
         });
 
         // 4. 将通知栏添加到场景并播放入场动画
-        rootPane.getChildren().add(notificationPane);
+        activeRoot.getChildren().add(notificationPane);
         StackPane.setAlignment(notificationPane, Pos.BOTTOM_CENTER);
         StackPane.setMargin(notificationPane, new Insets(0, 0, 50, 0));
 

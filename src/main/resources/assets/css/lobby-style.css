@@ -615,6 +615,39 @@
 .character-selection-pane .list-view .list-cell:filled:selected {
     -fx-background-color: #3498db;
 }
+/* --- 全屏对话框样式 --- */
+.full-screen-dialog-pane {
+    -fx-background-color: rgba(20, 25, 40, 0.9);
+    -fx-background-radius: 12;
+    -fx-border-color: rgba(100, 120, 180, 0.6);
+    -fx-border-width: 2px;
+    -fx-border-radius: 12;
+    -fx-effect: dropshadow(gaussian, rgba(0, 0, 0, 0.7), 25, 0, 0, 0);
+}
+
+.full-screen-dialog-title {
+    -fx-font-family: 'Press Start 2P', sans-serif;
+    -fx-font-size: 42px;
+    -fx-text-fill: #f1c40f;
+}
+
+.full-screen-dialog-message {
+    -fx-font-size: 20px;
+    -fx-text-fill: #ecf0f1;
+}
+
+.full-screen-dialog-button {
+    -fx-font-family: 'Press Start 2P', sans-serif;
+    -fx-font-size: 18px;
+    -fx-text-fill: white;
+    -fx-background-color: #3498db;
+    -fx-padding: 12px 35px;
+    -fx-background-radius: 8;
+    -fx-cursor: hand;
+}
+.full-screen-dialog-button:hover {
+    -fx-background-color: #5dade2;
+}
 
 /* 角色名字体样式 */
 .player-character {
