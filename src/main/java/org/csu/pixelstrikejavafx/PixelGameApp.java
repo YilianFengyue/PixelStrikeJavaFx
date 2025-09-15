@@ -101,7 +101,10 @@ public class PixelGameApp extends GameApplication {
         getPhysicsWorld().clear();
 
         getPhysicsWorld().setGravity(0, 3200);
-        MapBuilder.buildLevel();
+        runOnce(() -> {
+            MapBuilder.buildLevel();
+        }, Duration.ZERO);
+
 
         int characterId = (GlobalState.selectedCharacterId != null) ? GlobalState.selectedCharacterId : 1;
         Player localPlayer = playerManager.createLocalPlayer(networkService, characterId);

@@ -332,23 +332,21 @@ public class RoomController implements Initializable {
     private void handleChangeCharacter() {
         new Thread(() -> {
             try {
-                // 1. 获取角色列表
                 List<Map<String, Object>> characters = apiClient.getCharacters();
-                // 2. 弹出角色选择框 (逻辑与LobbyController类似，但需要一个独立的辅助方法)
-                Platform.runLater(() -> showCharacterSelectionDialog(characters, selectedCharacter -> {
-                    if (selectedCharacter == null) return; // 用户取消
-                    long characterId = ((Number) selectedCharacter.get("id")).longValue();
+                Platform.runLater(() -> {
+                    DialogManager.showCharacterSelection("更换角色", characters, selectedCharacter -> {
+                        if (selectedCharacter == null) return; // 用户取消
+                        long characterId = ((Number) selectedCharacter.get("id")).longValue();
 
-                    // 3. 调用更换角色API
-                    new Thread(() -> {
-                        try {
-                            apiClient.changeCharacterInRoom(characterId);
-                            // 成功后，后端会广播 room_update 消息，UI会自动刷新，无需在此做任何事
-                        } catch (Exception e) {
-                            Platform.runLater(() -> FXGL.getDialogService().showMessageBox("更换角色失败: " + e.getMessage()));
-                        }
-                    }).start();
-                }));
+                        new Thread(() -> {
+                            try {
+                                apiClient.changeCharacterInRoom(characterId);
+                            } catch (Exception e) {
+                                Platform.runLater(() -> FXGL.getDialogService().showMessageBox("更换角色失败: " + e.getMessage()));
+                            }
+                        }).start();
+                    });
+                });
             } catch (Exception e) {
                 Platform.runLater(() -> FXGL.getDialogService().showMessageBox("获取角色列表失败: " + e.getMessage()));
             }

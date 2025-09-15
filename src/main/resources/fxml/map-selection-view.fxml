@@ -1,0 +1,45 @@
+<?xml version="1.0" encoding="UTF-8"?>
+
+<?import javafx.geometry.Insets?>
+<?import javafx.scene.control.Button?>
+<?import javafx.scene.control.Label?>
+<?import javafx.scene.image.ImageView?>
+<?import javafx.scene.layout.*?>
+<?import javafx.scene.text.Text?>
+
+<StackPane xmlns="http://javafx.com/javafx/21" xmlns:fx="http://javafx.com/fxml/1"
+           fx:controller="org.csu.pixelstrikejavafx.lobby.ui.MapSelectionController"
+           alignment="CENTER" stylesheets="/assets/css/lobby-style.css">
+
+    <Pane style="-fx-background-color: rgba(0, 0, 0, 0.6);"/>
+
+    <VBox fx:id="dialogContainer" styleClass="map-selection-pane" maxWidth="700" spacing="20" alignment="CENTER">
+        <padding>
+            <Insets top="25" right="30" bottom="25" left="30"/>
+        </padding>
+
+        <Label text="选择地图" styleClass="game-dialog-title"/>
+
+        <BorderPane>
+            <left>
+                <Button fx:id="leftButton" text="&lt;" styleClass="map-nav-button"/>
+            </left>
+            <center>
+                <ImageView fx:id="mapImageView" fitHeight="300" preserveRatio="true"/>
+            </center>
+            <right>
+                <Button fx:id="rightButton" text="&gt;" styleClass="map-nav-button"/>
+            </right>
+        </BorderPane>
+
+        <VBox alignment="CENTER" spacing="5">
+            <Text fx:id="mapNameText" styleClass="map-name-text"/>
+            <Text fx:id="mapDescriptionText" styleClass="map-description-text"/>
+        </VBox>
+
+        <HBox spacing="20" alignment="CENTER">
+            <Button fx:id="confirmButton" text="确认" styleClass="game-dialog-button-confirm"/>
+            <Button fx:id="cancelButton" text="取消" styleClass="game-dialog-button-cancel"/>
+        </HBox>
+    </VBox>
+</StackPane>

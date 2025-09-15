@@ -16,8 +16,13 @@ import javafx.scene.layout.StackPane;
 import javafx.scene.layout.VBox;
 import javafx.util.Duration;
 import org.controlsfx.control.PopOver;
+import org.csu.pixelstrikejavafx.lobby.ui.CharacterSelectionController;
 import org.csu.pixelstrikejavafx.lobby.ui.InviteFriendController;
+import org.csu.pixelstrikejavafx.lobby.ui.MapSelectionController;
+
 import java.io.IOException;
+import java.util.List;
+import java.util.Map;
 import java.util.Objects;
 import java.util.function.Consumer;
 
@@ -212,6 +217,52 @@ public class DialogManager {
             popOver.show(anchorNode.getScene().getWindow(), targetX, targetY);
 
             // --- ↑↑↑ 修改结束 ↑↑↑ ---
+
+        } catch (IOException e) {
+            e.printStackTrace();
+        }
+    }
+    public static void showMapSelection(List<Map<String, Object>> maps, Consumer<Map<String, Object>> onConfirm) {
+        if (rootPane == null) {
+            System.err.println("DialogManager root pane is not set!");
+            return;
+        }
+        try {
+            FXMLLoader loader = new FXMLLoader(DialogManager.class.getResource("/fxml/map-selection-view.fxml"));
+            Pane dialogPane = loader.load();
+            MapSelectionController controller = loader.getController();
+
+            // 配置Controller
+            controller.populateMaps(maps);
+            controller.setOnConfirm(selectedMap -> {
+                animateOut(dialogPane, () -> onConfirm.accept(selectedMap));
+            });
+            controller.setOnCancel(() -> animateOut(dialogPane, null));
+
+            // 显示对话框
+            rootPane.getChildren().add(dialogPane);
+            animateIn(dialogPane);
+
+        } catch (IOException e) {
+            e.printStackTrace();
+        }
+    }
+
+    public static void showCharacterSelection(String title, List<Map<String, Object>> characters, Consumer<Map<String, Object>> onConfirm) {
+        if (rootPane == null) return;
+        try {
+            FXMLLoader loader = new FXMLLoader(DialogManager.class.getResource("/fxml/character-selection-view.fxml"));
+            Pane dialogPane = loader.load();
+            CharacterSelectionController controller = loader.getController();
+
+            controller.setTitle(title);
+            controller.populateCharacters(characters);
+            controller.setOnConfirm(selectedChar -> animateOut(dialogPane, () -> onConfirm.accept(selectedChar)));
+            controller.setOnCancel(() -> animateOut(dialogPane, () -> onConfirm.accept(null))); // 取消时回调 null
+
+            // 显示对话框
+            rootPane.getChildren().add(dialogPane);
+            animateIn(dialogPane);
 
         } catch (IOException e) {
             e.printStackTrace();

@@ -1,0 +1,30 @@
+<?xml version="1.0" encoding="UTF-8"?>
+
+<?import javafx.geometry.Insets?>
+<?import javafx.scene.control.Button?>
+<?import javafx.scene.control.Label?>
+<?import javafx.scene.layout.*?>
+<?import javafx.scene.text.Text?>
+
+<?import javafx.scene.control.ListView?>
+<StackPane xmlns="http://javafx.com/javafx/21" xmlns:fx="http://javafx.com/fxml/1"
+           fx:controller="org.csu.pixelstrikejavafx.lobby.ui.CharacterSelectionController"
+           alignment="CENTER" stylesheets="/assets/css/lobby-style.css">
+
+    <Pane style="-fx-background-color: rgba(0, 0, 0, 0.6);"/>
+
+    <VBox fx:id="dialogContainer" styleClass="character-selection-pane" maxWidth="600" spacing="20" alignment="CENTER">
+        <padding>
+            <Insets top="25" right="30" bottom="25" left="30"/>
+        </padding>
+
+        <Label fx:id="titleLabel" text="选择角色" styleClass="game-dialog-title"/>
+
+        <ListView fx:id="characterListView" VBox.vgrow="ALWAYS"/>
+
+        <HBox spacing="20" alignment="CENTER">
+            <Button fx:id="confirmButton" text="确认" styleClass="game-dialog-button-confirm"/>
+            <Button fx:id="cancelButton" text="取消" styleClass="game-dialog-button-cancel"/>
+        </HBox>
+    </VBox>
+</StackPane>

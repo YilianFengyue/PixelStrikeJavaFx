@@ -557,3 +557,61 @@
 .actionable-notification-pane .reject-button:hover {
     -fx-background-color: #95a5a6;
 }
+
+.map-selection-pane {
+    -fx-background-color: rgba(20, 25, 40, 0.9);
+    -fx-background-radius: 10;
+    -fx-border-color: rgba(100, 120, 180, 0.5);
+    -fx-border-width: 1.5px;
+    -fx-border-radius: 10;
+    -fx-effect: dropshadow(gaussian, rgba(0, 0, 0, 0.7), 25, 0, 0, 0);
+}
+
+.map-nav-button {
+    -fx-font-size: 24px;
+    -fx-background-color: transparent;
+    -fx-text-fill: white;
+    -fx-padding: 10px 20px;
+}
+.map-nav-button:hover {
+    -fx-background-color: rgba(255, 255, 255, 0.1);
+    -fx-cursor: hand;
+}
+
+.map-name-text {
+    -fx-font-size: 22px;
+    -fx-fill: white;
+    -fx-font-weight: bold;
+}
+
+.map-description-text {
+    -fx-font-size: 16px;
+    -fx-fill: #bdc3c7;
+}
+.character-selection-pane {
+    -fx-background-color: rgba(20, 25, 40, 0.9);
+    -fx-background-radius: 10;
+    -fx-border-color: rgba(100, 120, 180, 0.5);
+    -fx-border-width: 1.5px;
+    -fx-border-radius: 10;
+    -fx-effect: dropshadow(gaussian, rgba(0, 0, 0, 0.7), 25, 0, 0, 0);
+}
+
+.character-selection-pane .list-view {
+    -fx-background-color: rgba(0, 0, 0, 0.3);
+}
+
+.character-selection-pane .list-view .list-cell {
+    -fx-background-color: transparent;
+    -fx-text-fill: white;
+    -fx-font-size: 16px;
+    -fx-padding: 10px;
+}
+
+.character-selection-pane .list-view .list-cell:filled:hover {
+    -fx-background-color: rgba(255, 255, 255, 0.1);
+}
+
+.character-selection-pane .list-view .list-cell:filled:selected {
+    -fx-background-color: #3498db;
+}
