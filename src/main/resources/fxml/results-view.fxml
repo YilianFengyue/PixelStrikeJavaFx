@@ -8,43 +8,36 @@
 <?import javafx.scene.layout.BorderPane?>
 <?import javafx.scene.layout.StackPane?>
 <?import javafx.scene.layout.VBox?>
-<?import javafx.scene.text.Font?>
 
-<AnchorPane prefHeight="1080.0" prefWidth="1920.0" style="-fx-background-color: #2c3e50;"
+<AnchorPane prefHeight="1080.0" prefWidth="1920.0" styleClass="results-root"
             xmlns="http://javafx.com/javafx/21" xmlns:fx="http://javafx.com/fxml/1"
-            fx:controller="org.csu.pixelstrikejavafx.lobby.ui.ResultsController">
+            fx:controller="org.csu.pixelstrikejavafx.lobby.ui.ResultsController"
+            stylesheets="@../assets/css/results-style.css">
     <children>
         <BorderPane AnchorPane.bottomAnchor="0.0" AnchorPane.leftAnchor="0.0" AnchorPane.rightAnchor="0.0" AnchorPane.topAnchor="0.0">
             <top>
-                <Label text="当局战绩" textFill="white" alignment="CENTER" BorderPane.alignment="CENTER">
-                    <font>
-                        <Font name="System Bold" size="48.0"/>
-                    </font>
+                <Label text="当局战绩" styleClass="results-title" alignment="CENTER" BorderPane.alignment="CENTER">
                     <BorderPane.margin>
-                        <Insets top="50.0" bottom="50.0"/>
+                        <Insets top="50.0" bottom="30.0"/>
                     </BorderPane.margin>
                 </Label>
             </top>
             <center>
                 <StackPane BorderPane.alignment="CENTER">
                     <children>
-                        <VBox fx:id="resultsContent" alignment="TOP_CENTER" spacing="15.0">
+                        <VBox fx:id="resultsContent" alignment="TOP_CENTER" spacing="25.0">
                             <padding>
                                 <Insets bottom="20.0" left="20.0" right="20.0" top="20.0"/>
                             </padding>
                         </VBox>
-
-                        <ProgressIndicator fx:id="loadingIndicator" maxHeight="100.0" maxWidth="100.0" prefHeight="100.0" prefWidth="100.0" StackPane.alignment="CENTER"/>
+                        <ProgressIndicator fx:id="loadingIndicator" maxHeight="100.0" maxWidth="100.0" prefHeight="100.0" prefWidth="100.0"/>
                     </children>
                 </StackPane>
             </center>
             <bottom>
-                <Button fx:id="backToLobbyButton" onAction="#handleBackToLobby" text="返回大厅" BorderPane.alignment="CENTER">
-                    <font>
-                        <Font size="22.0"/>
-                    </font>
+                <Button fx:id="backToLobbyButton" onAction="#handleBackToLobby" text="返回大厅" styleClass="back-button" BorderPane.alignment="CENTER">
                     <BorderPane.margin>
-                        <Insets top="50.0" bottom="50.0"/>
+                        <Insets top="30.0" bottom="50.0"/>
                     </BorderPane.margin>
                 </Button>
             </bottom>
