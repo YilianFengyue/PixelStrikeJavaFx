@@ -106,6 +106,10 @@ public class Player implements OnFireCallback {
     private static final int RAISE_SKIP_THRESHOLD_MS = 220; // 刚收枪后很快再按，直接从 idle 开枪
     private long lastShootEndTime = 0;                      // 最近一次 END 播完时间
 
+    private double footstepTimer = 0.0;
+    private static final double WALK_STEP_INTERVAL = 0.4; // 行走脚步声间隔（秒）
+    private static final double RUN_STEP_INTERVAL = 0.25;
+
     public Player(double spawnX, double spawnY, int characterId) {
         createEntity(spawnX, spawnY);
         initAnimator(characterId);
@@ -239,6 +243,17 @@ public class Player implements OnFireCallback {
             }
         }
 
+        if ((state == State.WALK || state == State.RUN) && onGround) {
+            footstepTimer += tpf;
+            double interval = (state == State.RUN) ? RUN_STEP_INTERVAL : WALK_STEP_INTERVAL;
+            if (footstepTimer >= interval) {
+                footstepTimer = 0;
+                play("footstep2.wav");
+            }
+        } else {
+            footstepTimer = 0; // 如果不在地面行走或跑步，则重置计时器
+        }
+
         //5)摩擦力
         if (Math.abs(vxTarget) < 10 && Math.abs(vxCurrent) > 10) {
             vxCurrent *= 0.85;  // 松手时快速减速
@@ -298,10 +313,12 @@ public class Player implements OnFireCallback {
     /** 跳跃/二段跳 */
     public void jump() {
         if (jumpsUsed == 0 && onGround) {
+            play("jump.wav");
             physics.setVelocityY(-JUMP_VY);
             jumpsUsed = 1;
             onGround = false;
         } else if (jumpsUsed == 1) {
+            play("jump.wav");
             physics.setVelocityY(-DJUMP_VY);
             jumpsUsed = 2;
         }
@@ -312,6 +329,7 @@ public class Player implements OnFireCallback {
         boolean was = this.onGround;
         this.onGround = onGround;
         if (onGround && !was) {
+            play("land.wav");
             jumpsUsed = 0;
         }
     }
