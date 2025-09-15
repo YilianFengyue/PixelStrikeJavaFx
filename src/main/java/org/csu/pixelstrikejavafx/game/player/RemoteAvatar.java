@@ -5,6 +5,7 @@ import com.almasb.fxgl.texture.AnimationChannel;
 import javafx.scene.Node;
 import javafx.scene.transform.Scale;
 import javafx.util.Duration;
+import org.jetbrains.annotations.NotNull;
 
 import static com.almasb.fxgl.dsl.FXGL.image;
 
@@ -21,20 +22,24 @@ public final class RemoteAvatar {
     //   你的精灵是 200x200，本地用的是 (120, 100)，远端保持一致即可对齐
     private final Scale flip = new Scale(1, 1, 120, 100);
 
-    public RemoteAvatar() {
-        idle = new AnimationChannel(image("ash_idle.png"), 15, 200, 200, Duration.seconds(2.0), 0, 14);
-        walk = new AnimationChannel(image("ash_walk.png"), 14, 200, 200, Duration.seconds(1.2), 0, 13);
-        run  = new AnimationChannel(image("ash_walk.png"), 14, 200, 200, Duration.seconds(0.5), 0, 13);
+    public RemoteAvatar(int characterId) {
+        String characterName = getCharacterFolderName(characterId);
+
+        // --- ↓↓↓ 核心修改点 ↓↓↓ ---
+        idle = new AnimationChannel(image("characters/" + characterName + "/" + characterName + "_idle.png"), 15, 200, 200, Duration.seconds(2.0), 0, 14);
+        walk = new AnimationChannel(image("characters/" + characterName + "/" + characterName + "_walk.png"), 14, 200, 200, Duration.seconds(1.2), 0, 13);
+        run  = new AnimationChannel(image("characters/" + characterName + "/" + characterName + "_walk.png"), 14, 200, 200, Duration.seconds(0.5), 0, 13);
 
         AnimationChannel _atkB = null, _atkI = null, _atkE = null, _die = null;
         try {
-            _atkB = new AnimationChannel(image("ash_attack.png"), 21, 200, 200, Duration.seconds(0.20), 0, 3);
-            _atkI = new AnimationChannel(image("ash_attack.png"), 21, 200, 200, Duration.seconds(0.45), 4, 12);
-            _atkE = new AnimationChannel(image("ash_attack.png"), 21, 200, 200, Duration.seconds(0.40), 13, 20);
+            _atkB = new AnimationChannel(image("characters/" + characterName + "/" + characterName + "_attack.png"), 21, 200, 200, Duration.seconds(0.20), 0, 3);
+            _atkI = new AnimationChannel(image("characters/" + characterName + "/" + characterName + "_attack.png"), 21, 200, 200, Duration.seconds(0.45), 4, 12);
+            _atkE = new AnimationChannel(image("characters/" + characterName + "/" + characterName + "_attack.png"), 21, 200, 200, Duration.seconds(0.40), 13, 20);
         } catch (Exception ignored) {}
         try {
-            _die = new AnimationChannel(image("ash_die.png"), 8, 200, 200, Duration.seconds(1.5), 0, 7);
+            _die = new AnimationChannel(image("characters/" + characterName + "/" + characterName + "_die.png"), 8, 200, 200, Duration.seconds(1.5), 0, 7);
         } catch (Exception ignored) {}
+        // --- ↑↑↑ 核心修改点 ↑↑↑ ---
 
         atkBegin = _atkB != null ? _atkB : idle;
         atkIdle  = _atkI != null ? _atkI : idle;
@@ -43,7 +48,23 @@ public final class RemoteAvatar {
 
         tex = new AnimatedTexture(idle);
         tex.loop();
-        tex.getTransforms().add(flip);        // ★ 关键：让翻转围绕精灵中心
+        tex.getTransforms().add(flip);
+    }
+
+    // <-- 新增这个辅助方法 -->
+    private String getCharacterFolderName(int characterId) {
+        return getCharacterString(characterId);
+    }
+
+    @NotNull
+    static String getCharacterString(int characterId) {
+        switch (characterId) {
+            case 1: return "ash";
+            case 2: return "shu";
+            case 3: return "angel_neng";
+            case 4: return "bluep_marthe";
+            default: return "ash";
+        }
     }
 
     public Node view() { return tex; }

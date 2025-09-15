@@ -1,11 +1,14 @@
+// main/java/org/csu/pixelstrikejavafx/game/player/PlayerAnimator.java
 package org.csu.pixelstrikejavafx.game.player;
 
+import com.almasb.fxgl.dsl.FXGL;
 import com.almasb.fxgl.texture.AnimatedTexture;
 import com.almasb.fxgl.texture.AnimationChannel;
 import javafx.scene.transform.Scale;
 import javafx.util.Duration;
 
 import static com.almasb.fxgl.dsl.FXGL.image;
+import static org.csu.pixelstrikejavafx.game.player.RemoteAvatar.getCharacterString;
 
 /**
  * 角色动画系统 - 监听Player状态，切换对应动画
@@ -28,64 +31,56 @@ public class PlayerAnimator {
 
     private String currentAnimationName = "";
     private boolean animationLoaded = false;
+    private final String characterName;
 
     private Scale flip;   // 新增：专门控制朝向的变换
 
-    public PlayerAnimator(Player player) {
+    public PlayerAnimator(Player player, int characterId) {
         this.player = player;
+        this.characterName = getCharacterFolderName(characterId);
         setupAnimations();
+    }
+
+    private String getCharacterFolderName(int characterId) {
+        return getCharacterString(characterId);
     }
 
     private void setupAnimations() {
         try {
-            // idle动画：3000x200，15帧，每帧200x200
             idleAnimation = new AnimationChannel(
-                    image("ash_idle.png"), 15, 200, 200,
+                    image("characters/" + characterName + "/" + characterName + "_idle.png"), 15, 200, 200,
                     Duration.seconds(2.0), 0, 14
             );
 
-            // walk动画：2800x200，14帧，每帧200x200
             walkAnimation = new AnimationChannel(
-                    image("ash_walk.png"), 14, 200, 200,
+                    image("characters/" + characterName + "/" + characterName + "_walk.png"), 14, 200, 200,
                     Duration.seconds(1.2), 0, 13
             );
 
-            // run动画：复用walk但播放更快
             runAnimation = new AnimationChannel(
-                    image("ash_walk.png"), 14, 200, 200,
+                    image("characters/" + characterName + "/" + characterName + "_walk.png"), 14, 200, 200,
                     Duration.seconds(0.5), 0, 13
             );
 
+            // --- 核心修复：移除多余的、硬编码的 'ash' 动画加载块 ---
+            // 之前的错误代码已被删除，现在所有角色的攻击和死亡动画都会从正确的动态路径加载。
+            attackBeginAnimation = new AnimationChannel(
+                    image("characters/" + characterName + "/" + characterName + "_attack.png"), 21, 200, 200,
+                    Duration.seconds(0.2), 0, 3
+            );
+            attackIdleAnimation = new AnimationChannel(
+                    image("characters/" + characterName + "/" + characterName + "_attack.png"), 21, 200, 200,
+                    Duration.seconds(0.45), 4, 12
+            );
+            attackEndAnimation = new AnimationChannel(
+                    image("characters/" + characterName + "/" + characterName + "_attack.png"), 21, 200, 200,
+                    Duration.seconds(0.4), 13, 20
+            );
 
-            try {
-                attackBeginAnimation = new AnimationChannel(
-                        image("ash_attack.png"), 21, 200, 200,
-                        Duration.seconds(0.2), 0, 3    // begin: 帧0-3
-                );
-                attackIdleAnimation = new AnimationChannel(
-                        image("ash_attack.png"), 21, 200, 200,
-                        Duration.seconds(0.45), 4, 12  // idle: 帧4-12 (循环)
-                );
-                attackEndAnimation = new AnimationChannel(
-                        image("ash_attack.png"), 21, 200, 200,
-                        Duration.seconds(0.4), 13, 20  // end: 帧13-20
-                );
-            } catch (Exception e) {
-                attackBeginAnimation = attackIdleAnimation = attackEndAnimation = idleAnimation;
-            }
-            // die动画：假设有die精灵图（如果没有先用idle的最后一帧）
-            try {
-                dieAnimation = new AnimationChannel(
-                        image("ash_die.png"), 8, 200, 200,
-                        Duration.seconds(1.5), 0, 7
-                );
-            } catch (Exception e) {
-                // 没有die图就用idle的第一帧当作"倒地"
-                dieAnimation = new AnimationChannel(
-                        image("ash_idle.png"), 15, 200, 200,
-                        Duration.seconds(1.0), 0, 0  // 只播放第一帧
-                );
-            }
+            dieAnimation = new AnimationChannel(
+                    image("characters/" + characterName + "/" + characterName + "_die.png"), 8, 200, 200,
+                    Duration.seconds(1.5), 0, 7
+            );
 
             // 创建动画贴图，默认idle
             animatedTexture = new AnimatedTexture(idleAnimation);
@@ -96,10 +91,11 @@ public class PlayerAnimator {
             currentAnimationName = "idle";
             animationLoaded = true;
 
-            System.out.println("PlayerAnimator: 动画系统初始化成功");
+            System.out.println("PlayerAnimator: 动画系统初始化成功 for character: " + characterName);
 
         } catch (Exception e) {
-            System.err.println("PlayerAnimator: 动画加载失败 - " + e.getMessage());
+            System.err.println("PlayerAnimator: 动画加载失败 for " + characterName + " - " + e.getMessage());
+            // 如果任何一个动画文件缺失，这里可以设置回退到默认角色 'ash'
             animationLoaded = false;
         }
     }
@@ -180,6 +176,12 @@ public class PlayerAnimator {
             case "die":
                 channel = dieAnimation;
                 shouldLoop = false; // 死亡动画只播放一次
+                // --- 核心修复：播放死亡动画后，延迟隐藏实体 ---
+                FXGL.getGameTimer().runOnceAfter(() -> {
+                    if (player.getEntity() != null) {
+                        player.getEntity().setVisible(false);
+                    }
+                }, Duration.seconds(1.5)); // 延迟时间应与死亡动画时长匹配
                 break;
             default:
                 channel = idleAnimation;
@@ -198,10 +200,6 @@ public class PlayerAnimator {
     private void updateFacing() {
         if (player.getEntity() == null) return;
         flip.setX(player.getFacingRight() ? 1 : -1);
-//        // 根据Player的朝向翻转角色
-//        boolean facingRight = player.getFacingRight();
-//        double scaleX = facingRight ? 1.0 : -1.0;
-//        player.getEntity().setScaleX(scaleX);
     }
 
     /**

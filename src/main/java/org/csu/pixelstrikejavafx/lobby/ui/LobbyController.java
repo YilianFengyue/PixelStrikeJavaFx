@@ -31,9 +31,6 @@ import java.io.File;
 import java.io.IOException;
 import java.net.URL;
 import java.util.*;
-
-import javafx.scene.image.Image;
-import javafx.scene.image.ImageView;
 import javafx.scene.text.Text;
 import javafx.beans.property.SimpleObjectProperty;
 import javafx.scene.layout.BorderPane;
@@ -121,6 +118,17 @@ public class LobbyController implements Initializable {
                 System.out.println("UI received: Match Success! Preparing to start game...");
                 if(matchStatusLabel != null) {
                     matchStatusLabel.setText("匹配成功！正在进入游戏...");
+                }
+
+                JsonObject selections = event.getCharacterSelections();
+                GlobalState.characterSelections = selections;
+                if (selections != null && GlobalState.userId != null) {
+                    String myUserIdStr = String.valueOf(GlobalState.userId);
+                    if (selections.has(myUserIdStr)) {
+                        int characterId = selections.get(myUserIdStr).getAsInt();
+                        GlobalState.selectedCharacterId = characterId;
+                        System.out.println("My character selection (ID: " + characterId + ") has been saved.");
+                    }
                 }
 
                 // 1. 将游戏服务器地址存入全局状态，以便游戏场景启动时读取

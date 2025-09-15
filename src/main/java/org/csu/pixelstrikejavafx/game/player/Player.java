@@ -1,3 +1,4 @@
+// main/java/org/csu/pixelstrikejavafx/game/player/Player.java
 package org.csu.pixelstrikejavafx.game.player;
 
 import com.almasb.fxgl.entity.Entity;
@@ -105,10 +106,10 @@ public class Player implements OnFireCallback {
     private static final int RAISE_SKIP_THRESHOLD_MS = 220; // 刚收枪后很快再按，直接从 idle 开枪
     private long lastShootEndTime = 0;                      // 最近一次 END 播完时间
 
-    public Player(double spawnX, double spawnY) {
+    public Player(double spawnX, double spawnY, int characterId) {
         createEntity(spawnX, spawnY);
-        initAnimator(); // 动画状态
-        shootingSys = new PlayerShooting(this);   // 角色射击
+        initAnimator(characterId);
+        shootingSys = new PlayerShooting(this);
     }
 
     private void createEntity(double x, double y) {
@@ -166,10 +167,9 @@ public class Player implements OnFireCallback {
 
     }
 
-    private void initAnimator() {
-        animator = new PlayerAnimator(this);
+    private void initAnimator(int characterId) {
+        animator = new PlayerAnimator(this, characterId);
         if (animator.isAnimationLoaded()) {
-            // 如果动画加载成功，替换entity的view
             entity.getViewComponent().clearChildren();
             entity.getViewComponent().addChild(animator.getAnimatedTexture());
         }
@@ -479,14 +479,15 @@ public class Player implements OnFireCallback {
         shooting = false;
         stopQueued = false;
         attackPhase = AttackPhase.BEGIN;
-        // 先简单“消失”：隐藏 + 关闭碰撞（比 removeFromWorld 更安全，不影响相机引用）
+
+        // --- 核心修复：不再立即隐藏实体 ---
+        // 移除 entity.setVisible(false);
+        // 动画播放和隐藏的逻辑将由 PlayerAnimator 处理
+
         if (entity != null) {
-            entity.setVisible(false);
             var coll = entity.getComponentOptional(CollidableComponent.class).orElse(null);
             if (coll != null) coll.setValue(false);
         }
-
-        // TODO: 将来这里切换到“死亡动画”，动画播完再隐藏/移除
     }
 
     /** 复活回调 —— 恢复可见与碰撞，位置/血量由外部控制 */

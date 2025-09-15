@@ -150,52 +150,52 @@ public class ApiClient {
             }
         }
     }
-        /**
-         * 调用后端 /auth/register 接口
-         * @param username 用户名
-         * @param password 密码
-         * @param email 邮箱
-         * @param nickname 昵称
-         * @throws IOException 当网络请求失败或业务逻辑失败时抛出异常
-         */
-        public void register(String username, String password, String email, String nickname) throws IOException {
-            String url = BASE_URL + "/auth/register";
+    /**
+     * 调用后端 /auth/register 接口
+     * @param username 用户名
+     * @param password 密码
+     * @param email 邮箱
+     * @param nickname 昵称
+     * @throws IOException 当网络请求失败或业务逻辑失败时抛出异常
+     */
+    public void register(String username, String password, String email, String nickname) throws IOException {
+        String url = BASE_URL + "/auth/register";
 
-            // 1. 使用 Map 来构建 JSON 对象，更灵活
-            java.util.Map<String, String> registrationData = new java.util.HashMap<>();
-            registrationData.put("username", username);
-            registrationData.put("password", password);
-            registrationData.put("email", email);
-            registrationData.put("nickname", nickname);
+        // 1. 使用 Map 来构建 JSON 对象，更灵活
+        java.util.Map<String, String> registrationData = new java.util.HashMap<>();
+        registrationData.put("username", username);
+        registrationData.put("password", password);
+        registrationData.put("email", email);
+        registrationData.put("nickname", nickname);
 
-            // 2. 使用 Gson 将 Map 转换为 JSON 字符串
-            String jsonBody = gson.toJson(registrationData);
-            RequestBody body = RequestBody.create(jsonBody, MediaType.get("application/json; charset=utf-8"));
+        // 2. 使用 Gson 将 Map 转换为 JSON 字符串
+        String jsonBody = gson.toJson(registrationData);
+        RequestBody body = RequestBody.create(jsonBody, MediaType.get("application/json; charset=utf-8"));
 
-            Request request = new Request.Builder()
-                    .url(url)
-                    .post(body)
-                    .build();
+        Request request = new Request.Builder()
+                .url(url)
+                .post(body)
+                .build();
 
-            try (Response response = client.newCall(request).execute()) {
-                if (!response.isSuccessful()) {
-                    throw new IOException("请求失败: " + response.code());
-                }
-
-                String responseBody = response.body().string();
-                JsonObject jsonObject = gson.fromJson(responseBody, JsonObject.class);
-
-                // 3. 检查后端返回的业务状态码
-                // 如果 status 不为 0，说明注册失败，我们将后端消息作为异常抛出
-                if (jsonObject.get("status").getAsInt() != 0) {
-                    String message = jsonObject.get("message").getAsString();
-                    throw new IOException(message); // 例如 "注册失败，用户名重复"
-                }
-
-                // status 为 0，说明成功，方法正常结束
-                System.out.println("注册成功!");
+        try (Response response = client.newCall(request).execute()) {
+            if (!response.isSuccessful()) {
+                throw new IOException("请求失败: " + response.code());
             }
+
+            String responseBody = response.body().string();
+            JsonObject jsonObject = gson.fromJson(responseBody, JsonObject.class);
+
+            // 3. 检查后端返回的业务状态码
+            // 如果 status 不为 0，说明注册失败，我们将后端消息作为异常抛出
+            if (jsonObject.get("status").getAsInt() != 0) {
+                String message = jsonObject.get("message").getAsString();
+                throw new IOException(message); // 例如 "注册失败，用户名重复"
+            }
+
+            // status 为 0，说明成功，方法正常结束
+            System.out.println("注册成功!");
         }
+    }
 
     /**
      * 调用后端 /auth/logout 接口
@@ -421,7 +421,7 @@ public class ApiClient {
 
     /**
      * 调用后端 API 创建一个自定义房间。
-     * [cite_start]对应文档："四、房间模块 I.创建房间" [cite: 1]
+     * 对应文档："四、房间模块 I.创建房间"
      * @return 成功时返回房间的 ID 字符串。
      * @throws IOException 当网络或业务逻辑失败时抛出。
      */
@@ -520,7 +520,7 @@ public class ApiClient {
 
     /**
      * 调用后端 API 根据房间 ID 加入一个房间。
-     * [cite_start]对应文档："四、房间模块 II.加入房间" [cite: 1]
+     * 对应文档："四、房间模块 II.加入房间"
      * @param roomId 要加入的房间的密钥/ID。
      * @return 成功时返回房间的 ID 字符串。
      * @throws IOException 当网络或业务逻辑失败时抛出。
@@ -560,7 +560,7 @@ public class ApiClient {
 
     /**
      * 调用后端 API 离开当前所在的房间。
-     * [cite_start]对应文档："四、房间模块 III.离开房间" [cite: 1]
+     * 对应文档："四、房间模块 III.离开房间"
      * @throws IOException 当网络或业务逻辑失败时抛出。
      */
     public void leaveRoom() throws IOException {
@@ -1030,5 +1030,3 @@ public class ApiClient {
         }
     }
 }
-
-

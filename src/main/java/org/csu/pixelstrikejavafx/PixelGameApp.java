@@ -98,8 +98,13 @@ public class PixelGameApp extends GameApplication {
         getPhysicsWorld().setGravity(0, 3200);
         MapBuilder.buildLevel();
 
-        Player localPlayer = playerManager.createLocalPlayer(networkService);
+        int characterId = (GlobalState.selectedCharacterId != null) ? GlobalState.selectedCharacterId : 1;
+        Player localPlayer = playerManager.createLocalPlayer(networkService, characterId);
 
+        // 将完整的角色选择信息传递给 PlayerManager
+        if (GlobalState.characterSelections != null) {
+            playerManager.setCharacterSelections(GlobalState.characterSelections);
+        }
         var vp = getGameScene().getViewport();
         double zoom = 0.85;
         vp.setZoom(zoom);
@@ -330,13 +335,13 @@ public class PixelGameApp extends GameApplication {
                                 Math.max(1, extractInt(json, "\"damage\":")), kx, ky
                         );
                     } else {
-                        // 是其他玩家被击中了
+                        // 远程玩家被击中逻辑
                         RemotePlayer remotePlayer = playerManager.getRemotePlayers().get(victimId);
                         if (remotePlayer != null && remotePlayer.entity != null) {
-                            // 如果伤害消息表明该玩家已死亡，则隐藏其模型
+                            // 如果伤害消息表明该玩家已死亡，则触发他的死亡动画状态，而不是直接隐藏
                             if (isDead) {
-                                System.out.println("Hiding remote player " + victimId + " because they died.");
-                                remotePlayer.entity.setVisible(false);
+                                System.out.println("Remote player " + victimId + " has died. Playing death animation.");
+                                remotePlayer.anim = "DIE"; // 强制设置动画状态为DIE
                             }
                             // （可选）在这里也可以为远程玩家添加受击特效
                         }

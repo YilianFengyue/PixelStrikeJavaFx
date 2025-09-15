@@ -127,8 +127,8 @@ public class NetworkManager {
                 case "match_success":
                     String serverAddress = msgJson.get("serverAddress").getAsString();
                     long gameId = msgJson.get("gameId").getAsLong();
-                    FXGL.getEventBus().fireEvent(new MatchSuccessEvent(serverAddress, gameId));
-                    break;
+                    JsonObject characterSelections = msgJson.getAsJsonObject("characterSelections");
+                    FXGL.getEventBus().fireEvent(new MatchSuccessEvent(serverAddress, gameId, characterSelections));break;
                 case "new_friend_request":
                     FXGL.getEventBus().fireEvent(new NewFriendRequestEvent(msgJson));
                     break;

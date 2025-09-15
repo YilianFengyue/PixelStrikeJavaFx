@@ -1,5 +1,6 @@
 package org.csu.pixelstrikejavafx.core;
 
+import com.google.gson.JsonObject; // 新增导入
 import javafx.event.Event;
 import javafx.event.EventType;
 
@@ -12,11 +13,13 @@ public class MatchSuccessEvent extends Event {
 
     private final String serverAddress;
     private final long gameId;
+    private final JsonObject characterSelections;
 
-    public MatchSuccessEvent(String serverAddress, long gameId) {
+    public MatchSuccessEvent(String serverAddress, long gameId, JsonObject characterSelections) { // <-- 修改构造函数
         super(ANY);
         this.serverAddress = serverAddress;
         this.gameId = gameId;
+        this.characterSelections = characterSelections;
     }
 
     public String getServerAddress() {
@@ -25,5 +28,9 @@ public class MatchSuccessEvent extends Event {
 
     public long getGameId() {
         return gameId;
+    }
+
+    public JsonObject getCharacterSelections() {
+        return characterSelections;
     }
 }
