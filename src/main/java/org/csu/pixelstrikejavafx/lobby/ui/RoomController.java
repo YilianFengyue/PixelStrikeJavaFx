@@ -1,20 +1,25 @@
 package org.csu.pixelstrikejavafx.lobby.ui;
 
 import com.almasb.fxgl.dsl.FXGL;
+import com.almasb.fxgl.texture.AnimatedTexture;
+import com.almasb.fxgl.texture.AnimationChannel;
 import com.google.gson.Gson;
 import com.google.gson.JsonArray;
 import com.google.gson.JsonElement;
 import com.google.gson.JsonObject;
 import com.google.gson.reflect.TypeToken;
+import javafx.animation.AnimationTimer;
 import javafx.animation.FadeTransition;
 import javafx.animation.ParallelTransition;
 import javafx.animation.TranslateTransition;
 import javafx.application.Platform;
+import javafx.beans.property.SimpleObjectProperty;
 import javafx.fxml.FXML;
 import javafx.fxml.FXMLLoader;
 import javafx.fxml.Initializable;
 import javafx.geometry.Insets;
 import javafx.scene.Parent;
+import javafx.scene.Scene;
 import javafx.scene.control.Button;
 import javafx.scene.control.Label;
 import javafx.scene.control.ListView;
@@ -25,6 +30,9 @@ import javafx.scene.image.ImageView;
 import javafx.scene.layout.*;
 import javafx.geometry.Pos;
 
+import javafx.scene.paint.Color;
+import javafx.scene.text.Text;
+import javafx.stage.Stage;
 import javafx.util.Duration;
 import javafx.scene.layout.VBox;
 import org.csu.pixelstrikejavafx.lobby.events.KickedFromRoomEvent;
@@ -58,7 +66,13 @@ public class RoomController implements Initializable {
     private boolean isInvitePanelVisible = false;
     @FXML
     private Button changeCharacterButton;
-
+    // --- 新增：角色ID到动画文件名的映射 ---
+    private static final Map<Integer, String> CHARACTER_ANIMATION_MAP = Map.of(
+            1, "ash/ash_idle.png",
+            2, "shu/shu_idle.png",
+            3, "angel_neng/angel_neng_idle.png"
+            // ...未来可以继续添加
+    );
     @Override
     public void initialize(URL location, ResourceBundle resources) {
         setupUI();
@@ -75,6 +89,7 @@ public class RoomController implements Initializable {
         } catch (Exception e) {
             System.err.println("房间背景图加载失败: " + e.getMessage());
         }
+        changeCharacterButton.setStyle("-fx-text-fill: black;");
     }
     private void setupEventHandlers() {
         FXGL.getEventBus().addEventHandler(RoomUpdateEvent.ANY, this::onRoomUpdate);
@@ -201,9 +216,16 @@ public class RoomController implements Initializable {
                 slot.getStyleClass().add("player-card");
 
                 long currentUserId = ((Number) player.get("userId")).longValue();
-                if (currentUserId == hostId) {
-                    slot.getStyleClass().add("host");
+                boolean isMe = GlobalState.userId != null && currentUserId == GlobalState.userId;
+
+                // --- 1. 高亮自己和房主 ---
+
+                if(currentUserId == hostId) {
+                    slot.getStyleClass().add("host"); // 房主卡片特殊样式
+                }else if (isMe) {
+                    slot.setStyle("-fx-border-color: #3498db; -fx-border-width: 2px;");
                 }
+
 
                 ImageView avatar = new ImageView();
                 avatar.setFitHeight(80);
@@ -216,7 +238,14 @@ public class RoomController implements Initializable {
                 Label nickname = new Label((String) player.get("nickname"));
                 nickname.getStyleClass().add("player-nickname");
 
-                slot.getChildren().addAll(avatar, nickname);
+                // 【新增】显示角色名
+                String characterName = (String) player.get("characterName");
+                Label characterLabel = new Label(characterName);
+                characterLabel.getStyleClass().add("player-character");
+                characterLabel.setStyle("-fx-text-fill: #f5f5f5;");
+                // --- 核心修复 2：将角色名Label添加到VBox中 ---
+                slot.getChildren().addAll(avatar, nickname, characterLabel);
+
 
                 if (currentUserId == hostId) {
                     Label role = new Label("(房主)");
@@ -224,28 +253,22 @@ public class RoomController implements Initializable {
                     slot.getChildren().add(role);
                 }
 
-                // --- ↓↓↓【关键新增代码】创建并添加“踢出”按钮 ↓↓↓ ---
-                if (amIHost && currentUserId != hostId) {
-                    // 如果“我”是房主，并且这张卡片不是房主自己的
+                // --- 2. 添加踢出和移交房主逻辑 ---
+                if (amIHost && !isMe) {
+                    // 如果我是房主，且这张卡片不是我
+                    HBox buttonBox = new HBox(5);
+                    buttonBox.setAlignment(Pos.CENTER);
+
                     Button kickButton = new Button("踢出");
                     kickButton.getStyleClass().add("kick-button");
+                    kickButton.setOnAction(event -> handleKickPlayer(currentUserId, (String) player.get("nickname")));
 
-                    // 为按钮添加点击事件
-                    kickButton.setOnAction(event -> {
-                        DialogManager.showConfirmation("确认操作", "确定要将 " + player.get("nickname") + " 踢出房间吗？", () -> {
-                            new Thread(() -> {
-                                try {
-                                    apiClient.kickPlayer(currentUserId);
-                                    // 成功后无需做任何事，等待后端推送 room_update 消息自动刷新界面
-                                } catch (Exception e) {
-                                    Platform.runLater(() -> DialogManager.showMessage("操作失败", e.getMessage()));
-                                }
-                            }).start();
-                        });
-                    });
+                    Button transferButton = new Button("移交房主");
+                    transferButton.getStyleClass().add("transfer-button");
+                    transferButton.setOnAction(event -> handleTransferHost(currentUserId, (String) player.get("nickname")));
 
-                    // 将按钮添加到卡片中
-                    slot.getChildren().add(kickButton);
+                    buttonBox.getChildren().addAll(kickButton, transferButton);
+                    slot.getChildren().add(buttonBox);
                 }
                 // --- ↑↑↑ 新增代码结束 ↑↑↑ ---
 
@@ -257,6 +280,32 @@ public class RoomController implements Initializable {
             playersGridPane.add(slot, colIndex, rowIndex);
         }
     }
+
+    // --- 新增：将踢人和移交房主的逻辑提取为独立方法，使代码更清晰 ---
+    private void handleKickPlayer(long targetId, String targetNickname) {
+        DialogManager.showConfirmation("确认操作", "确定要将 " + targetNickname + " 踢出房间吗？", () -> {
+            new Thread(() -> {
+                try {
+                    apiClient.kickPlayer(targetId);
+                } catch (Exception e) {
+                    Platform.runLater(() -> DialogManager.showMessage("操作失败", e.getMessage()));
+                }
+            }).start();
+        });
+    }
+
+    private void handleTransferHost(long targetId, String targetNickname) {
+        DialogManager.showConfirmation("确认操作", "确定要将房主移交给 " + targetNickname + " 吗？", () -> {
+            new Thread(() -> {
+                try {
+                    apiClient.transferHost(targetId);
+                } catch (Exception e) {
+                    Platform.runLater(() -> DialogManager.showMessage("操作失败", e.getMessage()));
+                }
+            }).start();
+        });
+    }
+
     // 当收到 WebSocket 推送的房间更新消息时，此方法被调用
     private void onRoomUpdate(RoomUpdateEvent event) {
         Platform.runLater(() -> {
@@ -328,7 +377,7 @@ public class RoomController implements Initializable {
         }).start();
     }
 
-    @FXML
+    /*@FXML
     private void handleChangeCharacter() {
         new Thread(() -> {
             try {
@@ -351,10 +400,168 @@ public class RoomController implements Initializable {
                 Platform.runLater(() -> FXGL.getDialogService().showMessageBox("获取角色列表失败: " + e.getMessage()));
             }
         }).start();
+    }*/
+
+    @FXML
+    private void handleChangeCharacter() {
+        // 这个方法现在调用新的、带动画的弹窗
+        new Thread(() -> {
+            try {
+                List<Map<String, Object>> characters = apiClient.getCharacters();
+                Platform.runLater(() -> {
+                    showAnimatedCharacterSelectionDialog("更换角色", characters, selectedCharacter -> {
+                        if (selectedCharacter == null) return; // 用户取消
+                        long characterId = ((Number) selectedCharacter.get("id")).longValue();
+
+                        new Thread(() -> {
+                            try {
+                                apiClient.changeCharacterInRoom(characterId);
+                                // 成功后，等待后端广播 room_update 自动刷新
+                            } catch (Exception e) {
+                                Platform.runLater(() -> DialogManager.showMessage("更换失败", e.getMessage()));
+                            }
+                        }).start();
+                    });
+                });
+            } catch (Exception e) {
+                Platform.runLater(() -> DialogManager.showMessage("获取角色列表失败", e.getMessage()));
+            }
+        }).start();
+    }
+
+    /**
+     * 新增：显示一个独立的、可拖动的、带动画的角色选择窗口
+     * (逻辑从 LobbyController 移植而来)
+     */
+    private void showAnimatedCharacterSelectionDialog(String title, List<Map<String, Object>> characters, java.util.function.Consumer<Map<String, Object>> onItemSelected) {
+        if (characters == null || characters.isEmpty()) {
+            DialogManager.showMessage("错误", "没有可用的角色！");
+            return;
+        }
+
+        // --- UI 组件 ---
+        VBox rootPane = new VBox();
+        rootPane.setPrefSize(400, 380);
+        rootPane.setStyle("-fx-background-color: black; -fx-border-color: #4b5563; -fx-border-width: 1; -fx-background-radius: 8; -fx-border-radius: 8;");
+
+        Label titleLabel = new Label(title);
+        titleLabel.setStyle("-fx-text-fill: white; -fx-font-weight: bold; -fx-padding: 10; -fx-cursor: move;");
+        titleLabel.setMaxWidth(Double.MAX_VALUE);
+        titleLabel.setAlignment(Pos.CENTER);
+
+        Pane animationContainer = new Pane();
+        animationContainer.setPrefSize(200, 200);
+        Text characterName = new Text();
+        characterName.setStyle("-fx-font-size: 18px; -fx-font-weight: bold; -fx-fill: white;");
+        Text characterDescription = new Text();
+        characterDescription.setStyle("-fx-fill: #d1d5db;");
+        VBox characterInfoBox = new VBox(5, characterName, characterDescription);
+        characterInfoBox.setAlignment(Pos.CENTER);
+        characterInfoBox.setPadding(new Insets(0, 10, 10, 10));
+
+        Button leftButton = new Button("<");
+        Button rightButton = new Button(">");
+        VBox centerContent = new VBox(10, animationContainer, characterInfoBox);
+        centerContent.setAlignment(Pos.CENTER);
+        BorderPane displayArea = new BorderPane();
+        displayArea.setCenter(centerContent);
+        displayArea.setLeft(leftButton);
+        displayArea.setRight(rightButton);
+        BorderPane.setAlignment(leftButton, Pos.CENTER_LEFT);
+        BorderPane.setAlignment(rightButton, Pos.CENTER_RIGHT);
+        displayArea.setPadding(new Insets(5));
+
+        Button btnOK = new Button("确定");
+        Button btnCancel = new Button("取消");
+        String buttonStyle = "-fx-background-color: #2563eb; -fx-text-fill: white; -fx-font-weight: bold; -fx-background-radius: 5; -fx-cursor: hand;";
+        String buttonHoverStyle = "-fx-background-color: #1d4ed8;";
+        btnOK.setStyle(buttonStyle);
+        btnCancel.setStyle(buttonStyle.replace("#2563eb", "#4b5563"));
+        btnOK.setOnMouseEntered(e -> btnOK.setStyle(buttonStyle + buttonHoverStyle));
+        btnOK.setOnMouseExited(e -> btnOK.setStyle(buttonStyle));
+        HBox buttonBar = new HBox(10, btnOK, btnCancel);
+        buttonBar.setAlignment(Pos.CENTER);
+        buttonBar.setPadding(new Insets(10));
+
+        rootPane.getChildren().addAll(titleLabel, new Separator(), displayArea, buttonBar);
+        VBox.setVgrow(displayArea, Priority.ALWAYS);
+
+        // --- 动画与逻辑 ---
+        SimpleObjectProperty<Map<String, Object>> currentCharacter = new SimpleObjectProperty<>(characters.get(0));
+        final int[] currentIndex = {0};
+        final AnimatedTexture[] animatedTexture = {null};
+        AnimationTimer timer = new AnimationTimer() {
+            private long lastUpdate = 0;
+            public void handle(long now) {
+                if (lastUpdate == 0) { lastUpdate = now; return; }
+                double tpf = (now - lastUpdate) / 1_000_000_000.0;
+                if (animatedTexture[0] != null) animatedTexture[0].onUpdate(tpf);
+                lastUpdate = now;
+            }
+        };
+
+        Runnable updateDisplay = () -> {
+            Map<String, Object> character = characters.get(currentIndex[0]);
+            currentCharacter.set(character);
+            characterName.setText((String) character.get("name"));
+            characterDescription.setText((String) character.get("description"));
+            int characterId = ((Number) character.get("id")).intValue();
+            String animationFile = CHARACTER_ANIMATION_MAP.getOrDefault(characterId, "ash_idle.png");
+            try {
+                AnimationChannel animChannel = new AnimationChannel(FXGL.image("characters/" + animationFile), 15, 200, 200, Duration.seconds(0.8), 0, 14);
+                animatedTexture[0] = new AnimatedTexture(animChannel);
+                animatedTexture[0].loop();
+                animationContainer.getChildren().setAll(animatedTexture[0]);
+            } catch (Exception e) {
+                System.err.println("加载动画失败: " + animationFile);
+            }
+        };
+
+        ((Button)displayArea.getLeft()).setOnAction(e -> {
+            currentIndex[0] = (currentIndex[0] - 1 + characters.size()) % characters.size();
+            updateDisplay.run();
+        });
+        ((Button)displayArea.getRight()).setOnAction(e -> {
+            currentIndex[0] = (currentIndex[0] + 1) % characters.size();
+            updateDisplay.run();
+        });
+        updateDisplay.run();
+
+        // --- 创建和显示窗口 ---
+        Stage stage = new Stage();
+        stage.initOwner(FXGL.getPrimaryStage());
+        stage.initModality(javafx.stage.Modality.APPLICATION_MODAL);
+        stage.initStyle(javafx.stage.StageStyle.TRANSPARENT);
+        Scene scene = new Scene(rootPane);
+        scene.setFill(Color.TRANSPARENT);
+        stage.setScene(scene);
+
+        final double[] xOffset = {0}, yOffset = {0};
+        titleLabel.setOnMousePressed(event -> {
+            xOffset[0] = event.getSceneX();
+            yOffset[0] = event.getSceneY();
+        });
+        titleLabel.setOnMouseDragged(event -> {
+            stage.setX(event.getScreenX() - xOffset[0]);
+            stage.setY(event.getScreenY() - yOffset[0]);
+        });
+
+        btnOK.setOnAction(e -> {
+            stage.close();
+            onItemSelected.accept(currentCharacter.get());
+        });
+        btnCancel.setOnAction(e -> {
+            stage.close();
+            onItemSelected.accept(null);
+        });
+        stage.setOnHidden(e -> timer.stop());
+
+        timer.start();
+        stage.showAndWait();
     }
 
     // 房间内专用的选择对话框辅助方法
-    private void showCharacterSelectionDialog(List<Map<String, Object>> items, java.util.function.Consumer<Map<String, Object>> onItemSelected) {
+    /*private void showCharacterSelectionDialog(List<Map<String, Object>> items, java.util.function.Consumer<Map<String, Object>> onItemSelected) {
         Dialog<Map<String, Object>> dialog = new Dialog<>();
         dialog.setTitle("更换角色");
 
@@ -388,7 +595,7 @@ public class RoomController implements Initializable {
         });
 
         dialog.showAndWait().ifPresent(onItemSelected);
-    }
+    }*/
 
     /**
      * 设置玩家列表 ListView 的单元格如何显示

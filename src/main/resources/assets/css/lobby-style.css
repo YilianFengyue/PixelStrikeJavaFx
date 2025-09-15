@@ -615,3 +615,28 @@
 .character-selection-pane .list-view .list-cell:filled:selected {
     -fx-background-color: #3498db;
 }
+
+/* 角色名字体样式 */
+.player-character {
+    -fx-font-size: 13px;
+    -fx-text-fill: #ffffff; /* 浅灰色，比昵称稍暗 */
+    -fx-font-style: italic;
+}
+
+/* 玩家自己的卡片高亮样式 */
+.player-card.self {
+    /* 使用一个微妙的蓝色边框来高亮自己 */
+    -fx-border-color: #ff0000;
+}
+
+/* 房主的卡片样式 (可以与高亮叠加) */
+.player-card.host {
+    /* 房主使用金色边框 */
+    -fx-border-color: #f1c40f;
+}
+
+/* 如果自己同时是房主，边框会叠加，通常蓝色会覆盖金色，可以接受 */
+/* 如果想让房主身份更优先，可以这样写 */
+.player-card.self.host {
+    -fx-border-color: #f1c40f; /* 确保房主身份的金色边框优先 */
+}
