@@ -492,3 +492,68 @@
     -fx-effect: dropshadow(gaussian, rgba(0, 0, 0, 0.5), 10, 0, 0, 0);
     -fx-margin: 20px;
 }
+
+
+
+
+/*邀请好友*/
+.custom-popover {
+    -fx-background-color: transparent;
+    -fx-background-insets: 0;
+    -fx-padding: 0;
+    /* 新增：PopOver 弹窗的 Y 轴初始偏移，实现从更下方出现 */
+    /* PopOver 默认从锚点位置弹出，这里通过 setAnchorYOffset 在 Java 代码中控制 */
+}
+.custom-popover .content-node {
+    -fx-background-color: transparent;
+}
+
+/* --- 好友邀请面板样式 (之前叫 popover-content，现更名为 invite-friend-pane) --- */
+
+
+
+/* --- 可交互通知栏样式 (例如房间邀请) --- */
+.actionable-notification-pane {
+    -fx-pref-width: 600px; /* 首选宽度 */
+    -fx-max-width: 600px; /* 最大宽度 */
+    -fx-background-color: linear-gradient(to right, rgba(40, 45, 65, 0.4), rgba(60, 65, 85, 0.4));
+    -fx-background-radius: 8;
+    -fx-padding: 12px 20px;
+    -fx-border-color: #3498db;
+    -fx-border-width: 2px 0 0 0;
+    -fx-effect: dropshadow(gaussian, rgba(0, 0, 0, 0.6), 20, 0, 0, 0);
+    -fx-alignment: center;
+    -fx-spacing: 20;
+}
+
+.actionable-notification-pane .label {
+    -fx-font-size: 18px;
+    -fx-text-fill: white;
+}
+
+.actionable-notification-pane .button {
+    -fx-font-family: sans-serif;
+    -fx-font-weight: bold;
+    -fx-font-size: 14px;
+    -fx-padding: 6px 20px;
+    -fx-background-radius: 5;
+    -fx-cursor: hand;
+}
+
+/* “同意”按钮样式 */
+.actionable-notification-pane .accept-button {
+    -fx-background-color: #27ae60;
+    -fx-text-fill: white;
+}
+.actionable-notification-pane .accept-button:hover {
+    -fx-background-color: #2ecc71;
+}
+
+/* “拒绝”按钮样式 */
+.actionable-notification-pane .reject-button {
+    -fx-background-color: #7f8c8d;
+    -fx-text-fill: white;
+}
+.actionable-notification-pane .reject-button:hover {
+    -fx-background-color: #95a5a6;
+}

@@ -4,7 +4,11 @@ import com.almasb.fxgl.app.scene.FXGLMenu;
 import com.almasb.fxgl.app.scene.MenuType;
 import com.almasb.fxgl.dsl.FXGL;
 import javafx.application.Platform;
+import javafx.beans.binding.Bindings;
+import javafx.geometry.Pos;
+import javafx.scene.input.KeyCode;
 import javafx.scene.layout.StackPane;
+import javafx.stage.WindowEvent;
 import org.csu.pixelstrikejavafx.lobby.network.ApiClient;
 import org.csu.pixelstrikejavafx.lobby.network.NetworkManager;
 import org.csu.pixelstrikejavafx.core.GlobalState;
@@ -15,39 +19,60 @@ public class FXMLMainMenu extends FXGLMenu {
     public FXMLMainMenu() {
         super(MenuType.MAIN_MENU);
 
-        // 1. 创建一个 StackPane 作为所有 UI 的根容器
-        StackPane uiRoot = new StackPane();
-        uiRoot.setPrefSize(FXGL.getAppWidth(), FXGL.getAppHeight());
-        uiRoot.setStyle("-fx-background-color: #282c34;"); // 可以设置一个默认背景色
+        // --- 诊断代码: 为FXGL的根节点设置一个红色背景 ---
+        // 如果切换全屏后，整个屏幕都不是红色了，说明问题出在FXGL层面。
+        getContentRoot().setStyle("-fx-background-color: red;");
 
-        // 2. 将这个根容器传递给 UIManager 进行管理 (关键一步！)
-        // 必须在调用任何 UIManager.load() 之前执行
-        UIManager.setRoot(uiRoot);
-        DialogManager.setRoot(uiRoot);
+        // 1. 创建我们的根容器，用于居中和缩放。
+        StackPane rootPane = new StackPane();
+        rootPane.setAlignment(Pos.CENTER);
+        // --- 诊断代码: 为我们的根容器设置一个半透明的绿色背景 ---
+        // 这个绿色区域理论上应该永远填充整个红色区域。
+        rootPane.setStyle("-fx-background-color: rgba(0, 255, 0, 0.5);"); // 半透明绿色
 
-        // 3. 加载初始界面 (例如登录页)
-        // 2. 【核心】智能调度逻辑
-        /*if (GlobalState.shouldShowLastMatchResults && GlobalState.lastMatchResults != null) {
-            // 场景一：信使旗帜升起，并且战绩数据存在 -> 显示战绩！
-            System.out.println("检测到游戏结束状态，正在跳转到战绩页面...");
-            GlobalState.shouldShowLastMatchResults = false; // **重要**：检查后立即放下旗帜，防止下次误判
-            UIManager.load("results-view.fxml"); // 加载您已写好的战绩 FXML
+        // 2. 创建内容面板，固定设计尺寸
+        StackPane contentPane = new StackPane();
+        contentPane.setPrefSize(1920, 1080);
+        contentPane.setMinSize(1920, 1080);
+        contentPane.setMaxSize(1920, 1080);
+        // --- 诊断代码: 为您的UI内容面板设置一个半透明的蓝色背景 ---
+        // 这个蓝色区域应该永远在绿色区域的正中央。
+        contentPane.setStyle("-fx-background-color: rgba(0, 0, 255, 0.5);"); // 半透明蓝色
 
-        } else if (GlobalState.authToken != null) {
-            // 场景二：无战绩，但用户已登录 -> 显示大厅
-            System.out.println("用户已登录，正在加载大厅...");
-            UIManager.load("lobby-view.fxml");
+        // 将内容面板放入根容器
+        rootPane.getChildren().add(contentPane);
 
-        } else {
-            // 场景三：未登录 -> 显示登录页
-            System.out.println("用户未登录，正在加载登录页面...");
-            UIManager.load("login-view.fxml");
-        }*/
+        // 3. 设置缩放绑定 (逻辑保持不变)
+        var scaleXBinding = rootPane.widthProperty().divide(1920.0);
+        var scaleYBinding = rootPane.heightProperty().divide(1080.0);
+        var scaleBinding = Bindings.min(scaleXBinding, scaleYBinding);
+        contentPane.scaleXProperty().bind(scaleBinding);
+        contentPane.scaleYProperty().bind(scaleBinding);
 
-        // 4. 将我们的 UI 根容器添加到 FXGL 菜单场景中
-        getContentRoot().getChildren().add(uiRoot);
-        // 4) 自动路由：下一帧执行一次 + 每次该菜单被显示时再次执行
-        setupAutoRoute();
+        // 4. 加载UI (这会将您的登录界面等加载到蓝色的 contentPane 中)
+        UIManager.setRoot(contentPane);
+        DialogManager.setRoot(contentPane);
+        UIManager.load("login-view.fxml");
+
+        // 5. 将我们设置好的“根容器”添加到FXGL场景中
+        getContentRoot().getChildren().add(rootPane);
+
+        // 6. 添加必要的事件处理器
+        getContentRoot().setOnKeyPressed(event -> {
+            if (event.getCode() == KeyCode.ESCAPE) {
+                // 【修改】不再直接退出，而是弹出确认对话框
+                DialogManager.showConfirmation("确认退出", "您确定要退出游戏吗？", () -> {
+                    // 当用户点击“确认”时，执行安全退出逻辑
+                    var stage = FXGL.getPrimaryStage();
+                    if (stage != null) {
+                        stage.fireEvent(
+                                new WindowEvent(stage, WindowEvent.WINDOW_CLOSE_REQUEST)
+                        );
+                    }
+                });
+            }
+        });
+
         addExitHandler();
     }
 

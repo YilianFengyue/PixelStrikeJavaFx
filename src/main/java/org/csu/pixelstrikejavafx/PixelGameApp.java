@@ -20,6 +20,8 @@ import javafx.scene.shape.Line;
 import javafx.scene.shape.Rectangle;
 import javafx.scene.text.Font;
 import javafx.scene.text.Text;
+import javafx.stage.Stage;
+import javafx.stage.WindowEvent;
 import javafx.util.Duration;
 import org.csu.pixelstrikejavafx.game.player.component.PoisonedComponent;
 import org.csu.pixelstrikejavafx.game.player.component.SupplyDropComponent;
@@ -36,6 +38,7 @@ import org.csu.pixelstrikejavafx.core.PixelStrikeSceneFactory;
 import org.csu.pixelstrikejavafx.game.ui.PlayerHUD;
 import org.csu.pixelstrikejavafx.lobby.ui.UIManager;
 import org.csu.pixelstrikejavafx.game.player.component.BulletComponent;
+import org.csu.pixelstrikejavafx.lobby.ui.dialog.DialogManager;
 
 import java.util.concurrent.ThreadLocalRandom;
 
@@ -77,6 +80,8 @@ public class PixelGameApp extends GameApplication {
         s.setWidth(GameConfig.WINDOW_W);
         s.setHeight(GameConfig.WINDOW_H);
         s.setTitle("PixelStrike");
+        s.setFullScreenAllowed(true);
+        s.setFullScreenFromStart(true);
         s.setPixelsPerMeter(GameConfig.PPM);
         s.setMainMenuEnabled(true);
         s.setGameMenuEnabled(false);
@@ -129,6 +134,20 @@ public class PixelGameApp extends GameApplication {
     @Override
     protected void initInput() {
 
+            // 【修改这里的 ESCAPE 键绑定】
+        onKey(KeyCode.ESCAPE, "退出游戏", () -> {
+            // 【修改】弹出确认对话框
+            DialogManager.showConfirmation("确认退出", "您确定要退出游戏吗？", () -> {
+                // 当用户点击“确认”时，执行安全退出逻辑
+                Stage primaryStage = FXGL.getPrimaryStage();
+                if (primaryStage != null) {
+                    primaryStage.fireEvent(
+                            new WindowEvent(primaryStage, WindowEvent.WINDOW_CLOSE_REQUEST)
+                    );
+                }
+            });
+        });
+
         getInput().addAction(new UserAction("Move Left") {
             @Override protected void onActionBegin() {
                 // 正确做法：在动作被触发时，才去获取玩家对象
@@ -177,6 +196,8 @@ public class PixelGameApp extends GameApplication {
             }
         }, KeyCode.J);
 
+
+
         /*
         getInput().addAction(new UserAction("Next Weapon") {
             @Override
@@ -207,6 +228,13 @@ public class PixelGameApp extends GameApplication {
         getGameScene().addUINode(hud.getRoot());
 
         var backButton = new com.almasb.fxgl.ui.FXGLButton("返回大厅");
+            var fullscreenButton = new com.almasb.fxgl.ui.FXGLButton("切换全屏");
+            fullscreenButton.setOnAction(e -> {
+                javafx.stage.Stage primaryStage = com.almasb.fxgl.dsl.FXGL.getPrimaryStage();
+                primaryStage.setFullScreen(!primaryStage.isFullScreen());
+            });
+            // 将按钮放置在“返回大厅”按钮的下方
+            addUINode(fullscreenButton, 20, 60);
         backButton.setOnAction(e -> {
             networkService.sendLeaveMessage();
             getGameController().gotoMainMenu();

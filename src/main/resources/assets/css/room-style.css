@@ -1,0 +1,223 @@
+/* --- 全局与根节点 --- */
+.root {
+    /* 这里可以设置背景图片，或者在Controller里动态设置 */
+}
+
+/* --- 标题样式 --- */
+.title-label {
+    -fx-font-family: 'Press Start 2P', sans-serif;
+    -fx-font-size: 36px;
+    -fx-text-fill: white;
+    -fx-effect: dropshadow(gaussian, rgba(0, 0, 0, 0.7), 10, 0, 0, 2);
+}
+.room-id-label {
+    -fx-font-size: 18px;
+    -fx-text-fill: #bdc3c7; /* 灰色，作为副标题 */
+}
+
+/* --- 玩家网格布局 --- */
+.players-grid {
+    -fx-padding: 20px;
+}
+
+/* --- 玩家卡片样式 (有玩家时) --- */
+.player-card {
+    -fx-background-color: rgba(0, 0, 0, 0.5);
+    -fx-background-radius: 10;
+    -fx-padding: 20px;
+    -fx-alignment: center;
+    -fx-spacing: 10;
+    -fx-border-color: rgba(255, 255, 255, 0.1);
+    -fx-border-width: 1px;
+    -fx-border-radius: 10;
+}
+.player-card.host { /* 房主的特殊边框样式 */
+    -fx-border-color: #f1c40f; /* 金色边框 */
+    -fx-border-width: 2px;
+}
+
+/* --- 空槽位样式 --- */
+.empty-slot {
+    -fx-background-color: rgba(0, 0, 0, 0.2);
+    -fx-background-radius: 10;
+    -fx-padding: 20px;
+    -fx-alignment: center;
+    -fx-border-color: rgba(255, 255, 255, 0.2);
+    -fx-border-style: dashed;
+    -fx-border-width: 2px;
+    -fx-border-radius: 10;
+}
+.empty-slot .label {
+    -fx-font-size: 18px;
+    -fx-text-fill: rgba(255, 255, 255, 0.4);
+}
+
+/* --- 玩家卡片内部件样式 --- */
+.player-avatar {
+    /* 可以在这里为头像添加效果，比如圆形裁剪 */
+    /* -fx-clip: circle; */
+}
+.player-nickname {
+    -fx-font-size: 18px;
+    -fx-font-weight: bold;
+    -fx-text-fill: white;
+}
+.player-role {
+    -fx-font-size: 14px;
+    -fx-text-fill: #f1c40f; /* 金色，用于“房主”等身份 */
+    -fx-font-weight: bold;
+}
+
+/* --- 底部按钮通用样式 (复用之前的样式) --- */
+.bottom-button {
+    -fx-font-family: 'Press Start 2P', sans-serif;
+    -fx-font-size: 20px;
+    -fx-text-fill: white;
+    -fx-padding: 15px
+    30px;
+    -fx-background-radius: 8;
+    -fx-border-radius: 8;
+    -fx-border-color: rgba(0, 0, 0, 0.5);
+    -fx-border-width: 2px;
+    -fx-effect: dropshadow(gaussian, rgba(0, 0, 0, 0.5), 8, 0, 0, 1);
+    -fx-cursor: hand;
+}
+.bottom-button:hover {
+    -fx-scale-y: 1.05;
+    -fx-scale-x: 1.05;
+}
+.kick-button {
+    -fx-background-color: #c0392b; /* 危险操作使用红色 */
+    -fx-text-fill: white;
+    -fx-font-size: 12px;
+    -fx-padding: 5px 15px;
+    -fx-background-radius: 5;
+    -fx-cursor: hand;
+    -fx-margin-top: 10px; /* 让按钮和上面的昵称有一些间距 */
+}
+
+.kick-button:hover {
+    -fx-background-color: #e74c3c; /* 悬停时变亮 */
+}
+#leaveRoomButton { -fx-background-color: #e67e22; }
+#inviteButton { -fx-background-color: #3498db; }
+#startGameButton { -fx-background-color: #2ecc71; }
+
+.invite-friend-pane {
+    -fx-background-color: rgba(46, 50, 58, 0.4);
+    -fx-background-radius: 12;
+    -fx-border-color: rgba(100, 120, 180, 0.6);
+    -fx-border-width: 1.5px;
+    -fx-border-radius: 12;
+    -fx-effect: dropshadow(gaussian, rgba(0, 0, 0, 0.8), 30, 0, 0, 0);
+    -fx-padding: 10px;
+}
+
+/* 关闭箭头图标样式 */
+.close-arrow-icon {
+    -fx-fill: #bdc3c7; /* 灰色箭头 */
+    -fx-font-size: 24px; /* 箭头大小 */
+    -fx-cursor: hand;
+    -fx-translate-y: 2px; /* 微调，让箭头和标题更对齐 */
+}
+.close-arrow-icon:hover {
+    -fx-fill: white; /* 悬停时变白 */
+}
+
+/* 好友列表视图的背景 */
+.list-view {
+    -fx-background-color: transparent; /* 列表背景透明 */
+    -fx-padding: 0;
+}
+.list-view .scroll-bar:vertical .increment-button,
+.list-view .scroll-bar:vertical .decrement-button,
+.list-view .scroll-bar:horizontal .increment-button,
+.list-view .scroll-bar:horizontal .decrement-button {
+    -fx-background-color: transparent;
+    -fx-padding: 0;
+}
+.list-view .scroll-bar:vertical .track-background,
+.list-view .scroll-bar:horizontal .track-background {
+    -fx-background-color: rgba(0,0,0,0.2);
+}
+.list-view .scroll-bar:vertical .thumb,
+.list-view .scroll-bar:horizontal .thumb {
+    -fx-background-color: rgba(100,120,180,0.5);
+    -fx-background-insets: 0;
+    -fx-background-radius: 5px;
+}
+
+/* 好友列表单元格样式 */
+.list-view .list-cell {
+    -fx-background-color: transparent;
+    -fx-padding: 8px 10px;
+    -fx-border-color: rgba(255, 255, 255, 0.05);
+    -fx-border-width: 0 0 1px 0;
+    -fx-font-family: sans-serif;
+}
+
+.list-view .list-cell:hover {
+    -fx-background-color: rgba(255, 255, 255, 0.08);
+}
+
+/* 好友列表容器 HBox 的样式 */
+.friend-cell-container {
+    -fx-alignment: center-left;
+    -fx-spacing: 15px;
+}
+
+/* 【新增】离线好友卡片整体变暗 */
+.friend-cell-container.offline-player {
+    -fx-opacity: 0.6; /* 降低透明度 */
+}
+
+/* 昵称标签 */
+.friend-nickname-label {
+    -fx-font-size: 16px;
+    -fx-text-fill: white;
+    -fx-font-weight: bold;
+}
+
+/* 【修改】状态标签的样式 */
+.friend-status-label {
+    -fx-font-size: 13px; /* 稍微大一点 */
+    -fx-padding: 2px 6px;
+    -fx-background-radius: 4;
+    -fx-background-color: transparent; /* 默认透明背景 */
+    -fx-text-fill: #bdc3c7; /* 默认灰色文本 */
+    -fx-font-weight: bold;
+}
+
+/* 【新增】不同状态的颜色 */
+.friend-status-label.online {
+    -fx-text-fill: #27ae60; /* 绿色 */
+}
+.friend-status-label.ingame {
+    -fx-text-fill: #e67e22; /* 橙色 */
+}
+.friend-status-label.in_room {
+    -fx-text-fill: #3498db; /* 蓝色 */
+}
+.friend-status-label.matching {
+    -fx-text-fill: #f1c40f; /* 黄色 */
+}
+.friend-status-label.offline {
+    -fx-text-fill: #7f8c8d; /* 深灰色 */
+}
+
+/* 列表内邀请按钮的样式 (保持不变，或根据需要微调) */
+.invite-cell-button {
+    -fx-background-color: #3498db;
+    -fx-text-fill: white;
+    -fx-font-size: 12px;
+    -fx-padding: 5px 15px;
+    -fx-background-radius: 5;
+    -fx-cursor: hand;
+}
+.invite-cell-button:hover {
+    -fx-background-color: #5dade2;
+}
+.invite-cell-button:disabled {
+    -fx-background-color: #7f8c8d;
+    -fx-opacity: 0.8;
+}

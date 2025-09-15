@@ -4,13 +4,19 @@ package org.csu.pixelstrikejavafx.lobby.ui.dialog;
 
 import javafx.animation.*;
 import javafx.fxml.FXMLLoader;
+import javafx.geometry.Bounds;
+import javafx.geometry.Insets;
 import javafx.geometry.Pos;
 import javafx.scene.Node;
+import javafx.scene.control.Button;
 import javafx.scene.control.Label;
+import javafx.scene.layout.HBox;
 import javafx.scene.layout.Pane;
 import javafx.scene.layout.StackPane;
+import javafx.scene.layout.VBox;
 import javafx.util.Duration;
-
+import org.controlsfx.control.PopOver;
+import org.csu.pixelstrikejavafx.lobby.ui.InviteFriendController;
 import java.io.IOException;
 import java.util.Objects;
 import java.util.function.Consumer;
@@ -134,23 +140,29 @@ public class DialogManager {
 
     // --- Animation Helper Methods ---
 
-    private static void animateIn(Node node) {
-        Node dialogContainer = node.lookup("#dialogContainer");
-        node.setOpacity(0);
-        dialogContainer.setScaleX(0.8);
-        dialogContainer.setScaleY(0.8);
 
+    private static void animateIn(Node node) {
+        // 【关键修改】不再寻找不一定存在的 "#dialogContainer"
+        // 直接对传入的整个节点 (node) 设置初始状态和动画
+
+        // 1. 设置初始状态：透明且稍小
+        node.setOpacity(0);
+        node.setScaleX(0.8);
+        node.setScaleY(0.8);
+
+        // 2. 创建淡入动画 (作用于整个节点)
         FadeTransition ft = new FadeTransition(Duration.millis(200), node);
         ft.setToValue(1);
 
-        ScaleTransition st = new ScaleTransition(Duration.millis(200), dialogContainer);
+        // 3. 创建放大动画 (也作用于整个节点)
+        ScaleTransition st = new ScaleTransition(Duration.millis(200), node);
         st.setToX(1);
         st.setToY(1);
 
+        // 4. 并行播放两个动画
         ParallelTransition pt = new ParallelTransition(ft, st);
         pt.play();
     }
-
     private static void animateOut(Node node, Runnable onFinished) {
         FadeTransition ft = new FadeTransition(Duration.millis(200), node);
         ft.setToValue(0);
@@ -161,5 +173,111 @@ public class DialogManager {
             }
         });
         ft.play();
+    }
+
+    public static void showInviteFriendPopOver(Node anchorNode) {
+        try {
+            FXMLLoader loader = new FXMLLoader(DialogManager.class.getResource("/fxml/invite-friend-view.fxml"));
+            VBox inviteContent = loader.load();
+            InviteFriendController controller = loader.getController();
+
+            // 1. 创建 ControlsFX 的 PopOver 实例 (这部分不变)
+            PopOver popOver = new PopOver(inviteContent);
+
+            popOver.setDetachable(false);
+            popOver.setAutoHide(true);
+            popOver.setArrowLocation(PopOver.ArrowLocation.BOTTOM_CENTER);
+            popOver.setArrowSize(0);
+            popOver.getStyleClass().add("custom-popover");
+
+            // 将关闭逻辑传递给 InviteFriendController (这部分不变)
+            controller.setCloseHandler(popOver::hide);
+
+            // --- ↓↓↓【核心修改】手动计算并设置弹窗位置 ↓↓↓ ---
+
+            // 2. 获取锚点（按钮）在整个屏幕上的边界信息
+            Bounds anchorBounds = anchorNode.localToScreen(anchorNode.getBoundsInLocal());
+
+            // 3. 定义您想要的垂直偏移量（向下移动多少像素）
+            double verticalOffset = -10.0; // 您可以随意修改这个值
+
+            // 4. 计算弹窗应该出现的目标X, Y坐标
+            // X坐标：与按钮的中心对齐
+            double targetX = anchorBounds.getMinX() + (anchorBounds.getWidth() / 2);
+            // Y坐标：在按钮的底部，再加上我们想要的额外偏移量
+            double targetY = anchorBounds.getMaxY() + verticalOffset;
+
+            // 5. 使用 show 方法，在计算好的精确屏幕坐标上显示 PopOver
+            //    注意：这里我们用 getScene().getWindow() 作为 owner
+            popOver.show(anchorNode.getScene().getWindow(), targetX, targetY);
+
+            // --- ↑↑↑ 修改结束 ↑↑↑ ---
+
+        } catch (IOException e) {
+            e.printStackTrace();
+        }
+    }
+
+    public static void showActionableNotification(String message,
+                                                  String confirmText, Runnable onConfirm,
+                                                  String cancelText, Runnable onCancel) {
+        if (rootPane == null) return;
+
+        // 1. 创建UI控件
+        HBox notificationPane = new HBox();
+        notificationPane.getStyleClass().add("actionable-notification-pane");
+        notificationPane.getStylesheets().add(
+                Objects.requireNonNull(DialogManager.class.getResource("/assets/css/lobby-style.css")).toExternalForm()
+        );
+
+
+        Label infoLabel = new Label(message);
+        Button confirmButton = new Button(confirmText);
+        confirmButton.getStyleClass().add("accept-button");
+        Button cancelButton = new Button(cancelText);
+        cancelButton.getStyleClass().add("reject-button");
+
+        notificationPane.getChildren().addAll(infoLabel, confirmButton, cancelButton);
+
+        // 2. 定义关闭通知栏的逻辑
+        Runnable closeAction = () -> {
+            // 创建退场动画
+            FadeTransition ft = new FadeTransition(Duration.millis(300), notificationPane);
+            ft.setToValue(0);
+            ft.setOnFinished(e -> rootPane.getChildren().remove(notificationPane));
+            ft.play();
+        };
+
+        // 3. 为按钮绑定事件
+        confirmButton.setOnAction(e -> {
+            confirmButton.setDisable(true);
+            cancelButton.setDisable(true);
+            if (onConfirm != null) {
+                onConfirm.run();
+            }
+            closeAction.run(); // 执行完动作后关闭
+        });
+
+        cancelButton.setOnAction(e -> {
+            confirmButton.setDisable(true);
+            cancelButton.setDisable(true);
+            if (onCancel != null) {
+                onCancel.run();
+            }
+            closeAction.run(); // 执行完动作后关闭
+        });
+
+        // 4. 将通知栏添加到场景并播放入场动画
+        rootPane.getChildren().add(notificationPane);
+        StackPane.setAlignment(notificationPane, Pos.BOTTOM_CENTER);
+        StackPane.setMargin(notificationPane, new Insets(0, 0, 50, 0));
+
+        notificationPane.setOpacity(0);
+        notificationPane.setTranslateY(50); // 从下方滑入
+        FadeTransition ft = new FadeTransition(Duration.millis(300), notificationPane);
+        TranslateTransition tt = new TranslateTransition(Duration.millis(300), notificationPane);
+        ft.setToValue(1);
+        tt.setToY(0);
+        new ParallelTransition(ft, tt).play();
     }
 }

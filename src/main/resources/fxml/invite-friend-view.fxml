@@ -3,20 +3,33 @@
 <?import javafx.geometry.Insets?>
 <?import javafx.scene.control.Label?>
 <?import javafx.scene.control.ListView?>
+<?import javafx.scene.layout.HBox?>
+<?import javafx.scene.layout.Priority?>
+<?import javafx.scene.layout.Region?>
 <?import javafx.scene.layout.VBox?>
-<?import javafx.scene.text.Font?>
+<?import de.jensd.fx.glyphs.fontawesome.FontAwesomeIconView?>
 
-<VBox alignment="CENTER" maxHeight="600.0" maxWidth="400.0" prefHeight="600.0" prefWidth="400.0" spacing="10.0" style="-fx-background-color: #34495e; -fx-border-color: #ecf0f1; -fx-border-width: 2;" xmlns="http://javafx.com/javafx/21" xmlns:fx="http://javafx.com/fxml/1" fx:controller="org.csu.pixelstrikejavafx.lobby.ui.InviteFriendController">
-    <padding>
-        <Insets bottom="20.0" left="20.0" right="20.0" top="20.0" />
-    </padding>
-    <children>
-        <Label text="邀请好友" textFill="white">
-            <font>
-                <Font name="System Bold" size="24.0" />
-            </font>
-        </Label>
-        <Label text="仅显示在线的好友" textFill="#bdc3c7" />
-        <ListView fx:id="onlineFriendsListView" prefHeight="500.0" VBox.vgrow="ALWAYS" />
-    </children>
+<VBox alignment="TOP_CENTER" maxHeight="650.0" maxWidth="450.0" prefHeight="650.0" prefWidth="450.0" spacing="10.0"
+      xmlns="http://javafx.com/javafx/21" xmlns:fx="http://javafx.com/fxml/1"
+      fx:controller="org.csu.pixelstrikejavafx.lobby.ui.InviteFriendController"
+      stylesheets="/assets/css/login-style.css" styleClass="invite-friend-pane"> <padding>
+    <Insets bottom="15.0" left="15.0" right="15.0" top="15.0" />
+</padding>
+<children>
+    <HBox alignment="CENTER_LEFT" spacing="10.0">
+        <children>
+            <VBox alignment="CENTER_LEFT" HBox.hgrow="ALWAYS">
+                <Label text="邀请好友" styleClass="title-label" />
+                </VBox>
+            <FontAwesomeIconView glyphName="ANGLE_DOWN" size="30" styleClass="close-arrow-icon"
+                                 onMouseClicked="#handleClose" fx:id="closeIcon" />
+        </children>
+        <VBox.margin>
+            <Insets bottom="10.0" />
+        </VBox.margin>
+    </HBox>
+
+    <ListView fx:id="onlineFriendsListView" prefHeight="500.0" VBox.vgrow="ALWAYS" styleClass="list-view" />
+
+</children>
 </VBox>
