@@ -404,7 +404,7 @@ public class LobbyController implements Initializable {
         });
 
         dialog.showAndWait().ifPresent(onItemSelected);
-    }*/
+    }
 
     @FXML
     private void handleStartGame() {
