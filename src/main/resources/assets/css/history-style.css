@@ -1,0 +1,135 @@
+/* --- 根面板样式 --- */
+.history-root {
+    -fx-background-color: #2c3e50; /* 深蓝灰色背景 */
+}
+
+/* --- 页面大标题 --- */
+.history-title {
+    -fx-font-family: 'Press Start 2P', sans-serif; /* 像素字体 */
+    -fx-font-size: 42px;
+    -fx-text-fill: white;
+    -fx-effect: dropshadow(gaussian, rgba(0, 0, 0, 0.7), 10, 0, 0, 2);
+}
+
+/* --- 历史记录列表 --- */
+.history-list-view {
+    -fx-background-color: transparent;
+}
+
+/* --- 列表单元格 --- */
+.history-list-view .list-cell {
+    -fx-background-color: transparent;
+    -fx-padding: 5px 0; /* 单元格之间的垂直间距 */
+}
+
+/* --- 单元格内部容器 --- */
+.history-cell-container {
+    -fx-background-color: rgba(0, 0, 0, 0.3);
+    -fx-background-radius: 8;
+    -fx-padding: 15px 25px;
+    -fx-border-color: rgba(255, 255, 255, 0.1);
+    -fx-border-width: 0 0 2px 0;
+    -fx-effect: dropshadow(gaussian, rgba(0, 0, 0, 0.4), 10, 0, 0, 3);
+}
+
+.history-list-view .list-cell:hover .history-cell-container {
+    -fx-background-color: rgba(0, 0, 0, 0.5);
+    -fx-border-color: #3498db; /* 悬停时底部边框变蓝 */
+    -fx-cursor: hand;
+}
+
+/* --- 单元格内的文本样式 --- */
+.history-cell-gamemode {
+    -fx-font-size: 18px;
+    -fx-text-fill: white;
+    -fx-font-weight: bold;
+}
+
+.history-cell-map, .history-cell-time {
+    -fx-font-size: 14px;
+    -fx-text-fill: #bdc3c7; /* 浅灰色 */
+}
+
+.history-cell-ranking-label {
+    -fx-font-size: 14px;
+    -fx-text-fill: #bdc3c7;
+}
+
+.history-cell-ranking-value {
+    -fx-font-size: 28px;
+    -fx-text-fill: #f1c40f; /* 金色 */
+    -fx-font-weight: bold;
+}
+
+/* --- 返回按钮 --- */
+.back-button {
+    -fx-font-family: 'Press Start 2P', sans-serif;
+    -fx-font-size: 18px;
+    -fx-text-fill: white;
+    -fx-background-color: #e67e22; /* 橙色 */
+    -fx-padding: 12px 30px;
+    -fx-background-radius: 8;
+    -fx-cursor: hand;
+}
+.back-button:hover {
+    -fx-background-color: #f39c12;
+}
+
+/* --- 详情弹窗的概要信息框 --- */
+.details-pane {
+    /* 【修改】背景颜色调亮，减少黑暗感 */
+    -fx-background-color: rgba(44, 62, 80, 0.96);
+    -fx-background-radius: 12;
+    /* 【修改】边框颜色更亮，更有层次感 */
+    -fx-border-color: rgba(120, 150, 220, 0.7);
+    -fx-border-width: 2px;
+    -fx-border-radius: 12;
+    -fx-effect: dropshadow(gaussian, rgba(0, 0, 0, 0.7), 25, 0, 0, 0);
+}
+
+/* 【修改】详情标题字体更大、更醒目 */
+.details-title-label {
+    -fx-font-family: 'Press Start 2P', sans-serif;
+    -fx-font-size: 32px; /* 【修改】字体加大 */
+    -fx-text-fill: #f1c40f; /* 使用醒目的金色 */
+    -fx-effect: dropshadow(gaussian, rgba(0, 0, 0, 0.5), 5, 0, 0, 1);
+}
+
+/* --- 【修改】概要信息框的样式 --- */
+.details-summary-box {
+    -fx-padding: 18px;
+    -fx-font-size: 20px;
+    -fx-background-color: rgba(255, 255, 255, 0.71);
+    -fx-background-radius: 8;
+    -fx-border-color: rgba(255, 255, 255, 0.15);
+    -fx-border-width: 1px;
+    -fx-border-radius: 8;
+}
+
+/* 【修改】概要信息框内的字体更大更亮 */
+.details-summary-box .text {
+    -fx-fill: #ecf0f1; /* 使用更亮的白色 */
+    -fx-font-size: 18px; /* 【修改】字体加大 */
+}
+
+/* 表格头部样式 (保持不变，或根据需要微调) */
+.grid .label {
+    -fx-text-fill: #bdc3c7; /* 确保表格头部可见 */
+}
+
+/* 玩家数据行样式 */
+/* 被高亮的用户行 */
+.grid .label.highlighted-player { /* 可以考虑添加一个这样的类 */
+    -fx-background-color: #34495e; /* 更深的背景色，区分度更高 */
+    -fx-font-weight: bold;
+    -fx-padding: 3 6; /* 内边距略大 */
+    -fx-font-size: 14px; /* 字体略大 */
+    -fx-text-fill: #ecf0f1; /* 亮色文本 */
+    -fx-background-radius: 3;
+}
+
+/* 普通用户行 */
+.grid .label {
+    -fx-font-size: 14px; /* 字体略大 */
+    -fx-text-fill: #ecf0f1; /* 亮色文本 */
+}

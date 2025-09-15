@@ -2,6 +2,7 @@
 
 package org.csu.pixelstrikejavafx.lobby.ui.dialog;
 
+import com.google.gson.JsonObject;
 import javafx.animation.*;
 import javafx.fxml.FXMLLoader;
 import javafx.geometry.Bounds;
@@ -17,6 +18,7 @@ import javafx.scene.layout.VBox;
 import javafx.util.Duration;
 import org.controlsfx.control.PopOver;
 import org.csu.pixelstrikejavafx.lobby.ui.CharacterSelectionController;
+import org.csu.pixelstrikejavafx.lobby.ui.HistoryDetailsController;
 import org.csu.pixelstrikejavafx.lobby.ui.InviteFriendController;
 import org.csu.pixelstrikejavafx.lobby.ui.MapSelectionController;
 
@@ -261,6 +263,23 @@ public class DialogManager {
             controller.setOnCancel(() -> animateOut(dialogPane, () -> onConfirm.accept(null))); // 取消时回调 null
 
             // 显示对话框
+            rootPane.getChildren().add(dialogPane);
+            animateIn(dialogPane);
+
+        } catch (IOException e) {
+            e.printStackTrace();
+        }
+    }
+    public static void showHistoryDetails(JsonObject details, long matchId) {
+        if (rootPane == null) return;
+        try {
+            FXMLLoader loader = new FXMLLoader(DialogManager.class.getResource("/fxml/history-details-view.fxml"));
+            Pane dialogPane = loader.load();
+            HistoryDetailsController controller = loader.getController();
+
+            controller.populateDetails(details, matchId);
+            controller.setOnClose(() -> animateOut(dialogPane, null));
+
             rootPane.getChildren().add(dialogPane);
             animateIn(dialogPane);
 

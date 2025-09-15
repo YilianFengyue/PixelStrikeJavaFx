@@ -9,12 +9,14 @@ import javafx.fxml.Initializable;
 import javafx.geometry.HPos;
 import javafx.geometry.Insets;
 import javafx.geometry.Pos;
+import javafx.scene.Node;
 import javafx.scene.control.Button;
 import javafx.scene.control.Label;
 import javafx.scene.control.ProgressIndicator;
 import javafx.scene.control.Separator;
 import javafx.scene.layout.ColumnConstraints;
 import javafx.scene.layout.GridPane;
+import javafx.scene.layout.Region;
 import javafx.scene.layout.VBox;
 import javafx.scene.text.Text;
 import org.csu.pixelstrikejavafx.core.GlobalState;
@@ -74,39 +76,38 @@ public class ResultsController implements Initializable {
      * @param details 包含完整战绩信息的JsonObject。
      */
     private void renderResults(JsonObject details) {
-        // 确保所有UI操作都在JavaFX应用线程上执行
         Platform.runLater(() -> {
-            // 在渲染新内容前，先清空旧的UI元素
             resultsContent.getChildren().clear();
 
-            // --- 以下是您之前编写的、完整的UI构建逻辑 ---
-
-            VBox content = new VBox(15);
+            VBox content = new VBox(25); // 增加间距
             content.setPadding(new Insets(20));
             content.setAlignment(Pos.TOP_CENTER);
 
-            VBox matchInfoBox = new VBox(5);
+            // 概要信息框
+            VBox matchInfoBox = new VBox(8);
             matchInfoBox.setAlignment(Pos.CENTER_LEFT);
-            matchInfoBox.setStyle("-fx-padding: 10; -fx-background-color: #f1f5f9; -fx-background-radius: 8;");
-
-            String gameMode = details.get("gameMode").getAsString();
-            String mapName = details.get("mapName").getAsString();
-            String startTime = formatDateTime(details.get("startTime").getAsString());
-            String endTime = formatDateTime(details.get("endTime").getAsString());
+            matchInfoBox.getStyleClass().add("summary-box");
 
             matchInfoBox.getChildren().addAll(
-                    new Text("模式: " + gameMode), new Text("地图: " + mapName),
-                    new Text("开始时间: " + startTime), new Text("结束时间: " + endTime)
+                    new Text("模式: " + details.get("gameMode").getAsString()),
+                    new Text("地图: " + details.get("mapName").getAsString()),
+                    new Text("开始时间: " + formatDateTime(details.get("startTime").getAsString())),
+                    new Text("结束时间: " + formatDateTime(details.get("endTime").getAsString()))
             );
 
+            // 玩家战绩表格
             GridPane grid = new GridPane();
             grid.setHgap(15);
-            grid.setVgap(8);
+            grid.setVgap(10); // 增加行间距
             grid.setAlignment(Pos.CENTER);
+            grid.getStyleClass().add("results-grid");
 
+            // 【修改】调整列宽，为长名字留出空间
             grid.getColumnConstraints().addAll(
-                    createColumn(60, HPos.CENTER), createColumn(180, HPos.LEFT),
-                    createColumn(80, HPos.CENTER), createColumn(80, HPos.CENTER),
+                    createColumn(80, HPos.CENTER),
+                    createColumn(220, HPos.LEFT),
+                    createColumn(180, HPos.CENTER),
+                    createColumn(80, HPos.CENTER),
                     createColumn(80, HPos.CENTER)
             );
 
@@ -122,16 +123,29 @@ public class ResultsController implements Initializable {
             for (JsonElement pElement : participants) {
                 JsonObject p = pElement.getAsJsonObject();
                 boolean isCurrentUser = GlobalState.userId != null && p.get("userId").getAsLong() == GlobalState.userId;
-                addGridDataRow(grid, rowIndex++, isCurrentUser,
-                        p.get("ranking").getAsString(), p.get("nickname").getAsString(),
-                        p.get("characterName").getAsString(), p.get("kills").getAsString(),
+
+                Node[] rowNodes = createGridRow(isCurrentUser,
+                        p.get("ranking").getAsString(),
+                        p.get("nickname").getAsString(),
+                        p.get("characterName").getAsString(),
+                        p.get("kills").getAsString(),
                         p.get("deaths").getAsString()
                 );
+
+                grid.addRow(rowIndex++, rowNodes);
+                if(isCurrentUser) {
+                    // 如果需要单独的背景，可以添加一个透明的Pane
+                    Region highlightBg = new Region();
+                    highlightBg.getStyleClass().add("highlighted-row");
+                    grid.add(highlightBg, 0, rowIndex - 1, 5, 1);
+                    // 将节点提到最前，以免遮挡文字
+                    for (Node node : rowNodes) {
+                        node.toFront();
+                    }
+                }
             }
 
             content.getChildren().addAll(matchInfoBox, grid);
-
-            // 将构建好的完整内容添加到resultsContent容器中
             resultsContent.getChildren().add(content);
         });
     }
@@ -156,10 +170,21 @@ public class ResultsController implements Initializable {
     private void addGridHeader(GridPane grid, int row, String... headers) {
         for (int col = 0; col < headers.length; col++) {
             Label label = new Label(headers[col]);
-            // 【UI修正】在这里为表头文字添加亮色
-            label.setStyle("-fx-font-weight: bold; -fx-font-size: 14px; -fx-text-fill: #bdc3c7;"); // 使用了浅灰色
+            label.getStyleClass().add("grid-header");
             grid.add(label, col, row);
         }
+    }
+    private Node[] createGridRow(boolean isHighlight, String... values) {
+        Node[] nodes = new Node[values.length];
+        for (int col = 0; col < values.length; col++) {
+            Label label = new Label(values[col]);
+            label.setWrapText(true); // 允许自动换行
+            if (col == 1) label.setMaxWidth(210);
+            if (col == 2) label.setMaxWidth(170);
+
+            nodes[col] = label;
+        }
+        return nodes;
     }
 
     private void addGridDataRow(GridPane grid, int row, boolean isHighlight, String... values) {
