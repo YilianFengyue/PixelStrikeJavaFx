@@ -78,9 +78,10 @@ public class LobbyController implements Initializable {
     private final ApiClient apiClient = new ApiClient();
 
     private static final Map<Integer, String> CHARACTER_ANIMATION_MAP = Map.of(
-            1, "ash_attack.png", // 突击兵
-            2, "ash_idle.png", // 侦察兵 (暂用突击兵动画)
-            3, "ash_walk.png"  // 重装兵 (暂用突击兵动画)
+            1, "characters/ash/ash_attack.png",
+            2, "characters/shu/shu_attack.png",
+            3, "characters/angel_neng/angel_neng_attack.png",
+            4, "characters/bluep_marthe/bluep_marthe_attack.png"
     );
 
     /**

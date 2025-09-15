@@ -9,6 +9,7 @@ import javafx.geometry.Pos;
 import javafx.scene.input.KeyCode;
 import javafx.scene.layout.StackPane;
 import javafx.stage.WindowEvent;
+import org.csu.pixelstrikejavafx.game.core.MusicManager;
 import org.csu.pixelstrikejavafx.lobby.network.ApiClient;
 import org.csu.pixelstrikejavafx.lobby.network.NetworkManager;
 import org.csu.pixelstrikejavafx.core.GlobalState;
@@ -74,6 +75,7 @@ public class FXMLMainMenu extends FXGLMenu {
         });
 
         addExitHandler();
+        MusicManager.getInstance().playMenuMusic();
     }
 
     /**

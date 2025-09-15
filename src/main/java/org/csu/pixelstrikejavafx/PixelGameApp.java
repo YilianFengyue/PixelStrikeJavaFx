@@ -23,6 +23,7 @@ import javafx.scene.text.Text;
 import javafx.stage.Stage;
 import javafx.stage.WindowEvent;
 import javafx.util.Duration;
+import org.csu.pixelstrikejavafx.game.core.MusicManager;
 import org.csu.pixelstrikejavafx.game.player.component.PoisonedComponent;
 import org.csu.pixelstrikejavafx.game.player.component.SupplyDropComponent;
 import org.csu.pixelstrikejavafx.game.services.NetworkService;
@@ -129,6 +130,8 @@ public class PixelGameApp extends GameApplication {
 
         cameraFollow.setTarget(localPlayer.getEntity());
         setupCollisionHandlers();
+
+        MusicManager.getInstance().playInGameMusic();
 
         // 连接到服务器
         networkService.connect();
@@ -240,6 +243,7 @@ public class PixelGameApp extends GameApplication {
             addUINode(fullscreenButton, 20, 60);
         backButton.setOnAction(e -> {
             networkService.sendLeaveMessage();
+            MusicManager.getInstance().playMenuMusic();
             getGameController().gotoMainMenu();
         });
         addUINode(backButton, 20, 20);
