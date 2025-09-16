@@ -11,6 +11,7 @@ import com.almasb.fxgl.entity.Entity;
 import com.almasb.fxgl.entity.components.CollidableComponent;
 import com.almasb.fxgl.input.UserAction;
 import com.almasb.fxgl.physics.CollisionHandler;
+import com.almasb.fxgl.texture.Texture;
 import com.google.gson.Gson;
 import com.google.gson.JsonArray;
 import com.google.gson.JsonObject;
@@ -20,9 +21,13 @@ import javafx.application.Platform;
 import javafx.geometry.Insets;
 import javafx.geometry.Point2D;
 import javafx.geometry.Pos;
+import javafx.scene.effect.Glow;
 import javafx.scene.input.KeyCode;
 import javafx.scene.layout.*;
 import javafx.scene.paint.Color;
+import javafx.scene.paint.CycleMethod;
+import javafx.scene.paint.LinearGradient;
+import javafx.scene.paint.Stop;
 import javafx.scene.shape.Line;
 import javafx.scene.shape.Rectangle;
 import javafx.scene.text.Font;
@@ -31,8 +36,7 @@ import javafx.stage.Stage;
 import javafx.stage.WindowEvent;
 import javafx.util.Duration;
 import org.csu.pixelstrikejavafx.game.core.MusicManager;
-import org.csu.pixelstrikejavafx.game.player.component.PoisonedComponent;
-import org.csu.pixelstrikejavafx.game.player.component.SupplyDropComponent;
+import org.csu.pixelstrikejavafx.game.player.component.*;
 import org.csu.pixelstrikejavafx.game.services.NetworkService;
 import org.csu.pixelstrikejavafx.game.services.PlayerManager;
 import org.csu.pixelstrikejavafx.game.world.CameraFollow;
@@ -45,7 +49,6 @@ import org.csu.pixelstrikejavafx.core.GlobalState;
 import org.csu.pixelstrikejavafx.core.PixelStrikeSceneFactory;
 import org.csu.pixelstrikejavafx.game.ui.PlayerHUD;
 import org.csu.pixelstrikejavafx.lobby.ui.UIManager;
-import org.csu.pixelstrikejavafx.game.player.component.BulletComponent;
 import org.csu.pixelstrikejavafx.lobby.ui.dialog.DialogManager;
 
 import java.lang.reflect.Type;
@@ -126,7 +129,11 @@ public class PixelGameApp extends GameApplication {
         getPhysicsWorld().clear();
 
         getPhysicsWorld().setGravity(0, 3200);
-        runOnce(MapBuilder::buildLevel, Duration.ZERO);
+        runOnce(() -> {
+            String mapToBuild = GlobalState.selectedMapName;
+            System.out.println("Building level: " + mapToBuild);
+            MapBuilder.buildLevel(mapToBuild);
+        }, Duration.ZERO);
 
 
         int characterId = (GlobalState.selectedCharacterId != null) ? GlobalState.selectedCharacterId : 1;
@@ -615,23 +622,24 @@ public class PixelGameApp extends GameApplication {
     }
 
     private void spawnSupplyDrop(long dropId, String dropType, double x, double y) {
-        Rectangle box = new Rectangle(40, 40, Color.SADDLEBROWN);
-        box.setStroke(Color.BLACK);
-        box.setStrokeWidth(2);
 
-        Text questionMark = new Text("?");
-        questionMark.setFont(Font.font("Verdana", 30));
-        questionMark.setFill(Color.WHITE);
+        // 1. 加载你的 supply_drop.png 贴图
+        Texture view = getAssetLoader().loadTexture("chest.png");
+        view.setFitWidth(60);
+        view.setFitHeight(60);
 
-        StackPane view = new StackPane(box, questionMark);
-        view.setEffect(new javafx.scene.effect.DropShadow(15, Color.YELLOW));
+        // 2. 使用 DropShadow 效果来创建 "微微发光" 的边框
+        //    一个模糊半径较大、颜色明亮的阴影可以很好地模拟光晕
+        view.setEffect(new javafx.scene.effect.DropShadow(20, Color.YELLOW));
 
+        // 3. 创建实体，并添加我们新的 FloatingComponent
         entityBuilder()
                 .type(GameType.SUPPLY_DROP)
-                .at(x, y)
+                .at(x, y - 30)
                 .viewWithBBox(view)
                 .with(new CollidableComponent(true))
                 .with(new SupplyDropComponent(dropId, dropType))
+                .with(new FloatingComponent(10, 2.5)) // <-- ★ 在此添加浮动组件
                 .buildAndAttach();
     }
 
@@ -667,67 +675,83 @@ public class PixelGameApp extends GameApplication {
     }
 
     private void setupCollisionHandlers() {
+        // 这个辅助方法用于设置玩家是否在地面上
         java.util.function.BiConsumer<Entity, Boolean> setGround = (playerEntity, on) -> {
-            // 首先，使用正确的方法 .exists() 检查 'playerRef' 属性是否存在
             if (playerEntity.getProperties().exists("playerRef")) {
-                // 只有当这个属性存在时（意味着这是本地玩家），才继续执行
                 Object ref = playerEntity.getProperties().getObject("playerRef");
                 if (ref instanceof Player p) {
                     p.setOnGround(on);
                 }
             }
-            // 如果属性不存在（意味着这是远程玩家），则什么也不做，优雅地跳过。
         };
 
+        // 1. 玩家与地面的碰撞
         getPhysicsWorld().addCollisionHandler(new CollisionHandler(GameType.PLAYER, GameType.GROUND) {
             @Override protected void onCollisionBegin(Entity a, Entity b) { setGround.accept(a, true);  }
             @Override protected void onCollisionEnd(Entity a, Entity b)   { setGround.accept(a, false); }
         });
 
+        // 2. 【已修正】玩家与平台的碰撞（包含特殊平台逻辑）
         getPhysicsWorld().addCollisionHandler(new CollisionHandler(GameType.PLAYER, GameType.PLATFORM) {
-            @Override protected void onCollisionBegin(Entity a, Entity b) { setGround.accept(a, true);  }
-            @Override protected void onCollisionEnd(Entity a, Entity b)   { setGround.accept(a, false); }
+            @Override
+            protected void onCollisionBegin(Entity playerEntity, Entity platform) {
+                // 默认的落地逻辑
+                setGround.accept(playerEntity, true);
+
+                // 检查平台是否有特殊功能
+                if (platform.hasComponent(BouncyComponent.class)) {
+                    Object ref = playerEntity.getProperties().getObject("playerRef");
+                    if (ref instanceof Player p) {
+                        double bounceVel = platform.getComponent(BouncyComponent.class).getBounceVelocity();
+                        p.getPhysics().setVelocityY(-bounceVel);
+                        play("bouncy_platform.wav");
+                    }
+                }
+                if (platform.hasComponent(FragileComponent.class)) {
+                    platform.getComponent(FragileComponent.class).trigger();
+                }
+            }
+
+            @Override
+            protected void onCollisionEnd(Entity playerEntity, Entity platform) {
+                setGround.accept(playerEntity, false);
+            }
         });
 
-        // --- 子弹的碰撞处理器 ---
-        // 子弹碰到地面或平台就消失
+        // 3. 子弹与世界的碰撞 (保持不变)
         getPhysicsWorld().addCollisionHandler(new CollisionHandler(GameType.BULLET, GameType.GROUND) {
             @Override
             protected void onCollisionBegin(Entity bullet, Entity ground) {
                 bullet.removeFromWorld();
             }
         });
-
         getPhysicsWorld().addCollisionHandler(new CollisionHandler(GameType.BULLET, GameType.PLATFORM) {
             @Override
             protected void onCollisionBegin(Entity bullet, Entity platform) {
                 bullet.removeFromWorld();
             }
         });
-        // 子弹碰到玩家
         getPhysicsWorld().addCollisionHandler(new CollisionHandler(GameType.BULLET, GameType.PLAYER) {
             @Override
             protected void onCollisionBegin(Entity bullet, Entity playerEntity) {
-                // 从子弹实体中获取 BulletComponent
                 BulletComponent bulletData = bullet.getComponent(BulletComponent.class);
-
-                // 确保子弹不能伤害射手自己
                 if (bulletData.getShooter().equals(playerEntity)) {
                     return;
                 }
-                // 无论如何，子弹在碰撞后都应该消失
                 bullet.removeFromWorld();
             }
         });
+
+        // 4. 【已修正】玩家与物资箱的碰撞 (恢复了正确的拾取逻辑)
         getPhysicsWorld().addCollisionHandler(new CollisionHandler(GameType.PLAYER, GameType.SUPPLY_DROP) {
             @Override
             protected void onCollisionBegin(Entity playerEntity, Entity dropEntity) {
                 // 确保只有本地玩家的碰撞才会触发拾取
-                if (playerEntity == playerManager.getLocalPlayer().getEntity()) {
+                if (playerManager.getLocalPlayer() != null && playerEntity == playerManager.getLocalPlayer().getEntity()) {
                     SupplyDropComponent dropData = dropEntity.getComponent(SupplyDropComponent.class);
                     // 向服务器发送拾取请求
                     networkService.sendSupplyPickup(dropData.getDropId());
-                    // 客户端立即将物品从世界上移除，以提供即时反馈 (客户端预测)
+                    // 客户端立即将物品从世界上移除，以提供即时反馈
                     dropEntity.removeFromWorld();
                 }
             }

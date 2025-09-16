@@ -248,7 +248,6 @@ public class Player implements OnFireCallback {
             double interval = (state == State.RUN) ? RUN_STEP_INTERVAL : WALK_STEP_INTERVAL;
             if (footstepTimer >= interval) {
                 footstepTimer = 0;
-                play("footstep2.wav");
             }
         } else {
             footstepTimer = 0; // 如果不在地面行走或跑步，则重置计时器

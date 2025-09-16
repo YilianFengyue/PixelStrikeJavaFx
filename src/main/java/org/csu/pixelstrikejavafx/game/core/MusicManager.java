@@ -27,7 +27,7 @@ public class MusicManager {
         stopMusic();
         try {
             // 【最终解决方案】直接调用 setGlobalMusicVolume 方法
-            FXGL.getSettings().setGlobalMusicVolume(0.2);
+            FXGL.getSettings().setGlobalMusicVolume(0.03);
 
             currentMusic = FXGL.getAssetLoader().loadMusic("menu_music.mp3");
             FXGL.getAudioPlayer().loopMusic(currentMusic);
@@ -43,7 +43,7 @@ public class MusicManager {
         stopMusic();
         try {
             // 【最终解决方案】同样，在这里也直接调用 setter
-            FXGL.getSettings().setGlobalMusicVolume(0.05);
+            FXGL.getSettings().setGlobalMusicVolume(0.03);
 
             currentMusic = FXGL.getAssetLoader().loadMusic("ingame_music.mp3");
             FXGL.getAudioPlayer().loopMusic(currentMusic);

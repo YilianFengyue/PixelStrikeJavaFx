@@ -94,6 +94,12 @@ public class MapSelectionController {
             case "丛林遗迹":
                 imagePath = "/assets/textures/Jungle_background_2.png";
                 break;
+            case "神圣之地":
+                imagePath = "/assets/textures/Hallow_background_1.png";
+                break;
+            case "森林湖畔":
+                imagePath = "/assets/textures/Forest_background_9.png";
+                break;
             default:
                 // 如果没有匹配的地图，则使用一张默认的背景图
                 imagePath = "/assets/textures/background.png";

@@ -290,25 +290,9 @@ public class LobbyController implements Initializable {
                     DialogManager.showMapSelection(maps, selectedMap -> {
                         if (selectedMap == null) return; // 用户取消
                         String mapName = (String) selectedMap.get("name");
-                        String backgroundImageFile;
 
-                        // 根据地图名称，为游戏设置正确的背景图片文件名
-                        switch (mapName) {
-                            case "沙漠小镇":
-                                backgroundImageFile = "Desert_background_.png";
-                                break;
-                            case "雪地哨站":
-                                backgroundImageFile = "Snow_biome_background_9.png";
-                                break;
-                            case "丛林遗迹":
-                                backgroundImageFile = "Jungle_background_2.png";
-                                break;
-                            default:
-                                // 如果没有匹配的地图，则使用默认背景
-                                backgroundImageFile = "background.png";
-                                break;
-                        }
-                        GameConfig.BG_IMAGE = backgroundImageFile;
+                        GlobalState.selectedMapName = mapName;
+
                         long mapId = ((Number) selectedMap.get("id")).longValue();
 
                         // 后续的角色选择流程不变

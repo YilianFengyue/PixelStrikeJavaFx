@@ -13,4 +13,5 @@ public class GlobalState {
     public static JsonObject characterSelections = null;
     public static JsonObject lastMatchResults = null;
     public static boolean shouldShowLastMatchResults = false;
+    public static String selectedMapName = "丛林遗迹";
 }
