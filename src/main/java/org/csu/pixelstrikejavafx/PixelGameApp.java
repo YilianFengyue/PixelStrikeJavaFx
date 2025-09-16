@@ -95,6 +95,13 @@ public class PixelGameApp extends GameApplication {
 
     @Override
     protected void initGame() {
+        playerManager = null;
+        networkService = null;
+        cameraFollow = null;
+        if (hud != null) {
+            getGameScene().removeUINode(hud.getRoot());
+            hud = null;
+        }
         playerManager = new PlayerManager();
         networkService = new NetworkService(this::handleServerMessage);
         getGameWorld().getEntitiesCopy().forEach(Entity::removeFromWorld);
@@ -288,8 +295,10 @@ public class PixelGameApp extends GameApplication {
     private void handleServerMessage(String json) {
         try {
             String type = extractString(json, "\"type\":\"");
-            if (type == null) return;
-
+            if (type == null) {
+                System.err.println("Received a WebSocket message without a 'type' field: " + json);
+                return; // 忽略这条无法处理的消息，防止崩溃
+            }
             switch (type) {
                 case "welcome" -> {
                     playerManager.clearAllRemotePlayers();
