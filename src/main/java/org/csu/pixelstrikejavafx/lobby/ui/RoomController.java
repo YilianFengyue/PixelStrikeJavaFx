@@ -66,12 +66,20 @@ public class RoomController implements Initializable {
     private boolean isInvitePanelVisible = false;
     @FXML
     private Button changeCharacterButton;
+    @FXML
+    private ImageView bg1;
+    @FXML
+    private ImageView bg2;
+
+    private AnimationTimer backgroundScroller;
+
     // --- 新增：角色ID到动画文件名的映射 ---
     private static final Map<Integer, String> CHARACTER_ANIMATION_MAP = Map.of(
-            1, "ash/ash_idle.png",
-            2, "shu/shu_idle.png",
-            3, "angel_neng/angel_neng_idle.png"
-            // ...未来可以继续添加
+            1, "ash/ash_attack.png",
+            2, "shu/shu_attack.png",
+            3, "angel_neng/angel_neng_attack.png",
+            4,"bluep_marthe/bluep_marthe_attack.png"
+
     );
     @Override
     public void initialize(URL location, ResourceBundle resources) {
@@ -84,12 +92,44 @@ public class RoomController implements Initializable {
 
     private void setupUI() {
         try {
-            Image bg = new Image(Objects.requireNonNull(getClass().getResourceAsStream("/assets/textures/background.png")));
-            backgroundImageView.setImage(bg);
+            Image bg = new Image(Objects.requireNonNull(getClass().getResourceAsStream("/assets/textures/Forest_background_11.png")));
+            bg1.setImage(bg);
+            bg2.setImage(bg);
+            startBackgroundAnimation();
         } catch (Exception e) {
             System.err.println("房间背景图加载失败: " + e.getMessage());
         }
         changeCharacterButton.setStyle("-fx-text-fill: black;");
+    }
+    private void startBackgroundAnimation() {
+        double speed = 0.5; // 控制滚动的速度，可以调整
+        double sceneWidth = 1920.0; // 您的场景宽度
+
+        // 初始时，让第二张图紧跟在第一张图的右边
+        bg2.setTranslateX(sceneWidth);
+
+        // 创建一个动画计时器，它会在每一帧被调用
+        backgroundScroller = new AnimationTimer() {
+            @Override
+            public void handle(long now) {
+                // 两张图都向左移动
+                bg1.setTranslateX(bg1.getTranslateX() - speed);
+                bg2.setTranslateX(bg2.getTranslateX() - speed);
+
+                // 检查第一张图是否完全移出左边界
+                if (bg1.getTranslateX() <= -sceneWidth) {
+                    // 把它“传送”到第二张图的右边
+                    bg1.setTranslateX(bg2.getTranslateX() + sceneWidth);
+                }
+
+                // 检查第二张图是否完全移出左边界
+                if (bg2.getTranslateX() <= -sceneWidth) {
+                    // 把它“传送”到第一张图的右边
+                    bg2.setTranslateX(bg1.getTranslateX() + sceneWidth);
+                }
+            }
+        };
+        backgroundScroller.start();
     }
     private void setupEventHandlers() {
         FXGL.getEventBus().addEventHandler(RoomUpdateEvent.ANY, this::onRoomUpdate);
@@ -614,7 +654,7 @@ public class RoomController implements Initializable {
                 // 请求成功后，我们什么都不用做，只需等待 NetworkManager 接收 WebSocket 广播即可
             } catch (Exception e) {
                 Platform.runLater(() -> {
-                    FXGL.getDialogService().showMessageBox("开始游戏失败: " + e.getMessage());
+                    DialogManager.showMessage("开始游戏失败", e.getMessage());
                     startGameButton.setDisable(false);
                 });
                 e.printStackTrace();

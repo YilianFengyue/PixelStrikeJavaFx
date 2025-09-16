@@ -1,5 +1,6 @@
 package org.csu.pixelstrikejavafx.lobby.ui;
 
+import javafx.animation.AnimationTimer;
 import javafx.application.Platform;
 import javafx.fxml.FXML;
 import javafx.scene.control.Button;
@@ -33,7 +34,10 @@ public class LoginController {
     private Button loginButton;
 
     @FXML
-    private ImageView backgroundImageView;
+    private ImageView bg1;
+    @FXML
+    private ImageView bg2;
+    private AnimationTimer backgroundScroller;
 
     // 创建 ApiClient 实例，用于发起 HTTP 请求
     private final ApiClient apiClient = new ApiClient();
@@ -52,12 +56,46 @@ public class LoginController {
         // 加载背景图
         try {
             // 这行代码就是加载背景图的关键
-            Image bg = new Image(Objects.requireNonNull(getClass().getResourceAsStream("/assets/textures/background.png")));
+            Image bg = new Image(Objects.requireNonNull(getClass().getResourceAsStream("/assets/textures/Forest_background_4.png")));
 
-            backgroundImageView.setImage(bg);
+            bg1.setImage(bg);
+            bg2.setImage(bg);
+            startBackgroundAnimation();
         } catch (Exception e) {
             System.err.println("登录页背景图加载失败: " + e.getMessage());
         }
+    }
+    private void startBackgroundAnimation() {
+        double speed = 0.5; // 控制滚动的速度，可以调整
+        double sceneWidth = 1920.0; // 您的场景宽度
+
+        // 初始时，让第二张图紧跟在第一张图的右边
+        bg2.setTranslateX(sceneWidth);
+
+        // 创建一个动画计时器，它会在每一帧被调用
+        backgroundScroller = new AnimationTimer() {
+            @Override
+            public void handle(long now) {
+                // 两张图都向左移动
+                bg1.setTranslateX(bg1.getTranslateX() - speed);
+                bg2.setTranslateX(bg2.getTranslateX() - speed);
+
+                // 检查第一张图是否完全移出左边界
+                if (bg1.getTranslateX() <= -sceneWidth) {
+                    // 把它“传送”到第二张图的右边
+                    bg1.setTranslateX(bg2.getTranslateX() + sceneWidth);
+                }
+
+                // 检查第二张图是否完全移出左边界
+                if (bg2.getTranslateX() <= -sceneWidth) {
+                    // 把它“传送”到第一张图的右边
+                    bg2.setTranslateX(bg1.getTranslateX() + sceneWidth);
+                }
+            }
+        };
+
+        // 启动动画
+        backgroundScroller.start();
     }
 
     @FXML

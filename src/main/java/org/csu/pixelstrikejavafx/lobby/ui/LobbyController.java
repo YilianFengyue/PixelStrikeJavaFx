@@ -73,6 +73,12 @@ public class LobbyController implements Initializable {
     @FXML private VBox friendsPanel;
     @FXML private StackPane toggleFriendsButton;
     @FXML private Button changeNicknameButton;
+    @FXML
+    private ImageView bg1;
+    @FXML
+    private ImageView bg2;
+
+    private AnimationTimer backgroundScroller;
     private final Set<Long> friendIds = new HashSet<>();
 
     private final ApiClient apiClient = new ApiClient();
@@ -94,8 +100,11 @@ public class LobbyController implements Initializable {
         URL cssUrl = getClass().getResource("/assets/css/lobby-style.css");
         System.out.println("DEBUG: 尝试查找 lobby-style.css, 找到的路径是 -> " + cssUrl);
         try {
-            Image bg = new Image(Objects.requireNonNull(getClass().getResourceAsStream("/assets/textures/background.png")));
-            backgroundImageView.setImage(bg);
+            Image bg = new Image(Objects.requireNonNull(getClass().getResourceAsStream("/assets/textures/Hallow_background_1.png")));
+
+            bg1.setImage(bg);
+            bg2.setImage(bg);
+            startBackgroundAnimation();
         } catch (Exception e) {
             System.err.println("大厅背景图加载失败: " + e.getMessage());
         }
@@ -220,6 +229,7 @@ public class LobbyController implements Initializable {
         }
     }
 
+
     // 在 LobbyController.java 的任何地方添加这个新方法
     @FXML
     private void logButtonPositionOnPressed() {
@@ -232,6 +242,8 @@ public class LobbyController implements Initializable {
             System.out.println(String.format("--- 点击时 --- 按钮在屏幕上的坐标: X=%.2f, Y=%.2f", screenCoords.getX(), screenCoords.getY()));
         });
     }
+
+
     /**
      * 处理点击“取消匹配”按钮的事件
      */
@@ -459,6 +471,7 @@ public class LobbyController implements Initializable {
                                 apiClient.createRoom(String.valueOf(mapId));
                                 Platform.runLater(() -> {
                                     System.out.println("房间创建成功，正在进入...");
+                                    UIManager.showMessageOnNextScreen("房间创建成功！");
                                     UIManager.load("room-view.fxml");
                                 });
                             } catch (Exception e) {
@@ -1231,6 +1244,39 @@ public class LobbyController implements Initializable {
                 }
             }
         });
+    }
+
+    private void startBackgroundAnimation() {
+        double speed = 0.5; // 控制滚动的速度，可以调整
+        double sceneWidth = 1920.0; // 您的场景宽度
+
+        // 初始时，让第二张图紧跟在第一张图的右边
+        bg2.setTranslateX(sceneWidth);
+
+        // 创建一个动画计时器，它会在每一帧被调用
+        backgroundScroller = new AnimationTimer() {
+            @Override
+            public void handle(long now) {
+                // 两张图都向左移动
+                bg1.setTranslateX(bg1.getTranslateX() - speed);
+                bg2.setTranslateX(bg2.getTranslateX() - speed);
+
+                // 检查第一张图是否完全移出左边界
+                if (bg1.getTranslateX() <= -sceneWidth) {
+                    // 把它“传送”到第二张图的右边
+                    bg1.setTranslateX(bg2.getTranslateX() + sceneWidth);
+                }
+
+                // 检查第二张图是否完全移出左边界
+                if (bg2.getTranslateX() <= -sceneWidth) {
+                    // 把它“传送”到第一张图的右边
+                    bg2.setTranslateX(bg1.getTranslateX() + sceneWidth);
+                }
+            }
+        };
+
+        // 启动动画
+        backgroundScroller.start();
     }
 
 

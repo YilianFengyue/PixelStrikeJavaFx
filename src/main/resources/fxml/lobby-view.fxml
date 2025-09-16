@@ -11,7 +11,8 @@
            fx:controller="org.csu.pixelstrikejavafx.lobby.ui.LobbyController"
            stylesheets="/assets/css/lobby-style.css">
 
-    <ImageView fx:id="backgroundImageView" fitHeight="1080.0" fitWidth="1920.0" pickOnBounds="true" preserveRatio="false"/>
+    <ImageView fx:id="bg1" fitHeight="1080.0" fitWidth="1920.0" pickOnBounds="true" preserveRatio="false"/>
+    <ImageView fx:id="bg2" fitHeight="1080.0" fitWidth="1920.0" pickOnBounds="true" preserveRatio="false"/>
 
     <AnchorPane>
         <VBox styleClass="center-panel" AnchorPane.topAnchor="50.0" AnchorPane.leftAnchor="0" AnchorPane.rightAnchor="0">

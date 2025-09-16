@@ -387,8 +387,8 @@ public class DialogManager {
 
         // 4. 将通知栏添加到场景并播放入场动画
         activeRoot.getChildren().add(notificationPane);
-        StackPane.setAlignment(notificationPane, Pos.BOTTOM_CENTER);
-        StackPane.setMargin(notificationPane, new Insets(0, 0, 50, 0));
+        StackPane.setAlignment(notificationPane, Pos.CENTER); // 从 BOTTOM_CENTER 改为 CENTER
+        StackPane.setMargin(notificationPane, new Insets(250, 0, 250, 0));
 
         notificationPane.setOpacity(0);
         notificationPane.setTranslateY(50); // 从下方滑入
