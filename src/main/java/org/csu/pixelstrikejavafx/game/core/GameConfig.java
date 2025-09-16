@@ -1,5 +1,7 @@
 package org.csu.pixelstrikejavafx.game.core;
 
+import org.csu.pixelstrikejavafx.game.player.AnimationData;
+import org.csu.pixelstrikejavafx.game.player.CharacterAnimationSet;
 import org.csu.pixelstrikejavafx.game.weapon.WeaponStats;
 
 /** 集中配置信息，后续只改这里 */
@@ -77,6 +79,79 @@ public final class GameConfig {
                 0.0, 0.0, 0.0,
                 0.0, 0.0, 0.0,
                 0.0, 0.0
+        );
+    }
+
+    public static final class Animations {
+        private static final int FRAME_W = 200;
+        private static final int FRAME_H = 200;
+
+        public static final CharacterAnimationSet ASH = new CharacterAnimationSet(
+                new AnimationData("characters/ash/ash_idle.png",
+                        81, 1.0, 0, 80),
+                new AnimationData("characters/ash/ash_walk.png",
+                        41, 0.6, 0, 40),
+                new AnimationData("characters/ash/ash_walk.png",
+                        41, 0.4, 0, 40),
+                new AnimationData("characters/ash/ash_attack.png",
+                        41, 0.1, 0, 12),
+                new AnimationData("characters/ash/ash_attack.png",
+                        41, 0.2, 14, 26),
+                new AnimationData("characters/ash/ash_attack.png",
+                        41, 0.2, 28, 29),
+                new AnimationData("characters/ash/ash_die.png",
+                        30, 0.3, 0, 29)
+        );
+
+        public static final CharacterAnimationSet SHU = new CharacterAnimationSet(
+                new AnimationData("characters/shu/shu_idle.png",
+                        101, 1.0, 0, 100), // 假设值
+                new AnimationData("characters/shu/shu_walk.png",
+                        101, 0.6, 0, 100), // 假设值
+                new AnimationData("characters/shu/shu_walk.png",
+                        101, 0.4, 0, 100), // 假设值
+                new AnimationData("characters/shu/shu_attack.png",
+                        37, 0.15, 0, 12),
+                new AnimationData("characters/shu/shu_attack.png",
+                        37, 0.25, 13, 24),
+                new AnimationData("characters/shu/shu_attack.png",
+                        37, 0.25, 19, 36),
+                new AnimationData("characters/shu/shu_die.png",
+                        30, 0.3, 0, 29) // 假设值
+        );
+
+        public static final CharacterAnimationSet ANGEL_NENG = new CharacterAnimationSet(
+                new AnimationData("characters/angel_neng/angel_neng_idle.png",
+                        63, 1.0, 0, 62), // 占位
+                new AnimationData("characters/angel_neng/angel_neng_walk.png",
+                        41, 0.6, 0, 40), // 占位
+                new AnimationData("characters/angel_neng/angel_neng_walk.png",
+                        41, 0.4, 0, 40), // 占位
+                new AnimationData("characters/angel_neng/angel_neng_attack.png",
+                31, 0.1, 0, 10),
+                new AnimationData("characters/angel_neng/angel_neng_attack.png",
+                31, 0.2, 5, 20),
+                new AnimationData("characters/angel_neng/angel_neng_attack.png",
+                31, 0.2, 19, 30),
+                new AnimationData("characters/angel_neng/angel_neng_die.png",
+                        30, 0.4, 0, 29)
+        );
+
+        public static final CharacterAnimationSet BLUEP_MARTHE = new CharacterAnimationSet(
+                new AnimationData("characters/bluep_marthe/bluep_marthe_idle.png",
+                        101, 1.2, 0, 100),
+                new AnimationData("characters/bluep_marthe/bluep_marthe_walk.png",
+                101, 0.7, 0, 100),
+                new AnimationData("characters/bluep_marthe/bluep_marthe_walk.png",
+                101, 0.7, 0, 100),
+                new AnimationData("characters/bluep_marthe/bluep_marthe_attack.png",
+                        31, 0.1, 0, 10),
+                new AnimationData("characters/bluep_marthe/bluep_marthe_attack.png",
+                        31, 0.2, 5, 20),
+                new AnimationData("characters/bluep_marthe/bluep_marthe_attack.png",
+                        31, 0.2, 19, 30),
+                new AnimationData("characters/bluep_marthe/bluep_marthe_die.png",
+                        30, 0.4, 0, 29)
         );
     }
 

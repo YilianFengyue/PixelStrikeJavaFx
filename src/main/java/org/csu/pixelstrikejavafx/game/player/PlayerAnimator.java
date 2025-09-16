@@ -6,6 +6,7 @@ import com.almasb.fxgl.texture.AnimatedTexture;
 import com.almasb.fxgl.texture.AnimationChannel;
 import javafx.scene.transform.Scale;
 import javafx.util.Duration;
+import org.csu.pixelstrikejavafx.game.core.GameConfig;
 
 import static com.almasb.fxgl.dsl.FXGL.image;
 import static org.csu.pixelstrikejavafx.game.player.RemoteAvatar.getCharacterString;
@@ -32,12 +33,22 @@ public class PlayerAnimator {
     private String currentAnimationName = "";
     private boolean animationLoaded = false;
     private final String characterName;
+    private CharacterAnimationSet animSet;
 
     private Scale flip;   // 新增：专门控制朝向的变换
 
     public PlayerAnimator(Player player, int characterId) {
         this.player = player;
-        this.characterName = getCharacterFolderName(characterId);
+        switch (characterId) {
+            case 2: this.animSet = GameConfig.Animations.SHU; break;
+            case 3: this.animSet = GameConfig.Animations.ANGEL_NENG; break;
+            case 4: this.animSet = GameConfig.Animations.BLUEP_MARTHE; break;
+            case 1:
+            default:
+                this.animSet = GameConfig.Animations.ASH; break;
+        }
+
+        this.characterName = getCharacterFolderName(characterId); // 这行保留，用于日志
         setupAnimations();
     }
 
@@ -47,45 +58,16 @@ public class PlayerAnimator {
 
     private void setupAnimations() {
         try {
-            idleAnimation = new AnimationChannel(
-                    image("characters/" + characterName + "/" + characterName + "_idle.png"), 15, 200, 200,
-                    Duration.seconds(2.0), 0, 14
-            );
-
-            walkAnimation = new AnimationChannel(
-                    image("characters/" + characterName + "/" + characterName + "_walk.png"), 14, 200, 200,
-                    Duration.seconds(1.2), 0, 13
-            );
-
-            runAnimation = new AnimationChannel(
-                    image("characters/" + characterName + "/" + characterName + "_walk.png"), 14, 200, 200,
-                    Duration.seconds(0.5), 0, 13
-            );
-
-            // --- 核心修复：移除多余的、硬编码的 'ash' 动画加载块 ---
-            // 之前的错误代码已被删除，现在所有角色的攻击和死亡动画都会从正确的动态路径加载。
-            attackBeginAnimation = new AnimationChannel(
-                    image("characters/" + characterName + "/" + characterName + "_attack.png"), 21, 200, 200,
-                    Duration.seconds(0.2), 0, 3
-            );
-            attackIdleAnimation = new AnimationChannel(
-                    image("characters/" + characterName + "/" + characterName + "_attack.png"), 21, 200, 200,
-                    Duration.seconds(0.45), 4, 12
-            );
-            attackEndAnimation = new AnimationChannel(
-                    image("characters/" + characterName + "/" + characterName + "_attack.png"), 21, 200, 200,
-                    Duration.seconds(0.4), 13, 20
-            );
-
-            dieAnimation = new AnimationChannel(
-                    image("characters/" + characterName + "/" + characterName + "_die.png"), 8, 200, 200,
-                    Duration.seconds(1.5), 0, 7
-            );
-
+            idleAnimation = createChannel(animSet.idle);
+            walkAnimation = createChannel(animSet.walk);
+            runAnimation = createChannel(animSet.run);
+            attackBeginAnimation = createChannel(animSet.attackBegin);
+            attackIdleAnimation = createChannel(animSet.attackIdle);
+            attackEndAnimation = createChannel(animSet.attackEnd);
+            dieAnimation = createChannel(animSet.die);
             // 创建动画贴图，默认idle
             animatedTexture = new AnimatedTexture(idleAnimation);
             animatedTexture.loop();
-            // ✅ 关键：以精灵中心为支点
             flip = new Scale(1, 1, 120, 100); // 200x200 -> pivotX=100, pivotY=100
             animatedTexture.getTransforms().add(flip);
             currentAnimationName = "idle";
@@ -98,6 +80,17 @@ public class PlayerAnimator {
             // 如果任何一个动画文件缺失，这里可以设置回退到默认角色 'ash'
             animationLoaded = false;
         }
+    }
+    private AnimationChannel createChannel(AnimationData data) {
+        return new AnimationChannel(
+                image(data.imageFile),
+                data.frameCount,
+                200, // frame width
+                200, // frame height
+                data.duration,
+                data.startFrame,
+                data.endFrame
+        );
     }
 
     /**
@@ -181,7 +174,7 @@ public class PlayerAnimator {
                     if (player.getEntity() != null) {
                         player.getEntity().setVisible(false);
                     }
-                }, Duration.seconds(1.5)); // 延迟时间应与死亡动画时长匹配
+                }, animSet.die.duration);
                 break;
             default:
                 channel = idleAnimation;

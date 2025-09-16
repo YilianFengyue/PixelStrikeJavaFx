@@ -4,6 +4,7 @@ import com.almasb.fxgl.animation.AnimationBuilder;
 import com.almasb.fxgl.app.ApplicationMode;
 import com.almasb.fxgl.app.GameApplication;
 import com.almasb.fxgl.app.GameSettings;
+import com.almasb.fxgl.app.scene.Viewport;
 import com.almasb.fxgl.dsl.FXGL;
 import com.almasb.fxgl.dsl.components.ProjectileComponent;
 import com.almasb.fxgl.entity.Entity;
@@ -125,9 +126,7 @@ public class PixelGameApp extends GameApplication {
         getPhysicsWorld().clear();
 
         getPhysicsWorld().setGravity(0, 3200);
-        runOnce(() -> {
-            MapBuilder.buildLevel();
-        }, Duration.ZERO);
+        runOnce(MapBuilder::buildLevel, Duration.ZERO);
 
 
         int characterId = (GlobalState.selectedCharacterId != null) ? GlobalState.selectedCharacterId : 1;
@@ -516,6 +515,23 @@ public class PixelGameApp extends GameApplication {
                     }
                     // 对于远程玩家，目前我们不需要做任何视觉上的改变，
                     // 但未来可以在这里更新他们手中的武器模型。
+                }
+                case "player_bombed" -> {
+                    int userId = extractInt(json, "\"userId\":");
+                    // 找到被炸的玩家实体
+                    Entity targetEntity = null;
+                    if (networkService.getMyPlayerId() != null && userId == networkService.getMyPlayerId()) {
+                        targetEntity = playerManager.getLocalPlayer().getEntity();
+                    } else {
+                        RemotePlayer rp = playerManager.getRemotePlayers().get(userId);
+                        if (rp != null) {
+                            targetEntity = rp.entity;
+                        }
+                    }
+                    // 如果找到了实体，就播放屏幕震动效果
+                    if (targetEntity != null) {
+                        getGameScene().getViewport().shakeTranslational(7.0);
+                    }
                 }
                 case "pickup_notification" -> {
                     String pickerNickname = extractString(json, "\"pickerNickname\":\"");

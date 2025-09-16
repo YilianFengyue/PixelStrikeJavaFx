@@ -23,7 +23,7 @@ public final class CameraFollow {
     private Point2D cameraVelocity = Point2D.ZERO; // 追踪相机自身的速度
 
     // --- 视觉偏移与死区 (参数不变) ---
-    private double verticalOffset = 150.0;
+    private double verticalOffset = 100.0;
     private final double deadZoneWidth = 450.0;
     private final double deadZoneHeight = 300.0;
 
