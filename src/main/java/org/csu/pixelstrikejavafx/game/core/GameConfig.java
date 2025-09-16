@@ -21,7 +21,7 @@ public final class GameConfig {
     public static final int TILE = 64;
 
     // --- 资源名（你可以按需改） ---
-    public static final String BG_IMAGE = "background.png";  // 放 assets/textures
+    public static String BG_IMAGE = "background.png";  // 放 assets/textures
     public static final String GROUND_BASE = "ground_base.png";        // 可无→回退色块
     public static final String GROUND_EDGE = "ground_edge.png";        // 可无→回退色块
     public static final String G_BASE_STRIP = "ground_base.png";

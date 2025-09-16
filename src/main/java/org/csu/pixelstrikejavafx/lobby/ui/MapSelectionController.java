@@ -75,18 +75,41 @@ public class MapSelectionController {
         updateDisplay();
     }
 
+
     private void updateDisplay() {
         Map<String, Object> map = maps.get(currentIndex);
-        mapNameText.setText((String) map.get("name"));
+        String mapName = (String) map.get("name");
+        mapNameText.setText(mapName);
         mapDescriptionText.setText((String) map.get("description"));
 
-        Object urlObj = map.get("thumbnailUrl");
+
+        String imagePath;
+        switch (mapName) {
+            case "沙漠小镇":
+                imagePath = "/assets/textures/Desert_background_4.png";
+                break;
+            case "雪地哨站":
+                imagePath = "/assets/textures/Snow_biome_background_9.png";
+                break;
+            case "丛林遗迹":
+                imagePath = "/assets/textures/Jungle_background_2.png";
+                break;
+            default:
+                // 如果没有匹配的地图，则使用一张默认的背景图
+                imagePath = "/assets/textures/background.png";
+                break;
+        }
+
         Image image;
-        if (urlObj != null && !urlObj.toString().isEmpty()) {
-            image = new Image(urlObj.toString(), true);
-        } else {
+        try {
+            // 尝试从我们指定的本地路径加载图片
+            image = new Image(Objects.requireNonNull(getClass().getResourceAsStream(imagePath)));
+        } catch (Exception e) {
+            System.err.println("加载地图预览图失败: " + imagePath);
+            // 如果加载失败，加载一张最终的备用图片
             image = new Image(Objects.requireNonNull(getClass().getResourceAsStream("/assets/textures/background.png")));
         }
+
         mapImageView.setImage(image);
     }
 }
