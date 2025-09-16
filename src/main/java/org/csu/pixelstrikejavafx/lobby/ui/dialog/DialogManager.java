@@ -14,6 +14,9 @@ import javafx.scene.layout.HBox;
 import javafx.scene.layout.Pane;
 import javafx.scene.layout.StackPane;
 import javafx.scene.layout.VBox;
+import javafx.scene.paint.Color;
+import javafx.scene.text.Font;
+import javafx.scene.text.Text;
 import javafx.util.Duration;
 import org.controlsfx.control.PopOver;
 import org.csu.pixelstrikejavafx.lobby.ui.CharacterSelectionController;
@@ -397,5 +400,56 @@ public class DialogManager {
         ft.setToValue(1);
         tt.setToY(0);
         new ParallelTransition(ft, tt).play();
+    }
+
+    public static void showInGameNotification(String message) {
+        // 调用新方法，并传入一个默认的颜色
+        showInGameNotification(message, "rgba(0, 0, 0, 0.5)");
+    }
+
+    /**
+     * @param message 要显示的消息
+     * @param backgroundColor CSS格式的背景颜色字符串 (例如 "#27ae60", "rgba(40, 50, 60, 0.8)")
+     */
+    public static void showInGameNotification(String message, String backgroundColor) {
+        Pane activeRoot = getActiveRoot();
+        if (activeRoot == null) {
+            System.err.println("DialogManager Error: In-game notification failed, root pane is not set!");
+            return;
+        }
+
+        Text notificationText = new Text(message);
+        notificationText.setFont(Font.font("Press Start 2P", 18));
+        notificationText.setFill(Color.WHITE); // 文字颜色固定为白色
+        notificationText.setStroke(Color.BLACK);
+        notificationText.setStrokeWidth(1);
+
+        StackPane notificationPane = new StackPane(notificationText);
+
+        // --- ★ 核心修改：使用传入的颜色参数 ---
+        notificationPane.setStyle(
+                "-fx-background-color: " + backgroundColor + ";" +
+                        "-fx-background-radius: 8;"
+        );
+
+        notificationPane.setPadding(new Insets(10, 20, 10, 20));
+
+        activeRoot.getChildren().add(notificationPane);
+        StackPane.setAlignment(notificationPane, Pos.TOP_CENTER);
+
+        // (动画部分的代码保持不变)
+        notificationPane.setTranslateY(-100);
+        notificationPane.setOpacity(0);
+        TranslateTransition slideIn = new TranslateTransition(Duration.millis(400), notificationPane);
+        slideIn.setToY(120);
+        FadeTransition fadeIn = new FadeTransition(Duration.millis(400), notificationPane);
+        fadeIn.setToValue(1.0);
+        ParallelTransition entrance = new ParallelTransition(slideIn, fadeIn);
+        PauseTransition delay = new PauseTransition(Duration.seconds(2.5));
+        FadeTransition fadeOut = new FadeTransition(Duration.millis(500), notificationPane);
+        fadeOut.setToValue(0);
+        SequentialTransition sequence = new SequentialTransition(entrance, delay, fadeOut);
+        sequence.setOnFinished(event -> activeRoot.getChildren().remove(notificationPane));
+        sequence.play();
     }
 }

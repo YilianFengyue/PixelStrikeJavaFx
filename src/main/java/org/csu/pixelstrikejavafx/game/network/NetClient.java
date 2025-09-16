@@ -12,6 +12,8 @@ public final class NetClient {
     private Runnable onOpen = () -> {};
     private String urlForLog = "";
 
+    private final StringBuilder messageBuilder = new StringBuilder();
+
     public void connect(String url, Runnable onOpen, Consumer<String> onMessage) {
         this.urlForLog = url;
         this.onOpen = onOpen;
@@ -31,9 +33,20 @@ public final class NetClient {
 
                     @Override
                     public CompletionStage<?> onText(WebSocket webSocket, CharSequence data, boolean last) {
-                        String s = data.toString();
-                        // System.out.println("[WS] << " + (s.length() > 160 ? s.substring(0,160)+"..." : s));
-                        onMessage.accept(s);
+                        // 1. 将收到的数据片段追加到缓冲区
+                        messageBuilder.append(data);
+
+                        // 2. 只有当这是最后一个片段时，才处理消息
+                        if (last) {
+                            String fullMessage = messageBuilder.toString();
+                            // System.out.println("[WS] << " + (fullMessage.length() > 160 ? fullMessage.substring(0,160)+"..." : fullMessage));
+                            onMessage.accept(fullMessage);
+
+                            // 3. 处理完毕后，清空缓冲区，为下一条消息做准备
+                            messageBuilder.setLength(0);
+                        }
+
+                        // 4. 请求下一条（或下一个）数据
                         webSocket.request(1);
                         return null;
                     }
@@ -87,7 +100,7 @@ public final class NetClient {
         sb.append(",\"ts\":").append(ts).append(",\"seq\":").append(seq).append("}");
         send(sb.toString());
     }
-    // [NEW] 本地射击上报（hitscan）
+    // 本地射击上报（hitscan）
     public void sendShot(double ox, double oy, double dx, double dy,
                          double range, int damage, long ts, long seq) {
         String j = String.format(java.util.Locale.US,

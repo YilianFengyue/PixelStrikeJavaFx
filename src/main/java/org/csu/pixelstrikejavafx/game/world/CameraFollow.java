@@ -28,8 +28,8 @@ public final class CameraFollow {
     private final double deadZoneHeight = 300.0;
 
     // --- 动态变焦参数 ---
-    private final double maxZoom = 0.80;
-    private final double minZoom = 0.70;
+    private final double maxZoom = 0.90;
+    private final double minZoom = 0.75;
     private final double zoomSmoothness = 0.04;
     private final double maxSpeedForZoom = 800.0;
 

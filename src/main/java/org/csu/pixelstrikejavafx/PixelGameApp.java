@@ -10,11 +10,17 @@ import com.almasb.fxgl.entity.Entity;
 import com.almasb.fxgl.entity.components.CollidableComponent;
 import com.almasb.fxgl.input.UserAction;
 import com.almasb.fxgl.physics.CollisionHandler;
+import com.google.gson.Gson;
+import com.google.gson.JsonArray;
+import com.google.gson.JsonObject;
+import com.google.gson.JsonParser;
+import com.google.gson.reflect.TypeToken;
 import javafx.application.Platform;
+import javafx.geometry.Insets;
 import javafx.geometry.Point2D;
+import javafx.geometry.Pos;
 import javafx.scene.input.KeyCode;
-import javafx.scene.layout.Region;
-import javafx.scene.layout.StackPane;
+import javafx.scene.layout.*;
 import javafx.scene.paint.Color;
 import javafx.scene.shape.Line;
 import javafx.scene.shape.Rectangle;
@@ -41,6 +47,10 @@ import org.csu.pixelstrikejavafx.lobby.ui.UIManager;
 import org.csu.pixelstrikejavafx.game.player.component.BulletComponent;
 import org.csu.pixelstrikejavafx.lobby.ui.dialog.DialogManager;
 
+import java.lang.reflect.Type;
+import java.util.ArrayList;
+import java.util.List;
+import java.util.Map;
 import java.util.concurrent.ThreadLocalRandom;
 
 import static com.almasb.fxgl.dsl.FXGL.*;
@@ -57,6 +67,12 @@ public class PixelGameApp extends GameApplication {
     // 定时发送器
     private double sendTimer = 0;
     private static final double SEND_INTERVAL = 1.0 / 60.0;
+
+    // 用于显示倒计时的UI组件和变量
+    private Text gameTimerText;
+    private int gameTimeRemainingSeconds = 0;
+    private GridPane scoreboardGrid;
+    private List<Map<String, Object>> currentScoreboardData = new ArrayList<>();
 
     // 远程玩家内部类定义保持不变，设为 public 以便 PlayerManager 访问
     public static class RemotePlayer {
@@ -201,54 +217,77 @@ public class PixelGameApp extends GameApplication {
                 if (localPlayer != null) localPlayer.stopShooting();
             }
         }, KeyCode.J);
-
-
-
-        /*
-        getInput().addAction(new UserAction("Next Weapon") {
-            @Override
-            protected void onActionBegin() {
-                Player localPlayer = playerManager.getLocalPlayer();
-                if (localPlayer != null) {
-                    localPlayer.getShootingSys().nextWeapon();
-                }
-            }
-        }, KeyCode.Q); // 按 Q 切换武器
-        */        // 现在武器只能从场上获取
     }
 
     @Override
     protected void initUI() {
         Platform.runLater(() -> {
-        getGameScene().clearUINodes();
+            getGameScene().clearUINodes();
 
-        hud = new PlayerHUD( UIManager.loadAvatar(GlobalState.avatarUrl), null,
-                () -> { if (playerManager.getLocalPlayer() != null) playerManager.getLocalPlayer().die(); },
-                () -> { if (playerManager.getLocalPlayer() != null) playerManager.getLocalPlayer().revive(); },
-                null
-        );
+            hud = new PlayerHUD(
+                    UIManager.loadAvatar(GlobalState.avatarUrl),
+                    GlobalState.nickname
+            );
+            // (这段代码保持不变)
+            Region uiRoot = getGameScene().getRoot();
+            hud.getRoot().prefWidthProperty().bind(uiRoot.widthProperty());
+            hud.getRoot().prefHeightProperty().bind(uiRoot.heightProperty());
+            getGameScene().addUINode(hud.getRoot());
 
-        Region uiRoot = getGameScene().getRoot();
-        hud.getRoot().prefWidthProperty().bind(uiRoot.widthProperty());
-        hud.getRoot().prefHeightProperty().bind(uiRoot.heightProperty());
-        getGameScene().addUINode(hud.getRoot());
+            AnchorPane topBar = new AnchorPane();
+            topBar.setPrefWidth(getAppWidth());
 
-        var backButton = new com.almasb.fxgl.ui.FXGLButton("返回大厅");
+            // 2. 初始化游戏计时器
+            gameTimerText = new Text("5:00");
+            gameTimerText.setFont(Font.font("Press Start 2P", 36));
+            gameTimerText.setFill(Color.WHITE);
+            gameTimerText.setStroke(Color.BLACK);
+            gameTimerText.setStrokeWidth(1.5);
+
+            // 3. 初始化排行榜GridPane
+            scoreboardGrid = new GridPane();
+            scoreboardGrid.setAlignment(Pos.CENTER_RIGHT);
+            scoreboardGrid.setHgap(15);
+            scoreboardGrid.setVgap(5);
+
+            // 4. 将计时器和排行榜都放入 AnchorPane 并精确定位
+            VBox timerContainer = new VBox(gameTimerText);
+            timerContainer.setAlignment(Pos.CENTER);
+            timerContainer.setPadding(new Insets(10, 0, 10, 0));
+            timerContainer.setStyle("-fx-background-color: rgba(0, 0, 0, 0.4); -fx-background-radius: 0 0 10 10;");
+
+            VBox scoreboardContainer = new VBox(scoreboardGrid);
+            scoreboardContainer.setAlignment(Pos.CENTER_RIGHT);
+            scoreboardContainer.setPadding(new Insets(10, 20, 10, 20));
+            scoreboardContainer.setStyle("-fx-background-color: rgba(0, 0, 0, 0.4); -fx-background-radius: 0 0 10 10;");
+
+            topBar.getChildren().addAll(timerContainer, scoreboardContainer);
+
+            // 定位计时器 (水平居中)
+            AnchorPane.setTopAnchor(timerContainer, 0.0);
+            AnchorPane.setLeftAnchor(timerContainer, (getAppWidth() / 2.0) - 100);
+            AnchorPane.setRightAnchor(timerContainer, (getAppWidth() / 2.0) - 100);
+
+            // 定位排行榜 (靠右)
+            AnchorPane.setTopAnchor(scoreboardContainer, 0.0);
+            AnchorPane.setRightAnchor(scoreboardContainer, 150.0);
+
+            addUINode(topBar);
+
+            // --- 返回和全屏按钮的逻辑保持不变 ---
+            var backButton = new com.almasb.fxgl.ui.FXGLButton("返回大厅");
             var fullscreenButton = new com.almasb.fxgl.ui.FXGLButton("切换全屏");
-            fullscreenButton.setOnAction(e -> {
-                javafx.stage.Stage primaryStage = com.almasb.fxgl.dsl.FXGL.getPrimaryStage();
-                primaryStage.setFullScreen(!primaryStage.isFullScreen());
+            fullscreenButton.setOnAction(e -> FXGL.getPrimaryStage().setFullScreen(!FXGL.getPrimaryStage().isFullScreen()));
+            addUINode(fullscreenButton, 150, 80); // 往下移动一点，避免和TopBar重叠
+            backButton.setOnAction(e -> {
+                networkService.sendLeaveMessage();
+                MusicManager.getInstance().playMenuMusic();
+                getGameController().gotoMainMenu();
             });
-            // 将按钮放置在“返回大厅”按钮的下方
-            addUINode(fullscreenButton, 20, 60);
-        backButton.setOnAction(e -> {
-            networkService.sendLeaveMessage();
-            MusicManager.getInstance().playMenuMusic();
-            getGameController().gotoMainMenu();
-        });
-        addUINode(backButton, 20, 20);
+            addUINode(backButton, 150, 40); // 往下移动一点
         });
     }
+
 
     @Override
     protected void onUpdate(double tpf) {
@@ -265,7 +304,14 @@ public class PixelGameApp extends GameApplication {
 
         pumpNetwork(tpf);
         updateRemotePlayers(tpf);
+
+        if (gameTimerText != null) {
+            int minutes = gameTimeRemainingSeconds / 60;
+            int seconds = gameTimeRemainingSeconds % 60;
+            gameTimerText.setText(String.format("%d:%02d", minutes, seconds));
+        }
     }
+
 
     private void pumpNetwork(double tpf) {
         sendTimer += tpf;
@@ -457,7 +503,7 @@ public class PixelGameApp extends GameApplication {
                     if (networkService.getMyPlayerId() != null && userId == networkService.getMyPlayerId()) {
                         // 如果是本地玩家，调用切换武器的方法
                         playerManager.getLocalPlayer().getShootingSys().equipWeapon(weaponType);
-                        FXGL.getNotificationService().pushNotification("装备了 " + weaponType);
+                        DialogManager.showInGameNotification("装备了 " + weaponType, "rgba(52, 152, 219, 0.8)");
                     }
                     // 对于远程玩家，目前我们不需要做任何视觉上的改变，
                     // 但未来可以在这里更新他们手中的武器模型。
@@ -465,9 +511,7 @@ public class PixelGameApp extends GameApplication {
                 case "pickup_notification" -> {
                     String pickerNickname = extractString(json, "\"pickerNickname\":\"");
                     String itemType = extractString(json, "\"itemType\":\"");
-
-                    // 为所有玩家显示通知
-                    FXGL.getNotificationService().pushNotification(pickerNickname + " 拾取了 " + itemType + "!");
+                    DialogManager.showInGameNotification(pickerNickname + " 拾取了 " + itemType + "!", "rgba(39, 174, 96, 0.8)");
                 }
                 case "player_poisoned" -> {
                     int userId = extractInt(json, "\"userId\":");
@@ -477,12 +521,72 @@ public class PixelGameApp extends GameApplication {
                         // 为本地玩家添加中毒组件
                         playerManager.getLocalPlayer().getEntity().addComponent(new PoisonedComponent(duration));
                     }
+
+                }
+                case "scoreboard_update" -> {
+                    JsonObject scoreboardMsg = JsonParser.parseString(json).getAsJsonObject();
+                    if (scoreboardMsg.has("gameTimeRemainingSeconds")) {
+                        this.gameTimeRemainingSeconds = scoreboardMsg.get("gameTimeRemainingSeconds").getAsInt();
+                    }
+                    JsonArray scoresArray = scoreboardMsg.getAsJsonArray("scores");
+                    // 使用Gson将JsonArray解析为List<Map<String, Object>>
+                    Type listType = new TypeToken<List<Map<String, Object>>>() {}.getType();
+                    currentScoreboardData = new Gson().fromJson(scoresArray, listType);
+                    updateScoreboardUI(); // 收到新数据后立即更新UI
                 }
             }
         } catch (Exception e) {
             System.err.println("handleServerMessage error: " + e.getMessage());
             e.printStackTrace();
         }
+    }
+
+    private void updateScoreboardUI() {
+        Platform.runLater(() -> {
+            if (scoreboardGrid == null) return;
+            scoreboardGrid.getChildren().clear(); // 清空旧的战绩
+
+            // 创建表头
+            Text headerNickname = new Text("玩家");
+            Text headerKills = new Text("击杀");
+            Text headerDeaths = new Text("死亡");
+
+            for (Text header : List.of(headerNickname, headerKills, headerDeaths)) {
+                header.setFill(Color.GOLD);
+                header.setStyle("-fx-font-family: 'Press Start 2P'; -fx-font-size: 14px;");
+            }
+            scoreboardGrid.add(headerNickname, 0, 0);
+            scoreboardGrid.add(headerKills, 1, 0);
+            scoreboardGrid.add(headerDeaths, 2, 0);
+
+            // 根据新数据创建每一行
+            int rowIndex = 1;
+            for (Map<String, Object> playerData : currentScoreboardData) {
+                String nickname = (String) playerData.get("nickname");
+                int kills = ((Number) playerData.get("kills")).intValue();
+                int deaths = ((Number) playerData.get("deaths")).intValue();
+
+                Text nicknameText = new Text(nickname);
+                Text killsText = new Text(String.valueOf(kills));
+                Text deathsText = new Text(String.valueOf(deaths));
+
+                // 统一设置样式
+                for (Text text : List.of(nicknameText, killsText, deathsText)) {
+                    text.setStyle("-fx-font-family: 'Courier New'; -fx-font-size: 16px;");
+                    // 如果是当前玩家，则高亮显示
+                    if (networkService.getMyPlayerId() != null && ((Number)playerData.get("id")).intValue() == networkService.getMyPlayerId()) {
+                        text.setFill(Color.AQUAMARINE);
+                    } else {
+                        text.setFill(Color.WHITE);
+                    }
+                }
+
+                scoreboardGrid.add(nicknameText, 0, rowIndex);
+                scoreboardGrid.add(killsText, 1, rowIndex);
+                scoreboardGrid.add(deathsText, 2, rowIndex);
+                rowIndex++;
+            }
+        });
     }
 
     private void spawnSupplyDrop(long dropId, String dropType, double x, double y) {
@@ -753,6 +857,11 @@ public class PixelGameApp extends GameApplication {
         long t = extractLong(json, "\"serverTime\":");
         if (t == 0L) t = extractLong(json, "\"srvTS\":");
         return t;
+    }
+
+    private void centerText(Text text, double x, double y) {
+        text.setX(x - text.getLayoutBounds().getWidth() / 2);
+        text.setY(y);
     }
 
     public static void main(String[] args) {
