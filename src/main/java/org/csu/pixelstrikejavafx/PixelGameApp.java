@@ -133,43 +133,33 @@ public class PixelGameApp extends GameApplication {
             String mapToBuild = GlobalState.selectedMapName;
             System.out.println("Building level: " + mapToBuild);
             MapBuilder.buildLevel(mapToBuild);
+
+            int characterId = (GlobalState.selectedCharacterId != null) ? GlobalState.selectedCharacterId : 1;
+            Player localPlayer = playerManager.createLocalPlayer(networkService, characterId);
+
+            if (GlobalState.characterSelections != null) {
+                playerManager.setCharacterSelections(GlobalState.characterSelections);
+            }
+
+            var vp = getGameScene().getViewport();
+            double zoom = 0.85;
+            vp.setZoom(zoom);
+            double zoomedViewWidth = getAppWidth() / zoom;
+            double zoomedViewHeight = getAppHeight() / zoom;
+            vp.setBounds(0, 0, (int)(GameConfig.MAP_W - zoomedViewWidth), (int)(GameConfig.MAP_H - zoomedViewHeight));
+            cameraFollow = new CameraFollow(vp, GameConfig.MAP_W, GameConfig.MAP_H, zoomedViewWidth, zoomedViewHeight, getAppWidth(), getAppHeight());
+            cameraFollow.setTarget(localPlayer.getEntity());
+            setupCollisionHandlers();
+            MusicManager.getInstance().playInGameMusic();
+            networkService.connect();
         }, Duration.ZERO);
 
-
-        int characterId = (GlobalState.selectedCharacterId != null) ? GlobalState.selectedCharacterId : 1;
-        Player localPlayer = playerManager.createLocalPlayer(networkService, characterId);
-
-        // 将完整的角色选择信息传递给 PlayerManager
-        if (GlobalState.characterSelections != null) {
-            playerManager.setCharacterSelections(GlobalState.characterSelections);
-        }
-        var vp = getGameScene().getViewport();
-        double zoom = 0.85;
-        vp.setZoom(zoom);
-
-        // 计算缩放后的实际视口宽高
-        double zoomedViewWidth = getAppWidth() / zoom;
-        double zoomedViewHeight = getAppHeight() / zoom;
-
-        // 使用缩放后的尺寸来设置边界 (这行依然重要，用于物理世界的边界)
-        vp.setBounds(0, 0, (int)(GameConfig.MAP_W - zoomedViewWidth), (int)(GameConfig.MAP_H - zoomedViewHeight));
-
-        // 将原始窗口尺寸 getAppWidth() 和 getAppHeight() 传递给 CameraFollow
-        cameraFollow = new CameraFollow(vp, GameConfig.MAP_W, GameConfig.MAP_H, zoomedViewWidth, zoomedViewHeight, getAppWidth(), getAppHeight());
-
-        cameraFollow.setTarget(localPlayer.getEntity());
-        setupCollisionHandlers();
-
-        MusicManager.getInstance().playInGameMusic();
-
-        // 连接到服务器
-        networkService.connect();
     }
 
     @Override
     protected void initInput() {
 
-            // 【修改这里的 ESCAPE 键绑定】
+        // 【修改这里的 ESCAPE 键绑定】
         onKey(KeyCode.ESCAPE, "退出游戏", () -> {
             // 【修改】弹出确认对话框
             DialogManager.showConfirmation("确认退出", "您确定要退出游戏吗？", () -> {
