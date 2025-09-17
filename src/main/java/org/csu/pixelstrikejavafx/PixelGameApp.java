@@ -699,16 +699,21 @@ public class PixelGameApp extends GameApplication {
                 setGround.accept(playerEntity, true);
 
                 // 检查平台是否有特殊功能
-                if (platform.hasComponent(BouncyComponent.class)) {
+                if (playerEntity.getProperties().exists("playerRef")) {
+                    // 【关键修改】从实体获取玩家引用
                     Object ref = playerEntity.getProperties().getObject("playerRef");
                     if (ref instanceof Player p) {
-                        double bounceVel = platform.getComponent(BouncyComponent.class).getBounceVelocity();
-                        p.getPhysics().setVelocityY(-bounceVel);
-                        play("bouncy_platform.wav");
+                        // 确保只有本地玩家的碰撞才处理反弹逻辑，因为远程玩家的状态由服务器控制
+                        if (p == playerManager.getLocalPlayer()) {
+                            if (platform.hasComponent(BouncyComponent.class)) {
+                                double bounceVel = platform.getComponent(BouncyComponent.class).getBounceVelocity();
+                                p.getPhysics().setVelocityY(-bounceVel);
+                            }
+                            if (platform.hasComponent(FragileComponent.class)) {
+                                platform.getComponent(FragileComponent.class).trigger();
+                            }
+                        }
                     }
-                }
-                if (platform.hasComponent(FragileComponent.class)) {
-                    platform.getComponent(FragileComponent.class).trigger();
                 }
             }
 

@@ -6,7 +6,7 @@ package org.csu.pixelstrikejavafx.game.player;
  */
 public class PlayerHealth {
 
-    private static final int MAX_HP = 100;
+    private static final int MAX_HP = 300;
 
     private final Player owner;
     private int hp = MAX_HP;
