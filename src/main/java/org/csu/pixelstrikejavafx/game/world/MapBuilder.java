@@ -27,6 +27,7 @@ public final class MapBuilder {
     private static double ipx(double v) { return Math.round(v); }
 
     public static void buildLevel(String mapName) {
+        buildBoundaryWalls();
         if (mapName == null || mapName.isEmpty()) {
             buildDefaultMap();
             return;
@@ -236,6 +237,29 @@ public final class MapBuilder {
                 .with(phy)
                 .zIndex(-100)
                 .buildAndAttach();
+    }
+
+    private static void buildBoundaryWalls() {
+        // 创建一个非常厚的墙体实体，但没有视觉组件，所以是看不见的
+
+        // 左边界
+        entityBuilder()
+                .type(GameType.WALL) // 使用 WALL 类型
+                .at(-100, 0) // 放置在地图左侧外部
+                .viewWithBBox(new Rectangle(100, GameConfig.MAP_H)) // 100像素厚，地图一样高
+                .with(new CollidableComponent(true))
+                .with(new PhysicsComponent()) // 默认就是静态的
+                .buildAndAttach();
+
+        // 右边界
+        entityBuilder()
+                .type(GameType.WALL)
+                .at(GameConfig.MAP_W, 0) // 放置在地图右侧外部
+                .viewWithBBox(new Rectangle(100, GameConfig.MAP_H))
+                .with(new CollidableComponent(true))
+                .with(new PhysicsComponent())
+                .buildAndAttach();
+
     }
 
 
